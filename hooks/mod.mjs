@@ -1,9 +1,10 @@
 // session-board mod (Claude Code v2.1.287+): draws the board inside the terminal.
-//  · a status line under the prompt — "3 waiting · 5 working · 2 review", refreshed every 20 s
-//  · /board — prints the whole board at once, with no Claude turn (runs even while Claude works)
+//  · a status line under the prompt — "2 for you · 3 in progress · 5 to do", refreshed every 20 s
+//  · /board — prints the whole ticket board at once, with no Claude turn (runs even while Claude works)
 // Older Claude Code versions ignore this file; the settings hooks in hooks.json still report,
 // and /session-board:board still prints the board through Claude.
-import { buildBoard, renderText, statusText } from '../lib/core.mjs'
+// Mods cannot open SQLite: in local mode the hooks keep ~/.claude/session-board/summary.json fresh.
+import { renderText, renderTicketsText, statusText, ticketStatusText } from '../lib/core.mjs'
 
 const REFRESH_MS = 20_000
 let lastStatus
@@ -17,7 +18,7 @@ export function register(on, options) {
     try {
       await $.command.register({
         name: 'board',
-        description: 'Show every Claude Code session: waiting on you, in progress, ready for review',
+        description: 'Show the ticket board of every Claude Code session: waiting on you, in progress, to do',
         immediate: true,
       })
     } catch {}
@@ -26,8 +27,7 @@ export function register(on, options) {
 
   on('command.run', { command: 'board' }, async ($, e) => {
     try {
-      const board = await loadBoard($, options)
-      return { text: '\n' + renderText(board) }
+      return { text: '\n' + (await boardText($, options)) }
     } catch (err) {
       return { text: 'board unavailable: ' + (err && err.message ? err.message : String(err)) }
     }
@@ -37,8 +37,7 @@ export function register(on, options) {
 async function refreshStatus($, options) {
   let text
   try {
-    const board = await loadBoard($, options)
-    text = statusText(board.counts) || undefined
+    text = await statusFor($, options)
   } catch {
     text = 'board offline'
   }
@@ -47,11 +46,11 @@ async function refreshStatus($, options) {
   $.ui.status(text)
 }
 
-async function readConfig($, dir) {
+async function readJson($, path) {
   try {
-    return JSON.parse(await $.fs.read(dir + '/config.json'))
+    return JSON.parse(await $.fs.read(path))
   } catch {
-    return {}
+    return null
   }
 }
 
@@ -62,29 +61,42 @@ async function localDir($) {
   return home + '/.claude/session-board'
 }
 
-async function loadBoard($, options) {
+async function remote($, options) {
   const dir = await localDir($)
-  const file = await readConfig($, dir)
+  const file = (await readJson($, dir + '/config.json')) || {}
   const opts = options || {}
   const url = ((await $.env.get('SESSION_BOARD_URL')) || opts.server_url || file.url || '').trim().replace(/\/+$/, '')
   const token = ((await $.env.get('SESSION_BOARD_TOKEN')) || opts.token || file.token || '').trim()
-  if (url && token) {
-    const headers = token === 'proxy' ? {} : { authorization: 'Bearer ' + token }
-    const res = await $.http.fetch(url + '/api/board', { headers })
-    if (!res.ok) throw new Error('HTTP ' + res.status)
-    return JSON.parse(res.text)
+  return { dir, url, token, on: Boolean(url && token) }
+}
+
+async function get($, cfg, path) {
+  const headers = cfg.token === 'proxy' ? {} : { authorization: 'Bearer ' + cfg.token }
+  const res = await $.http.fetch(cfg.url + path, { headers })
+  if (!res.ok) throw new Error('HTTP ' + res.status)
+  return JSON.parse(res.text)
+}
+
+/** Status line: tickets waiting on you first. Old servers (no ticket counts) fall back to sessions. */
+async function statusFor($, options) {
+  const cfg = await remote($, options)
+  if (cfg.on) {
+    const b = await get($, cfg, '/api/board')
+    return (b.tickets ? ticketStatusText(b.tickets.counts) : statusText(b.counts)) || undefined
   }
-  let entries = []
-  try {
-    entries = await $.fs.list(dir + '/sessions')
-  } catch {}
-  const records = []
-  for (const entry of entries) {
-    if (!entry.name.endsWith('.json')) continue
+  const s = await readJson($, cfg.dir + '/summary.json')
+  return s ? ticketStatusText(s.counts) || undefined : undefined
+}
+
+async function boardText($, options) {
+  const cfg = await remote($, options)
+  if (cfg.on) {
     try {
-      const stored = JSON.parse(await $.fs.read(dir + '/sessions/' + entry.name))
-      if (stored && stored.record) records.push(stored.record)
-    } catch {}
+      return renderTicketsText(await get($, cfg, '/api/tickets/board?limit=50'))
+    } catch {
+      return renderText(await get($, cfg, '/api/board'))
+    }
   }
-  return buildBoard(records, await $.clock.now())
+  const s = await readJson($, cfg.dir + '/summary.json')
+  return s ? s.text : 'No tickets yet on this machine.'
 }

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // session-board statusline — self-contained on purpose (no imports from the plugin), so it can be
 // copied to a stable path (~/.claude/session-board/statusline.mjs) that survives plugin updates.
-// Prints e.g. "⏳ 3 waiting · ⚙ 5 working · ✅ 2 review". Remote results are cached 15 s.
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+// Prints e.g. "⏳ 2 for you · ⚙ 3 in progress · ☐ 5 to do". Remote results are cached 15 s; in local
+// mode it reads the summary the hooks keep next to the database.
+import { readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 const DIR = process.env.SESSION_BOARD_DIR || join(homedir(), '.claude', 'session-board');
-const STALE_MS = 30 * 60 * 1000;
 const CACHE_MS = 15 * 1000;
 
 const readJson = (p) => {
@@ -18,36 +18,25 @@ const readJson = (p) => {
   }
 };
 
-function localCounts(now) {
-  const c = { waiting: 0, working: 0, review: 0 };
-  let names = [];
-  try {
-    names = readdirSync(join(DIR, 'sessions')).filter((n) => n.endsWith('.json'));
-  } catch {}
-  for (const n of names) {
-    const r = readJson(join(DIR, 'sessions', n))?.record;
-    if (!r || now - r.lastSeen > 7 * 86400000) continue;
-    if (r.state === 'waiting' || r.state === 'failed') c.waiting++;
-    else if (r.state === 'working' && now - r.lastSeen <= STALE_MS) c.working++;
-    else if (r.state === 'review' && !r.dismissed) c.review++;
-  }
-  return c;
-}
+/** Ticket counts from a v0.2 server; a v0.1 server only has session counts. */
+const fromBoard = (b) =>
+  b.tickets ? b.tickets.counts : { waiting: b.counts?.waiting ?? 0, inProgress: b.counts?.working ?? 0, todo: 0 };
 
 async function remoteCounts(url, token, now) {
   const cachePath = join(DIR, 'statusline-cache.json');
   const cached = readJson(cachePath);
-  if (cached && now - cached.at < CACHE_MS) return cached.counts;
+  if (cached && now - cached.at < CACHE_MS && cached.v === 2) return cached.counts;
   try {
-    const res = await fetch(`${url}/api/board`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(1200) });
+    const headers = token === 'proxy' ? {} : { authorization: `Bearer ${token}` };
+    const res = await fetch(`${url}/api/board`, { headers, signal: AbortSignal.timeout(1200) });
     if (!res.ok) throw new Error(String(res.status));
-    const counts = (await res.json()).counts;
+    const counts = fromBoard(await res.json());
     try {
-      writeFileSync(cachePath, JSON.stringify({ at: now, counts }));
+      writeFileSync(cachePath, JSON.stringify({ v: 2, at: now, counts }));
     } catch {}
     return counts;
   } catch {
-    return cached?.counts ?? null;
+    return cached?.v === 2 ? cached.counts : null;
   }
 }
 
@@ -55,13 +44,13 @@ const now = Date.now();
 const cfg = readJson(join(DIR, 'config.json')) || {};
 const url = (process.env.SESSION_BOARD_URL || cfg.url || '').replace(/\/+$/, '');
 const token = process.env.SESSION_BOARD_TOKEN || cfg.token || '';
-const counts = url && token ? await remoteCounts(url, token, now) : localCounts(now);
+const counts = url && token ? await remoteCounts(url, token, now) : readJson(join(DIR, 'summary.json'))?.counts ?? {};
 if (!counts) {
   process.stdout.write('board offline');
 } else {
   const parts = [];
-  if (counts.waiting) parts.push(`⏳ ${counts.waiting} waiting`);
-  if (counts.working) parts.push(`⚙ ${counts.working} working`);
-  if (counts.review) parts.push(`✅ ${counts.review} review`);
+  if (counts.waiting) parts.push(`⏳ ${counts.waiting} for you`);
+  if (counts.inProgress) parts.push(`⚙ ${counts.inProgress} in progress`);
+  if (counts.todo) parts.push(`☐ ${counts.todo} to do`);
   process.stdout.write(parts.join(' · ') || 'board clear');
 }

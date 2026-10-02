@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const MARKER = '.claude/session-board/hooks/report.mjs';
-const FILES = ['hooks/report.mjs', 'lib/core.mjs', 'lib/runtime.mjs'];
+const FILES = ['hooks/report.mjs', 'lib/core.mjs', 'lib/runtime.mjs', 'lib/store.mjs'];
 
 // event → async? (same choices as the plugin's hooks/hooks.json)
 export const EVENTS = {
@@ -21,6 +21,8 @@ export const EVENTS = {
   Stop: false,
   StopFailure: false,
   SessionEnd: false,
+  TaskCreated: true,
+  TaskCompleted: true,
 };
 
 const isOurs = (group) => Array.isArray(group?.hooks) && group.hooks.some((h) => typeof h.command === 'string' && h.command.includes(MARKER));

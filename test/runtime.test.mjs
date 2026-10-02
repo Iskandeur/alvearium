@@ -22,9 +22,44 @@ test('local mode: zero config, a session goes working → review on disk', async
   assert.equal(rec.title, 'write the tests');
   assert.equal(rec.detail, 'Tests written.');
   assert.equal(rec.surface, 'terminal');
-  const { source, board } = await loadBoard({ env, now: 3000 });
+  const { source, board } = await loadBoard({ env });
   assert.equal(source, 'local');
-  assert.equal(board.counts.review, 1);
+  assert.equal(board.counts.waiting, 1);
+  const [t] = board.columns.waiting;
+  assert.deepEqual([t.status, t.kind, t.title, t.body], ['review', 'session', 'write the tests', 'Tests written.']);
+  const summary = JSON.parse(readFileSync(join(env.SESSION_BOARD_DIR, 'summary.json'), 'utf8'));
+  assert.equal(summary.counts.waiting, 1, 'summary for the mod and the statusline');
+  assert.match(summary.text, /WAITING ON YOU \(1\)/);
+});
+
+test('local mode: v0.1 session files are imported into SQLite once, and left on disk', async () => {
+  const dir = tmp();
+  mkdirSync(join(dir, 'sessions'));
+  const old = { sessionId: 'old1', state: 'review', detail: 'Merged.', title: 'ship v1', repo: 'acme/api', lastSeen: Date.now() - 1000, pr: 'https://github.com/acme/api/pull/3' };
+  writeFileSync(join(dir, 'sessions', 'old1.json'), JSON.stringify({ record: old }));
+  const { board } = await loadBoard({ env: { SESSION_BOARD_DIR: dir } });
+  assert.equal(board.counts.waiting, 1);
+  assert.equal(board.columns.waiting[0].title, 'ship v1');
+  assert.equal(board.columns.waiting[0].links.find((l) => l.type === 'pr').url, old.pr);
+  assert.ok(readdirSync(join(dir, 'sessions')).includes('old1.json'));
+  const again = await loadBoard({ env: { SESSION_BOARD_DIR: dir } });
+  assert.equal(again.board.counts.waiting, 1, 'not imported twice');
+});
+
+test('task mirror: TaskCreated / TaskCompleted become claude tickets; SESSION_BOARD_MIRROR_TASKS=0 turns it off', async () => {
+  const env = { SESSION_BOARD_DIR: tmp() };
+  const base = { session_id: 'tm', cwd: ROOT };
+  await handleHook('UserPromptSubmit', { ...base, prompt: 'refactor' }, { env, now: Date.now() });
+  await handleHook('TaskCreated', { ...base, task_id: '7', task_title: 'Extract module' }, { env, now: Date.now() + 1 });
+  let { board } = await loadBoard({ env });
+  assert.equal(board.columns.todo[0].title, 'Extract module');
+  assert.equal(board.columns.todo[0].source, 'claude');
+  await handleHook('TaskCompleted', { ...base, task_id: '7', task_title: 'Extract module' }, { env, now: Date.now() + 2 });
+  ({ board } = await loadBoard({ env }));
+  assert.equal(board.counts.todo, 0);
+  assert.equal(board.counts.inProgress, 1, 'the session itself is still in progress');
+  const off = { ...env, SESSION_BOARD_MIRROR_TASKS: '0' };
+  assert.equal(await handleHook('TaskCreated', { ...base, task_id: '8', task_title: 'Nope' }, { env: off }), 'ignored');
 });
 
 test('throttle on disk: PreToolUse heartbeats are rate-limited per session', async () => {
