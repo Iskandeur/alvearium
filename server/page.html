@@ -2,650 +2,453 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
-  <title>Session board</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23111827'/%3E%3Cpath d='M20 20h24M20 32h18M20 44h12' stroke='%2360a5fa' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E">
+  <meta name="color-scheme" content="light dark">
+  <title>session-board</title>
+  <link id="favicon" rel="icon" href="data:,">
   <style>
     :root {
-      --bg: #0b1220;
-      --panel: #0f172a;
-      --card: #111c33;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --faint: #6b7280;
-      --line: rgba(148, 163, 184, 0.18);
-      --shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
-
-      --accent: #60a5fa;
-      --danger: #ef4444;
-
-      --radius: 14px;
-      --radius-sm: 10px;
-    }
-
-    :root[data-theme="light"] {
-      --bg: #f7f8fb;
-      --panel: #ffffff;
+      --bg: #f6f6f7;
+      --lane: #ececee;
       --card: #ffffff;
-      --text: #0f172a;
-      --muted: #475569;
-      --faint: #64748b;
-      --line: rgba(15, 23, 42, 0.12);
-      --shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      --text: #1b1b1f;
+      --muted: #55555e;
+      --faint: #8a8a93;
+      --line: rgba(20, 20, 28, 0.08);
+      --line-strong: rgba(20, 20, 28, 0.14);
+      --shadow: 0 1px 2px rgba(16, 18, 27, 0.04), 0 1px 1px rgba(16, 18, 27, 0.03);
+      --shadow-hover: 0 2px 8px rgba(16, 18, 27, 0.07), 0 1px 2px rgba(16, 18, 27, 0.05);
+      --accent: #4b5bdc;
+      --accent-soft: rgba(75, 91, 220, 0.09);
+      --danger: #c9453e;
+      --danger-soft: rgba(201, 69, 62, 0.09);
+      --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      --radius: 12px;
+      --radius-card: 10px;
     }
-
-    @media (prefers-color-scheme: light) {
-      :root {
-        --bg: #f7f8fb;
-        --panel: #ffffff;
-        --card: #ffffff;
-        --text: #0f172a;
-        --muted: #475569;
-        --faint: #64748b;
-        --line: rgba(15, 23, 42, 0.12);
-        --shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0e0f11;
+        --lane: #16171a;
+        --card: #1d1e22;
+        --text: #ececef;
+        --muted: #a5a5ae;
+        --faint: #74747d;
+        --line: rgba(255, 255, 255, 0.06);
+        --line-strong: rgba(255, 255, 255, 0.12);
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        --shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.35);
+        --accent: #8d97ff;
+        --accent-soft: rgba(141, 151, 255, 0.12);
+        --danger: #f07a72;
+        --danger-soft: rgba(240, 122, 114, 0.12);
       }
     }
-
     :root[data-theme="dark"] {
-      --bg: #0b1220;
-      --panel: #0f172a;
-      --card: #111c33;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --faint: #6b7280;
-      --line: rgba(148, 163, 184, 0.18);
-      --shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+      --bg: #0e0f11;
+      --lane: #16171a;
+      --card: #1d1e22;
+      --text: #ececef;
+      --muted: #a5a5ae;
+      --faint: #74747d;
+      --line: rgba(255, 255, 255, 0.06);
+      --line-strong: rgba(255, 255, 255, 0.12);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      --shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.35);
+      --accent: #8d97ff;
+      --accent-soft: rgba(141, 151, 255, 0.12);
+      --danger: #f07a72;
+      --danger-soft: rgba(240, 122, 114, 0.12);
     }
 
     * { box-sizing: border-box; }
-    html, body { height: 100%; }
     body {
       margin: 0;
-      font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      min-height: 100vh;
       background: var(--bg);
       color: var(--text);
+      font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: "cv11", "ss01";
     }
+    a { color: inherit; text-decoration: none; }
+    [hidden] { display: none !important; }
 
-    a { color: inherit; text-decoration-color: rgba(96, 165, 250, 0.4); text-underline-offset: 3px; }
-    a:hover { color: var(--accent); text-decoration-color: rgba(96, 165, 250, 0.75); }
-
+    /* Header */
     header {
       position: sticky;
       top: 0;
-      z-index: 10;
-      background: color-mix(in srgb, var(--bg) 78%, transparent);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--line);
+      z-index: 5;
+      background: color-mix(in srgb, var(--bg) 86%, transparent);
+      -webkit-backdrop-filter: saturate(1.4) blur(12px);
+      backdrop-filter: saturate(1.4) blur(12px);
     }
+    .wrap { max-width: 1320px; margin: 0 auto; padding: 0 24px; }
+    .bar { display: flex; align-items: center; gap: 12px; height: 60px; }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+    .brand svg { display: block; color: var(--accent); }
+    .summary { margin-left: auto; display: flex; align-items: center; gap: 14px; color: var(--faint); font-size: 13px; white-space: nowrap; }
+    .summary b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .summary .hot b { color: var(--accent); }
+    .live { display: inline-flex; align-items: center; gap: 6px; }
+    .live i { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); opacity: 0.6; }
+    .live.on i { background: #3aa76d; opacity: 1; }
+    .live.off i { background: var(--danger); opacity: 1; }
 
-    .wrap {
-      max-width: 1260px;
-      margin: 0 auto;
-      padding: 16px 18px;
-    }
+    /* Board */
+    main { padding-top: 8px; padding-bottom: 48px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+    .lane { background: var(--lane); border-radius: var(--radius); padding: 6px 6px 8px; min-height: 120px; }
+    .laneHead { display: flex; align-items: center; gap: 8px; padding: 8px 8px 10px; }
+    .laneHead h2 { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: -0.005em; color: var(--muted); }
+    .lane.primary .laneHead h2 { color: var(--text); }
+    .count { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; font-weight: 500; }
+    .lane.primary .count.hot { color: #fff; background: var(--accent); border-radius: 999px; padding: 0 7px; line-height: 18px; min-width: 18px; text-align: center; }
+    :root[data-theme="dark"] .lane.primary .count.hot { color: #0e0f11; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lane.primary .count.hot { color: #0e0f11; } }
+    .cards { display: flex; flex-direction: column; gap: 6px; }
 
-    .topbar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 220px;
-    }
-
-    .mark {
-      width: 34px;
-      height: 34px;
-      border-radius: 12px;
-      background: color-mix(in srgb, var(--accent) 10%, var(--panel));
-      border: 1px solid var(--line);
-      display: grid;
-      place-items: center;
-      box-shadow: var(--shadow);
-    }
-
-    .mark svg { display: block; }
-
-    h1 {
-      font-size: 15px;
-      font-weight: 620;
-      letter-spacing: 0.01em;
-      margin: 0;
-    }
-
-    .meta {
-      margin-left: auto;
-      display: flex;
-      gap: 14px;
-      align-items: baseline;
-      color: var(--faint);
-      font-size: 12px;
-      white-space: nowrap;
-    }
-
-    .meta strong { color: var(--muted); font-weight: 600; }
-
-    .board {
-      padding: 18px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px;
-      align-items: start;
-    }
-
-    @media (max-width: 980px) {
-      .grid { grid-template-columns: 1fr; }
-      .brand { min-width: 0; }
-      .meta { flex-wrap: wrap; justify-content: flex-end; }
-    }
-
-    .col {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-      min-height: 240px;
-    }
-
-    .colHeader {
-      padding: 14px 14px 10px;
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .colHeader h2 {
-      margin: 0;
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: var(--muted);
-      font-weight: 700;
-    }
-
-    .count {
-      margin-left: auto;
-      font-size: 12px;
-      color: var(--faint);
-      border: 1px solid var(--line);
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .colBody { padding: 12px; }
-
-    .empty {
-      padding: 18px 10px;
-      border: 1px dashed var(--line);
-      border-radius: var(--radius-sm);
-      color: var(--faint);
-      text-align: center;
-      font-style: italic;
-      background: color-mix(in srgb, var(--panel) 90%, transparent);
-    }
-
+    /* Card */
     .card {
-      border: 1px solid var(--line);
-      border-radius: var(--radius-sm);
       background: var(--card);
-      padding: 12px 12px 10px;
-      box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08);
-      margin-bottom: 10px;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .card:last-child { margin-bottom: 0; }
-
-    .card::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 3px;
-      background: color-mix(in srgb, var(--accent) 75%, transparent);
-      opacity: 0.9;
-    }
-
-    .card[data-state="review"]::before { opacity: 0.55; }
-    .card[data-state="working"]::before { opacity: 0.35; }
-    .card[data-state="stale"]::before { opacity: 0.22; }
-    .card[data-state="failed"]::before { background: color-mix(in srgb, var(--danger) 70%, transparent); opacity: 0.85; }
-
-    .cardTop {
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-    }
-
-    .title {
-      font-weight: 650;
-      letter-spacing: 0.01em;
-      line-height: 1.25;
-      margin: 0;
-      overflow-wrap: anywhere;
-    }
-
-    .age {
-      margin-left: auto;
-      color: var(--faint);
-      font-size: 12px;
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
-    }
-
-    .sub {
-      margin-top: 6px;
-      color: var(--faint);
-      font-size: 12px;
-      overflow-wrap: anywhere;
-    }
-
-    .detail {
-      margin-top: 10px;
-      padding: 8px 9px;
       border: 1px solid var(--line);
-      border-radius: 10px;
-      background: color-mix(in srgb, var(--panel) 86%, transparent);
-      color: var(--muted);
-      font-size: 12px;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
-
-    .row {
-      margin-top: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-
-    .pill {
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 999px;
-      border: 1px solid var(--line);
-      color: var(--faint);
-      background: color-mix(in srgb, var(--panel) 92%, transparent);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .pill.danger { border-color: color-mix(in srgb, var(--danger) 65%, var(--line)); color: color-mix(in srgb, var(--danger) 85%, var(--text)); }
-
-    .links {
-      margin-left: auto;
-      display: flex;
-      gap: 12px;
-      font-size: 12px;
-      align-items: center;
-    }
-
-    button.link {
-      border: 0;
-      background: none;
-      padding: 0;
-      color: var(--faint);
-      cursor: pointer;
-      font: inherit;
-      text-decoration: underline;
-      text-decoration-color: rgba(148, 163, 184, 0.4);
-      text-underline-offset: 3px;
-    }
-
-    button.link:hover { color: var(--accent); text-decoration-color: rgba(96, 165, 250, 0.75); }
-
-    #auth {
-      display: none;
-      padding: 18px;
-    }
-
-    #auth .box {
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: var(--panel);
+      border-radius: var(--radius-card);
       box-shadow: var(--shadow);
-      padding: 16px;
-      max-width: 700px;
-      margin: 26px auto 0;
+      padding: 11px 13px 12px;
+      transition: box-shadow 0.15s ease, border-color 0.15s ease;
+      min-width: 0;
     }
+    .card:hover { box-shadow: var(--shadow-hover); border-color: var(--line-strong); }
+    .card.dim { opacity: 0.62; }
+    .head { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--faint); }
+    .card[data-state="waiting"] .dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .card[data-state="failed"] .dot { background: var(--danger); border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+    .card[data-state="working"] .dot { border-color: var(--accent); animation: pulse 2.4s ease-in-out infinite; }
+    .card[data-state="review"] .dot { background: var(--muted); border-color: var(--muted); }
+    .card[data-state="idle"] .dot { border-style: dashed; }
+    @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); } 50% { box-shadow: 0 0 0 4px var(--accent-soft); } }
+    @media (prefers-reduced-motion: reduce) { .card[data-state="working"] .dot { animation: none; } }
+    .title { flex: 1; min-width: 0; margin: 0; font-size: 14px; font-weight: 500; letter-spacing: -0.006em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .age { flex: none; color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .meta { margin: 3px 0 0 17px; color: var(--faint); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .reason { margin: 9px 0 0 17px; font-size: 13px; color: var(--text); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+    .reason .k { font-weight: 600; color: var(--accent); margin-right: 6px; }
+    .card[data-state="failed"] .reason .k { color: var(--danger); }
+    .reason code { font-family: var(--mono); font-size: 12px; background: var(--accent-soft); border-radius: 5px; padding: 1px 5px; }
+    .note { margin: 6px 0 0 17px; font-size: 12.5px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+    .note.mono { font-family: var(--mono); font-size: 11.5px; color: var(--faint); -webkit-line-clamp: 1; }
+    .links { margin: 9px 0 0 17px; display: flex; gap: 14px; font-size: 12px; color: var(--faint); align-items: center; }
+    .links:empty { display: none; }
+    .links a, .links button { color: var(--muted); font: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+    .links a:hover, .links button:hover { color: var(--accent); }
+    .links .push { margin-left: auto; color: var(--faint); }
 
-    #auth p { margin: 0 0 10px; color: var(--muted); }
+    /* Empty states */
+    .empty { color: var(--faint); font-size: 13px; text-align: center; padding: 22px 8px 18px; }
+    .empty.big { padding: 34px 8px 30px; }
+    .empty.big svg { display: block; margin: 0 auto 10px; color: var(--faint); opacity: 0.8; }
+    .empty.big strong { display: block; color: var(--text); font-weight: 500; font-size: 14px; }
+    .empty.big span { display: block; margin-top: 2px; }
 
-    #auth .row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
+    /* Idle drawer */
+    details.idle { margin-top: 20px; color: var(--faint); font-size: 13px; }
+    details.idle summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; padding: 4px 2px; user-select: none; }
+    details.idle summary::-webkit-details-marker { display: none; }
+    details.idle summary svg { transition: transform 0.15s ease; }
+    details.idle[open] summary svg { transform: rotate(90deg); }
+    details.idle .cards { margin-top: 8px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 
-    #tok {
-      width: min(520px, 95vw);
-      padding: 10px 12px;
-      border: 1px solid var(--line);
-      border-radius: 12px;
-      background: var(--card);
-      color: var(--text);
-      font: inherit;
-      outline: none;
-    }
+    /* Auth */
+    #auth { max-width: 440px; margin: 12vh auto 0; padding: 0 24px; text-align: center; }
+    #auth h2 { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
+    #auth p { margin: 0 0 18px; color: var(--muted); }
+    #auth form { display: flex; gap: 8px; }
+    #tok { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text); font: inherit; outline: none; }
+    #tok:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    #auth button { padding: 9px 14px; border-radius: 8px; border: 0; background: var(--accent); color: #fff; font: inherit; font-weight: 500; cursor: pointer; }
 
-    #tok:focus { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent); }
-
-    #save {
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line));
-      background: color-mix(in srgb, var(--accent) 10%, var(--panel));
-      color: var(--text);
-      font-weight: 650;
-      cursor: pointer;
-    }
-
-    #save:hover { background: color-mix(in srgb, var(--accent) 14%, var(--panel)); }
-
-    @media (prefers-reduced-motion: reduce) {
-      * { scroll-behavior: auto !important; }
+    @media (max-width: 900px) {
+      .wrap { padding: 0 14px; }
+      .grid, details.idle .cards { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+      details.idle .cards { gap: 6px; }
+      .summary .opt { display: none; }
+      .lane { min-height: 0; }
+      .bar { height: 54px; }
+      .head { align-items: flex-start; }
+      .dot { margin-top: 6px; }
+      .title { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.35; }
+      .age { padding-top: 1px; }
     }
   </style>
 </head>
 <body>
   <header>
-    <div class="wrap">
-      <div class="topbar">
-        <div class="brand">
-          <div class="mark" aria-hidden="true">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M4 4h8M4 8h6M4 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-          </div>
-          <h1>Session board</h1>
-        </div>
-        <div class="meta">
-          <span id="summary"></span>
-          <span id="updated"></span>
-        </div>
+    <div class="wrap bar">
+      <div class="brand">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="1.5" y="2.5" width="4.5" height="15" rx="1.6" fill="currentColor"/><rect x="7.75" y="2.5" width="4.5" height="10" rx="1.6" fill="currentColor" opacity=".55"/><rect x="14" y="2.5" width="4.5" height="6.5" rx="1.6" fill="currentColor" opacity=".3"/></svg>
+        <span>Sessions</span>
+      </div>
+      <div class="summary">
+        <span id="summary"></span>
+        <span class="live" id="live" title=""><i></i><span class="opt" id="liveText">Connecting</span></span>
       </div>
     </div>
   </header>
 
-  <div id="auth">
-    <div class="box">
-      <p>This board needs its access token.</p>
-      <div class="row">
-        <input id="tok" type="password" placeholder="Paste token" autocomplete="off">
-        <button id="save">Save</button>
-      </div>
-    </div>
-  </div>
+  <section id="auth" hidden>
+    <h2>Access token needed</h2>
+    <p>Paste the board token once; it stays in this browser.</p>
+    <form id="authForm">
+      <input id="tok" type="password" placeholder="Token" autocomplete="off" spellcheck="false">
+      <button type="submit">Open board</button>
+    </form>
+  </section>
 
-  <div class="wrap board">
-    <div class="grid" id="board">
-      <section class="col" aria-label="Waiting on you">
-        <div class="colHeader"><h2>Waiting on you</h2><span class="count" id="n-waiting"></span></div>
-        <div class="colBody" id="col-waiting"></div>
+  <main class="wrap" id="main">
+    <div class="grid">
+      <section class="lane primary" aria-labelledby="h-waiting">
+        <div class="laneHead"><h2 id="h-waiting">Waiting on you</h2><span class="count" id="n-waiting"></span></div>
+        <div class="cards" id="col-waiting"></div>
       </section>
-      <section class="col" aria-label="In progress">
-        <div class="colHeader"><h2>In progress</h2><span class="count" id="n-progress"></span></div>
-        <div class="colBody" id="col-progress"></div>
+      <section class="lane" aria-labelledby="h-progress">
+        <div class="laneHead"><h2 id="h-progress">In progress</h2><span class="count" id="n-progress"></span></div>
+        <div class="cards" id="col-progress"></div>
       </section>
-      <section class="col" aria-label="Ready for review">
-        <div class="colHeader"><h2>Ready for review</h2><span class="count" id="n-review"></span></div>
-        <div class="colBody" id="col-review"></div>
+      <section class="lane" aria-labelledby="h-review">
+        <div class="laneHead"><h2 id="h-review">Ready for review</h2><span class="count" id="n-review"></span></div>
+        <div class="cards" id="col-review"></div>
       </section>
     </div>
-  </div>
+    <details class="idle" id="idleBox" hidden>
+      <summary><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 6.5 5 3 8.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="idleLabel"></span></summary>
+      <div class="cards" id="col-idle"></div>
+    </details>
+  </main>
 
   <script>
     (() => {
       const KEY = 'session-board-token';
+      const root = document.documentElement;
+      const params = new URLSearchParams(location.search);
+      const theme = params.get('theme');
+      if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
 
-      // Optional theme override (useful for screenshots). Default: auto via prefers-color-scheme.
-      // Example: /?theme=light or /?theme=dark
-      const theme = new URLSearchParams(location.search).get('theme');
-      if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
-
-      const m = location.hash.match(/token=([^&]+)/);
-      if (m) {
-        localStorage.setItem(KEY, decodeURIComponent(m[1]));
+      const hash = location.hash.match(/token=([^&]+)/);
+      if (hash) {
+        localStorage.setItem(KEY, decodeURIComponent(hash[1]));
         history.replaceState(null, '', location.pathname + location.search);
       }
 
       const $ = (id) => document.getElementById(id);
-      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
-      const safeUrl = (u) => (typeof u === 'string' && /^https:\/\//.test(u) ? u : null);
-
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+      const httpsUrl = (u) => (typeof u === 'string' && /^https:\/\//.test(u) ? u : null);
       const headers = () => {
         const t = localStorage.getItem(KEY);
         return t ? { authorization: 'Bearer ' + t } : {};
       };
 
-      const state = {
-        nodes: new Map(),
-        lastCounts: null,
-      };
-
-      function agoFr(ms, now) {
+      // ---- formatting -------------------------------------------------------
+      function ago(ms, now) {
         const s = Math.max(0, Math.round((now - ms) / 1000));
-        if (s < 8) return "à l'instant";
-        if (s < 60) return `il y a ${s} s`;
+        if (s < 45) return 'just now';
         const m = Math.round(s / 60);
-        if (m < 60) return `il y a ${m} min`;
+        if (m < 60) return `${m} min ago`;
         const h = Math.round(m / 60);
-        if (h < 24) return `il y a ${h} h`;
-        const d = Math.round(h / 24);
-        return `il y a ${d} j`;
+        if (h < 24) return `${h} h ago`;
+        return `${Math.round(h / 24)} d ago`;
       }
-
-      function repoLabel(r) {
-        return r.repo || (r.cwd || '').split(/[\\/]/).filter(Boolean).pop() || 'session';
+      function duration(ms) {
+        const m = Math.round(ms / 60000);
+        if (m < 60) return `${m} min`;
+        const h = Math.round(m / 60);
+        return h < 24 ? `${h} h` : `${Math.round(h / 24)} d`;
       }
-
-      function branchLabel(r) {
-        return r.branch && r.branch !== 'HEAD' ? r.branch : '';
-      }
-
-      function surfaceLabel(r) {
-        return r.surface === 'cloud' ? 'cloud' : 'terminal';
-      }
-
-      function subline(r) {
-        const repo = repoLabel(r);
-        const branch = branchLabel(r);
-        const bits = [repo];
-        if (branch) bits.push(branch);
+      const where = (r) => r.repo ? r.repo.split('/').pop() : (r.cwd || '').split(/[\\/]/).filter(Boolean).pop() || '';
+      function meta(r) {
+        const bits = [where(r)];
+        if (r.branch && r.branch !== 'HEAD') bits.push(r.branch);
         if (r.surface !== 'cloud' && r.host) bits.push(r.host);
-        bits.push(surfaceLabel(r));
-        return bits.join(' · ');
+        bits.push(r.surface === 'cloud' ? 'cloud' : 'terminal');
+        return bits.filter(Boolean).join(' · ');
+      }
+      const title = (r) => r.title || r.name || (where(r) ? `Session in ${where(r)}` : 'Untitled session');
+
+      // Waiting / failed: say plainly what the session needs. Returns HTML.
+      function reason(r) {
+        const d = String(r.detail || '').trim();
+        if (r.display === 'failed') return `<span class="k">Failed</span>${esc(d.replace(/^Turn failed:\s*/i, '') || 'the last turn errored')}`;
+        if (r.kind === 'permission') {
+          const body = d.replace(/^Permission:\s*/i, '');
+          const m = body.match(/^([\w.-]+):\s*(.+)$/);
+          return `<span class="k">Approve</span>` + (m ? `${esc(m[1])} <code>${esc(m[2])}</code>` : esc(body || 'a tool call'));
+        }
+        if (r.kind === 'idle') return `<span class="k">Your turn</span>${esc(d && !/^idle_prompt$/.test(d) ? d : 'waiting for your next message')}`;
+        return `<span class="k">Question</span>${esc(d || 'input requested')}`;
       }
 
-      function title(r) {
-        // The board already truncates the prompt to ~200 chars. Keep it in one line.
-        return r.title || 'Untitled session';
-      }
-
-      function badges(r) {
-        const out = [];
-        if (r.kind === 'permission') out.push({ label: 'permission', danger: false });
-        if (r.kind === 'question' || r.kind === 'idle') out.push({ label: 'input', danger: false });
-        if (r.display === 'stale') out.push({ label: 'stale', danger: false });
-        if (r.display === 'failed') out.push({ label: 'failed', danger: true });
-        return out;
-      }
-
-      function detailText(r) {
-        // Show the "why" only when it helps. Waiting sessions should be explicit.
-        if (r.display === 'waiting' || r.display === 'failed') return r.detail || '';
-        if (r.display === 'review') return r.detail || '';
-        return '';
-      }
-
-      function ensureNode(r) {
-        let el = state.nodes.get(r.sessionId);
-        if (el) return el;
-
-        el = document.createElement('article');
-        el.className = 'card';
-        el.dataset.id = r.sessionId;
-
-        el.innerHTML = `
-          <div class="cardTop">
-            <h3 class="title"></h3>
-            <div class="age"></div>
-          </div>
-          <div class="sub"></div>
-          <div class="detail" hidden></div>
-          <div class="row">
-            <div class="pills"></div>
-            <div class="links"></div>
-          </div>
-        `;
-
-        state.nodes.set(r.sessionId, el);
+      // ---- DOM diffing --------------------------------------------------------
+      const nodes = new Map();
+      function card(r) {
+        let el = nodes.get(r.sessionId);
+        if (!el) {
+          el = document.createElement('article');
+          el.className = 'card';
+          el.innerHTML = '<div class="head"><span class="dot"></span><h3 class="title"></h3><span class="age"></span></div><div class="meta"></div><div class="reason"></div><div class="note"></div><div class="links"></div>';
+          nodes.set(r.sessionId, el);
+        }
         return el;
       }
-
-      function patchNode(el, r, now) {
-        const desiredState = r.display || r.state || '';
-        if (el.dataset.state !== desiredState) el.dataset.state = desiredState;
-
-        const t = title(r);
-        const age = agoFr(r.since ?? r.lastSeen, now);
-        const sub = esc(subline(r));
-
-        const titleEl = el.querySelector('.title');
-        const ageEl = el.querySelector('.age');
-        const subEl = el.querySelector('.sub');
-
-        if (titleEl.textContent !== t) titleEl.textContent = t;
-        if (ageEl.textContent !== age) ageEl.textContent = age;
-        if (subEl.innerHTML !== sub) subEl.innerHTML = sub;
-
-        const d = detailText(r);
-        const detailEl = el.querySelector('.detail');
-        if (d) {
-          if (detailEl.hidden) detailEl.hidden = false;
-          if (detailEl.textContent !== d) detailEl.textContent = d;
-        } else {
-          if (!detailEl.hidden) detailEl.hidden = true;
-          if (detailEl.textContent) detailEl.textContent = '';
-        }
-
-        const pills = el.querySelector('.pills');
-        const want = badges(r);
-        const pillHtml = want
-          .map((b) => `<span class="pill${b.danger ? ' danger' : ''}">${esc(b.label)}</span>`)
-          .join('');
-        if (pills.innerHTML !== pillHtml) pills.innerHTML = pillHtml;
-
-        const linksEl = el.querySelector('.links');
-        const url = safeUrl(r.url);
-        const pr = safeUrl(r.pr);
-        const dismiss = r.display === 'review' ? r.sessionId : null;
-        const links = [
-          url ? `<a href="${esc(url)}" target="_blank" rel="noopener">Session</a>` : '',
-          pr ? `<a href="${esc(pr)}" target="_blank" rel="noopener">PR</a>` : '',
-          dismiss ? `<button class="link" data-dismiss="${esc(dismiss)}">Dismiss</button>` : '',
-        ].filter(Boolean).join('');
-        if (linksEl.innerHTML !== links) linksEl.innerHTML = links;
+      const set = (el, prop, v) => { if (el[prop] !== v) el[prop] = v; };
+      function show(el, html, asText) {
+        const has = Boolean(html);
+        if (el.hidden === has) el.hidden = !has;
+        if (asText) set(el, 'textContent', html || '');
+        else set(el, 'innerHTML', html || '');
       }
+      function patch(el, r, now) {
+        if (el.dataset.state !== r.display) el.dataset.state = r.display;
+        el.classList.toggle('dim', r.display === 'stale' || r.display === 'idle');
+        const t = title(r);
+        const q = (s) => el.querySelector(s);
+        set(q('.title'), 'textContent', t);
+        set(q('.title'), 'title', t);
+        set(q('.age'), 'textContent', ago(r.since ?? r.lastSeen, now));
+        set(q('.age'), 'title', new Date(r.since ?? r.lastSeen).toLocaleString());
+        set(q('.meta'), 'textContent', meta(r));
 
-      function renderColumn(container, records, now, emptyText) {
-        const wanted = new Set(records.map((r) => r.sessionId));
+        const waiting = r.display === 'waiting' || r.display === 'failed';
+        show(q('.reason'), waiting ? reason(r) : '');
 
-        // Remove nodes no longer in the column (or moved away already).
-        for (const child of [...container.children]) {
-          const id = child?.dataset?.id;
-          if (id && !wanted.has(id)) container.removeChild(child);
-        }
+        let note = '', mono = false;
+        if (r.display === 'review') note = r.detail;
+        else if (r.display === 'stale') note = `No activity for ${duration(now - r.lastSeen)}`;
+        else if (r.display === 'working' && r.detail && r.detail !== r.title) { note = r.detail; mono = /^[\w.-]+:\s/.test(r.detail); }
+        q('.note').classList.toggle('mono', mono);
+        show(q('.note'), note, true);
 
+        const url = httpsUrl(r.url), pr = httpsUrl(r.pr);
+        const prNum = pr && (pr.match(/(?:pull|merge_requests)\/(\d+)/) || [])[1];
+        const links = [
+          url ? `<a href="${esc(url)}" target="_blank" rel="noopener">Open session ↗</a>` : '',
+          pr ? `<a href="${esc(pr)}" target="_blank" rel="noopener">${prNum ? 'PR #' + esc(prNum) : 'Pull request'} ↗</a>` : '',
+          r.display === 'review' ? `<button type="button" class="push" data-dismiss="${esc(r.sessionId)}">Dismiss</button>` : '',
+        ].join('');
+        set(q('.links'), 'innerHTML', links);
+      }
+      function render(container, records, now, emptyHtml) {
+        const want = records.map((r) => card(r));
+        records.forEach((r, i) => patch(want[i], r, now));
         if (!records.length) {
-          container.innerHTML = `<div class="empty">${esc(emptyText)}</div>`;
+          if (container.dataset.empty !== '1') {
+            container.innerHTML = emptyHtml;
+            container.dataset.empty = '1';
+          }
           return;
         }
-
-        // Ensure we have no placeholder empty node.
-        if (container.children.length === 1 && container.firstElementChild?.classList?.contains('empty')) {
+        if (container.dataset.empty === '1') {
           container.innerHTML = '';
+          delete container.dataset.empty;
         }
+        // Reorder only when needed: insertBefore on a node already in place is skipped.
+        want.forEach((el, i) => {
+          if (container.children[i] !== el) container.insertBefore(el, container.children[i] || null);
+        });
+        while (container.children.length > want.length) container.lastElementChild.remove();
+      }
 
-        // Append in the desired order (appendChild moves nodes if already present).
-        for (const r of records) {
-          const el = ensureNode(r);
-          patchNode(el, r, now);
-          container.appendChild(el);
-        }
+      // ---- favicon + title ------------------------------------------------------
+      let lastIcon = '';
+      function favicon(waiting) {
+        const accent = getComputedStyle(root).getPropertyValue('--accent').trim() || '#4b5bdc';
+        const badge = waiting ? `<circle cx='50' cy='14' r='12' fill='${accent}' stroke='white' stroke-width='4'/>` : '';
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='15' fill='#1b1b1f'/><rect x='11' y='14' width='11' height='36' rx='4' fill='${accent}'/><rect x='26.5' y='14' width='11' height='24' rx='4' fill='${accent}' opacity='.6'/><rect x='42' y='14' width='11' height='15' rx='4' fill='${accent}' opacity='.35'/>${badge}</svg>`;
+        if (svg === lastIcon) return;
+        lastIcon = svg;
+        $('favicon').href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+      }
+
+      const EMPTY_WAITING = '<div class="empty big"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9.25" stroke="currentColor" stroke-width="1.5"/><path d="m8 12.3 2.6 2.6L16 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><strong>Nothing waiting on you</strong><span>Sessions that need you show up here.</span></div>';
+      const EMPTY = (t) => `<div class="empty">${t}</div>`;
+
+      function live(state, text) {
+        const el = $('live');
+        el.className = 'live ' + state;
+        $('liveText').textContent = text;
+        el.title = state === 'on' ? 'Updated ' + new Date().toLocaleTimeString() : text;
       }
 
       async function refresh() {
+        let res;
         try {
-          const res = await fetch('api/board', { headers: headers(), cache: 'no-store' });
-          if (res.status === 401) {
-            $('auth').style.display = 'block';
-            $('updated').textContent = '';
-            return;
-          }
-
-          $('auth').style.display = 'none';
-          const b = await res.json();
-
-          const now = b.now;
-          renderColumn($('col-waiting'), b.waiting, now, "Nothing waiting on you.");
-          renderColumn($('col-progress'), b.inProgress, now, "Nothing in progress.");
-          renderColumn($('col-review'), b.review, now, "Nothing ready for review.");
-
-          $('n-waiting').textContent = String(b.counts.waiting || 0);
-          $('n-progress').textContent = String((b.counts.working || 0) + (b.counts.stale || 0));
-          $('n-review').textContent = String(b.counts.review || 0);
-
-          const summary = [];
-          if (b.counts.waiting) summary.push(`<strong>${b.counts.waiting}</strong> waiting`);
-          if (b.counts.working) summary.push(`<strong>${b.counts.working}</strong> working`);
-          if (b.counts.stale) summary.push(`<strong>${b.counts.stale}</strong> stale`);
-          if (b.counts.review) summary.push(`<strong>${b.counts.review}</strong> review`);
-          $('summary').innerHTML = summary.length ? summary.join(' · ') : '<strong>0</strong> open';
-
-          document.title = (b.counts.waiting ? `(${b.counts.waiting}) ` : '') + 'Session board';
-          $('updated').textContent = 'updated ' + new Date().toLocaleTimeString();
+          res = await fetch('api/board', { headers: headers(), cache: 'no-store' });
         } catch {
-          $('updated').textContent = 'offline';
+          live('off', 'Offline');
+          return;
         }
+        if (res.status === 401) {
+          $('auth').hidden = false;
+          $('main').hidden = true;
+          live('', 'Locked');
+          return;
+        }
+        if (!res.ok) { live('off', 'Error ' + res.status); return; }
+        const b = await res.json();
+        $('auth').hidden = true;
+        $('main').hidden = false;
+        const now = b.now ?? Date.now();
+        const c = b.counts || {};
+
+        render($('col-waiting'), b.waiting || [], now, EMPTY_WAITING);
+        render($('col-progress'), b.inProgress || [], now, EMPTY('Nothing in progress'));
+        render($('col-review'), b.review || [], now, EMPTY('Nothing to review'));
+        const idle = b.idle || [];
+        $('idleBox').hidden = !idle.length;
+        set($('idleLabel'), 'textContent', `${idle.length} idle session${idle.length === 1 ? '' : 's'}`);
+        render($('col-idle'), idle, now, '');
+
+        // Forget nodes of sessions that left the board.
+        const live_ = new Set([...(b.waiting || []), ...(b.inProgress || []), ...(b.review || []), ...idle].map((r) => r.sessionId));
+        for (const id of nodes.keys()) if (!live_.has(id)) nodes.delete(id);
+
+        const nW = c.waiting || 0, nP = (c.working || 0) + (c.stale || 0), nR = c.review || 0;
+        set($('n-waiting'), 'textContent', String(nW));
+        $('n-waiting').classList.toggle('hot', nW > 0);
+        set($('n-progress'), 'textContent', String(nP));
+        set($('n-review'), 'textContent', String(nR));
+
+        const parts = [];
+        if (nW) parts.push(`<span class="hot"><b>${nW}</b> waiting</span>`);
+        if (nP) parts.push(`<span class="opt"><b>${nP}</b> in progress</span>`);
+        if (nR) parts.push(`<span class="opt"><b>${nR}</b> to review</span>`);
+        set($('summary'), 'innerHTML', parts.length ? parts.join('<span class="opt"> · </span>') : 'All clear');
+
+        const t = (nW ? `(${nW}) ` : '') + 'session-board';
+        if (document.title !== t) document.title = t;
+        favicon(nW);
+        live('on', 'Live');
       }
 
       document.addEventListener('click', async (e) => {
-        const id = e.target?.dataset?.dismiss;
+        const id = e.target.closest?.('[data-dismiss]')?.dataset.dismiss;
         if (!id) return;
         try {
-          await fetch('api/dismiss', {
-            method: 'POST',
-            headers: { ...headers(), 'content-type': 'application/json' },
-            body: JSON.stringify({ sessionId: id }),
-          });
+          await fetch('api/dismiss', { method: 'POST', headers: { ...headers(), 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: id }) });
         } finally {
           refresh();
         }
       });
-
-      $('save').onclick = () => {
+      $('authForm').addEventListener('submit', (e) => {
+        e.preventDefault();
         localStorage.setItem(KEY, $('tok').value.trim());
         refresh();
-      };
+      });
 
+      favicon(0);
       refresh();
-      setInterval(refresh, 10_000);
+      setInterval(refresh, 10000);
       document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     })();
   </script>
