@@ -107,6 +107,15 @@ Cloud tickets carry a direct link to the session (`https://claude.ai/code/sessio
   `"statusLine": { "type": "command", "command": "node ~/.claude/session-board/statusline.mjs" }`
   in `~/.claude/settings.json`. The script is self-contained, so the copy survives plugin updates.
 
+## Which sessions report
+
+- **Machine-wide** (default): `claude plugin install` uses user scope, so every session on that
+  machine, in every repo, shows up.
+- **One repo off**: `claude plugin disable session-board@session-board --scope local` inside the repo.
+- **One repo only**: install with `--scope project` (or `local`) instead of the default user scope.
+- **One session off**: start it with `SESSION_BOARD=off claude`.
+- **Cloud sessions**: per repo, only where `/session-board:install-cloud` was committed.
+
 ## Privacy
 
 Prompts, commands and messages are trimmed to short excerpts; `SESSION_BOARD_SEND_TEXT=0` sends

@@ -27,6 +27,9 @@ function readStdin() {
 // also has the plugin installed does not report the same session twice.
 if (process.argv.includes('--cloud-only') && process.env.CLAUDE_CODE_REMOTE !== 'true') process.exit(0);
 
+// `SESSION_BOARD=off claude`: keep one session off the board without touching the install.
+if (['off', '0', 'false'].includes(String(process.env.SESSION_BOARD || '').toLowerCase())) process.exit(0);
+
 try {
   const raw = await readStdin();
   let input = {};
