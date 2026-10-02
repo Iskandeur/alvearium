@@ -1,0 +1,38 @@
+{
+  "name": "session-board",
+  "displayName": "Session Board",
+  "version": "0.1.0",
+  "description": "A ticket board for all your Claude Code sessions, terminal and claude.ai/code cloud: what is waiting on you, what is in progress, what is ready for review.",
+  "author": {
+    "name": "Iskandeur",
+    "url": "https://github.com/Iskandeur"
+  },
+  "homepage": "https://github.com/Iskandeur/session-board",
+  "repository": "https://github.com/Iskandeur/session-board",
+  "license": "MIT",
+  "keywords": [
+    "sessions",
+    "dashboard",
+    "kanban",
+    "notifications",
+    "hooks",
+    "cloud",
+    "statusline",
+    "mod"
+  ],
+  "userConfig": {
+    "server_url": {
+      "type": "string",
+      "title": "Board server URL (optional)",
+      "description": "Base URL of your session-board server, e.g. https://board.example.com. Leave empty for local mode (this machine only).",
+      "default": ""
+    },
+    "token": {
+      "type": "string",
+      "title": "Board server token (optional)",
+      "description": "Bearer token of your session-board server. Leave empty for local mode.",
+      "sensitive": true,
+      "default": ""
+    }
+  }
+}

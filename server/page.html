@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Session board</title>
+<style>
+  :root { --bg:#0f1115; --card:#181b22; --line:#262a33; --text:#e6e8ec; --mute:#8b93a1; --wait:#f5a524; --work:#4f8cff; --rev:#2fbf71; --fail:#ef4444; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f6f7f9; --card:#fff; --line:#e3e6eb; --text:#16181d; --mute:#5f6773; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; background:var(--bg); color:var(--text); }
+  header { display:flex; gap:12px; align-items:baseline; padding:14px 18px; border-bottom:1px solid var(--line); }
+  header h1 { font-size:16px; margin:0; }
+  header .meta { color:var(--mute); font-size:12px; margin-left:auto; }
+  main { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:14px; padding:14px 18px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  section h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; margin:0 0 8px; display:flex; gap:8px; align-items:center; }
+  .dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+  .card { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--c); border-radius:8px; padding:10px 12px; margin-bottom:10px; }
+  .card .top { display:flex; gap:8px; align-items:baseline; }
+  .card .where { font-weight:600; overflow-wrap:anywhere; }
+  .card .age { margin-left:auto; color:var(--mute); font-size:12px; white-space:nowrap; }
+  .card .title { color:var(--mute); font-size:12px; margin-top:2px; overflow-wrap:anywhere; }
+  .card .detail { margin-top:6px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .card .links { margin-top:6px; display:flex; gap:12px; font-size:12px; }
+  .badge { font-size:11px; padding:1px 6px; border-radius:10px; border:1px solid var(--line); color:var(--mute); }
+  .badge.fail { color:var(--fail); border-color:var(--fail); }
+  a { color:var(--work); }
+  button.link { background:none; border:0; color:var(--mute); cursor:pointer; padding:0; font:inherit; text-decoration:underline; }
+  .empty { color:var(--mute); font-style:italic; }
+  #auth { display:none; padding:18px; }
+  #auth input { width:min(520px, 90vw); padding:6px 8px; }
+</style>
+</head>
+<body>
+<header><h1>Session board</h1><span id="summary" class="meta"></span><span id="updated" class="meta"></span></header>
+<div id="auth"><p>This board needs its access token.</p><input id="tok" type="password" placeholder="Paste token"> <button id="save">Save</button></div>
+<main id="board">
+  <section><h2><span class="dot" style="background:var(--wait)"></span>Waiting on you <span id="n-waiting"></span></h2><div id="col-waiting"></div></section>
+  <section><h2><span class="dot" style="background:var(--work)"></span>In progress <span id="n-progress"></span></h2><div id="col-progress"></div></section>
+  <section><h2><span class="dot" style="background:var(--rev)"></span>Ready for review <span id="n-review"></span></h2><div id="col-review"></div></section>
+</main>
+<script>
+(() => {
+  const KEY = 'session-board-token';
+  const m = location.hash.match(/token=([^&]+)/);
+  if (m) { localStorage.setItem(KEY, decodeURIComponent(m[1])); history.replaceState(null, '', location.pathname + location.search); }
+  const headers = () => { const t = localStorage.getItem(KEY); return t ? { authorization: 'Bearer ' + t } : {}; };
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  const safeUrl = (u) => (typeof u === 'string' && /^https:\/\//.test(u) ? u : null);
+  const ago = (ms, now) => { const s = Math.max(0, Math.round((now - ms) / 1000)); return s < 60 ? s + 's' : s < 3600 ? Math.round(s/60) + 'm' : s < 86400 ? Math.round(s/3600) + 'h' : Math.round(s/86400) + 'd'; };
+  const where = (r) => {
+    const base = r.repo || (r.cwd || '').split(/[\\/]/).filter(Boolean).pop() || 'session';
+    const br = r.branch && r.branch !== 'HEAD' ? '@' + r.branch : '';
+    return (r.name ? r.name + ' · ' : '') + base + br;
+  };
+  const color = { waiting:'var(--wait)', failed:'var(--fail)', working:'var(--work)', stale:'var(--mute)', review:'var(--rev)' };
+  function card(r, now) {
+    const surface = r.surface === 'cloud' ? '☁ cloud' : '⌨ ' + esc(r.host || 'terminal');
+    const badges = [r.display === 'failed' ? '<span class="badge fail">failed</span>' : '', r.display === 'stale' ? '<span class="badge">stale</span>' : '', r.kind === 'permission' ? '<span class="badge">permission</span>' : ''].join('');
+    const links = [safeUrl(r.url) ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Open session</a>` : '', safeUrl(r.pr) ? `<a href="${esc(r.pr)}" target="_blank" rel="noopener">Pull request</a>` : '', r.display === 'review' ? `<button class="link" data-dismiss="${esc(r.sessionId)}">Dismiss</button>` : ''].join('');
+    return `<div class="card" style="--c:${color[r.display] || 'var(--line)'}">
+      <div class="top"><span class="where">${esc(where(r))}</span>${badges}<span class="age">${ago(r.since ?? r.lastSeen, now)}</span></div>
+      <div class="title">${surface}${r.title ? ' · ' + esc(r.title) : ''}</div>
+      ${r.detail ? `<div class="detail">${esc(r.detail)}</div>` : ''}
+      ${links ? `<div class="links">${links}</div>` : ''}
+    </div>`;
+  }
+  function fill(id, list, now) { $(id).innerHTML = list.length ? list.map((r) => card(r, now)).join('') : '<div class="empty">Nothing here.</div>'; }
+  async function refresh() {
+    try {
+      const res = await fetch('api/board', { headers: headers(), cache: 'no-store' });
+      if (res.status === 401) { $('auth').style.display = 'block'; return; }
+      $('auth').style.display = 'none';
+      const b = await res.json();
+      fill('col-waiting', b.waiting, b.now); fill('col-progress', b.inProgress, b.now); fill('col-review', b.review, b.now);
+      $('n-waiting').textContent = b.counts.waiting; $('n-progress').textContent = b.counts.working; $('n-review').textContent = b.counts.review;
+      $('summary').textContent = `${b.counts.waiting} waiting · ${b.counts.working} working · ${b.counts.review} review`;
+      document.title = (b.counts.waiting ? `(${b.counts.waiting}) ` : '') + 'Session board';
+      $('updated').textContent = 'updated ' + new Date().toLocaleTimeString();
+    } catch (e) { $('updated').textContent = 'offline — retrying'; }
+  }
+  document.addEventListener('click', async (e) => {
+    const id = e.target?.dataset?.dismiss; if (!id) return;
+    await fetch('api/dismiss', { method: 'POST', headers: { ...headers(), 'content-type': 'application/json' }, body: JSON.stringify({ sessionId: id }) });
+    refresh();
+  });
+  $('save').onclick = () => { localStorage.setItem(KEY, $('tok').value.trim()); refresh(); };
+  refresh(); setInterval(refresh, 10000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+})();
+</script>
+</body>
+</html>

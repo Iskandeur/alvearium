@@ -1,0 +1,36 @@
+{
+  "description": "session-board: report each session's state (working / waiting / review / failed / closed) and draw the board in the terminal",
+  "modules": ["./mod.mjs"],
+  "hooks": {
+    "SessionStart": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" SessionStart", "timeout": 5 }] }
+    ],
+    "UserPromptSubmit": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" UserPromptSubmit", "async": true, "timeout": 5 }] }
+    ],
+    "PreToolUse": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" PreToolUse", "async": true, "timeout": 5 }] }
+    ],
+    "PostToolUse": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" PostToolUse", "async": true, "timeout": 5 }] }
+    ],
+    "PermissionRequest": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" PermissionRequest", "async": true, "timeout": 5 }] }
+    ],
+    "Notification": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" Notification", "async": true, "timeout": 5 }] }
+    ],
+    "Elicitation": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" Elicitation", "async": true, "timeout": 5 }] }
+    ],
+    "Stop": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" Stop", "timeout": 5 }] }
+    ],
+    "StopFailure": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" StopFailure", "timeout": 5 }] }
+    ],
+    "SessionEnd": [
+      { "matcher": "", "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" SessionEnd", "timeout": 2 }] }
+    ]
+  }
+}
