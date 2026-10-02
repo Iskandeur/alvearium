@@ -176,6 +176,19 @@ test('hook script: SessionStart sends the local board and tells the user in syst
   });
 });
 
+test('sync: an earlier uploaded file with the same name is never overwritten', async () => {
+  const now = Date.UTC(2026, 9, 2, 18, 0, 0);
+  const dir = await localBoard(async (s) => s.createTicket({ title: 'second batch' }));
+  writeFileSync(join(dir, 'board.db.uploaded-2026-10-02T18-00-00'), 'first batch');
+  const server = await openStore(':memory:');
+  await withServer(server, async (base) => {
+    const r = await syncLocalToServer({ env: envFor(dir, base), now });
+    assert.equal(r.status, 'uploaded');
+    assert.ok(r.file.endsWith('board.db.uploaded-2026-10-02T18-00-00-2'));
+    assert.equal(readFileSync(join(dir, 'board.db.uploaded-2026-10-02T18-00-00'), 'utf8'), 'first batch');
+  });
+});
+
 test('chunkExport: sessions in the first request, at most 25 tickets per request', () => {
   const tickets = Array.from({ length: 51 }, (_, i) => ({ id: 't' + i, title: 'x' }));
   const chunks = chunkExport({ sessions: [{ id: 's' }], tickets });
