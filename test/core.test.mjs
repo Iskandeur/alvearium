@@ -132,7 +132,7 @@ test('helpers: repo, label, PR, tool description', () => {
   assert.equal(repoFromRemote('http://local_proxy@127.0.0.1:1234/git/acme/app'), 'acme/app');
   assert.equal(repoFromRemote(''), null);
   assert.equal(label({ repo: 'acme/app', branch: 'feat/x' }), 'acme/app@feat/x');
-  assert.equal(label({ cwd: '/home/me/proj', branch: 'HEAD' }), 'proj');
+  assert.equal(label({ cwd: '/work/proj', branch: 'HEAD' }), 'proj');
   assert.equal(findPrUrl('see https://github.com/a/b/pull/1 then https://github.com/a/b/pull/2'), 'https://github.com/a/b/pull/2');
   assert.equal(findPrUrl('nothing'), null);
   assert.equal(describeTool('Read', { file_path: '/x/y.ts' }), 'Read: /x/y.ts');
