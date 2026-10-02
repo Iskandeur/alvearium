@@ -170,3 +170,15 @@ test('install-repo: merges idempotently next to existing hooks, and uninstalls c
   const copied = spawnSync(process.execPath, [join(repo, MARKER), 'Stop'], { input: '{}', env: { ...process.env, SESSION_BOARD_DIR: tmp() } });
   assert.equal(copied.status, 0, 'the vendored copy runs on its own');
 });
+
+// Regression (0.2.1): stdio MCP servers do NOT receive CLAUDE_PLUGIN_OPTION_* (only hooks do), so the
+// manifest must forward the options through `env`, or Claude's tickets silently land in local mode.
+test('manifest forwards plugin options to the MCP server, and they select remote mode', () => {
+  const manifest = JSON.parse(readFileSync(join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
+  const env = manifest.mcpServers.tickets.env;
+  assert.equal(env.CLAUDE_PLUGIN_OPTION_SERVER_URL, '${user_config.server_url}');
+  assert.equal(env.CLAUDE_PLUGIN_OPTION_TOKEN, '${user_config.token}');
+  const cfg = loadConfig({ SESSION_BOARD_DIR: tmp(), CLAUDE_PLUGIN_OPTION_SERVER_URL: 'https://b.example/', CLAUDE_PLUGIN_OPTION_TOKEN: 't' });
+  assert.equal(cfg.remote, true);
+  assert.equal(cfg.url, 'https://b.example');
+});

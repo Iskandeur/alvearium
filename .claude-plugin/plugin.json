@@ -1,7 +1,7 @@
 {
   "name": "session-board",
   "displayName": "Session Board",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A ticket board for all your Claude Code sessions, terminal and claude.ai/code cloud: what waits on you, what is in progress, what is left to do. Tickets come from hooks, from Claude (MCP tools) and from you.",
   "author": {
     "name": "Iskandeur",
@@ -27,7 +27,11 @@
       "command": "node",
       "args": [
         "${CLAUDE_PLUGIN_ROOT}/mcp/server.mjs"
-      ]
+      ],
+      "env": {
+        "CLAUDE_PLUGIN_OPTION_SERVER_URL": "${user_config.server_url}",
+        "CLAUDE_PLUGIN_OPTION_TOKEN": "${user_config.token}"
+      }
     }
   },
   "userConfig": {
