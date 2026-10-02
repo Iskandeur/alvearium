@@ -12,17 +12,23 @@ test('page: one self-contained file, nothing loaded from elsewhere', () => {
   assert.doesNotMatch(page, /fonts\.googleapis|cdn\.|unpkg|jsdelivr/i);
 });
 
-test('page: columns in board order, waiting first', () => {
+test('page: columns in board order, waiting on you first', () => {
   const w = page.indexOf('id="col-waiting"');
-  const p = page.indexOf('id="col-progress"');
-  const r = page.indexOf('id="col-review"');
-  assert.ok(w > 0 && w < p && p < r);
+  const p = page.indexOf('id="col-inProgress"');
+  const t = page.indexOf('id="col-todo"');
+  assert.ok(w > 0 && w < p && p < t);
   assert.match(page, /Nothing waiting on you/);
 });
 
 test('page: light and dark themes, relative API paths (works under a sub-path)', () => {
   assert.match(page, /prefers-color-scheme: dark/);
-  assert.match(page, /fetch\('api\/board'/);
-  assert.match(page, /fetch\('api\/dismiss'/);
+  assert.match(page, /fetch\('api\/' \+ path/);
   assert.doesNotMatch(page, /fetch\('\/api/);
+  for (const route of ["'tickets/board'", "'facets'", "'tickets'", '`tickets/${'] ) assert.ok(page.includes(route), route);
+});
+
+test('page: filters live in the URL (shareable, back button)', () => {
+  assert.match(page, /history\.pushState/);
+  assert.match(page, /addEventListener\('popstate'/);
+  for (const k of ['repo', 'session', 'status', 'assignee', 'kind', 'label', 'origin', 'machine']) assert.ok(page.includes(`'${k}'`), k);
 });

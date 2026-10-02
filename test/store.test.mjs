@@ -142,11 +142,14 @@ test('filters: status groups, assignee, origin, machine, dates, search fallbacks
   assert.equal(n({ created_after: String(now - 2 * DAY) }), 2);
   assert.equal(n({ created_before: new Date(now - 2 * DAY).toISOString() }), 1);
   assert.equal(n({ q: 'flamegra' }), 1, 'prefix search in comments');
+  store.updateTicket(c.key, { labels: ['perf'] });
+  assert.equal(n({ q: 'perf' }), 1, 'labels are searchable');
   assert.equal(n({ q: 'ROTATE token' }), 1, 'every word, any case');
   assert.equal(n({ q: '"); DROP TABLE tickets; --' }), 0, 'hostile input is just words');
   assert.equal(ftsQuery('a-b c'), '"a"* AND "b"* AND "c"*');
   store.fts = false; // LIKE fallback, same answers
   assert.equal(n({ q: 'flamegraph' }), 1);
+  assert.equal(n({ q: 'perf' }), 1);
   assert.equal(n({ q: '100%' }), 0);
 });
 

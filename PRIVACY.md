@@ -19,14 +19,17 @@ For each Claude Code session, the plugin's hooks record:
 
 Set `SESSION_BOARD_SEND_TEXT=0` to record states only, with no prompt, command or message text.
 
+It also records the tickets you or Claude create (title, description, labels, comments, links) and,
+unless `SESSION_BOARD_MIRROR_TASKS=0`, the titles of the tasks in Claude's own task list.
+
 ## Where it goes
 
-- **Local mode** (the default, no configuration): everything stays in `~/.claude/session-board/` on
-  your own machine. Nothing leaves it.
+- **Local mode** (the default, no configuration): everything stays in `~/.claude/session-board/`
+  (one SQLite file, `board.db`) on your own machine. Nothing leaves it.
 - **Server mode** (you set a server URL and token): the same records are sent over HTTPS to the
-  server **you** run and configure. The server keeps them in one JSON file, drops closed sessions
-  after 2 hours and any session silent for 7 days, and serves them only to requests that carry your
-  token.
+  server **you** run and configure. The server keeps them in one SQLite file and serves them only
+  to requests that carry your token. Closed tickets leave the default views after 30 days; nothing
+  is deleted automatically, so delete the file to erase the history.
 
 The authors of session-board never receive any of this data. The plugin makes no network request
 other than to the server URL you configure.

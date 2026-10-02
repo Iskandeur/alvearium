@@ -1,56 +1,81 @@
 # session-board
 
-One ticket board for **all** your Claude Code sessions, terminal and claude.ai/code cloud alike.
-At a glance: what is **waiting on you**, what is **in progress**, what is **ready for review**.
+One ticket board for **all** your Claude Code work, terminal and claude.ai/code cloud alike: what is
+**waiting on you**, what is **in progress**, what is left **to do**. Every ticket knows its session,
+repository, branch and machine, so you can look at everything at once or at one repo, one session.
 
 ```
-WAITING ON YOU (2)
-  ☁ acme/api@claude/fix-auth · 4m
-      task: fix the token refresh race
-      Permission: Bash: npm run migrate
-      open: https://claude.ai/code/session_01…
-  ⌨ acme/web@main · 1m
-      Claude needs your permission to use WebFetch
-
-IN PROGRESS (1)
-  ⌨ acme/infra@terraform · 12s
-      Edit: modules/vpc/main.tf
-
-READY FOR REVIEW (1)
-  ☁ acme/api@claude/rate-limit · 9m
-      Added a sliding-window limiter and tests. Opened the PR.
+WAITING ON YOU (3)
+  ⌨ SB-5 Approve Bash: npm run db:migrate -- --env staging · 6m · api@fix/token-refresh
+  ⌨ SB-6 Add REFRESH_LOCK_TTL to the staging secrets · 38m · api@fix/token-refresh
+  ☁ SB-7 Add a sliding-window rate limiter to the public API [review] · 22m · api@claude/rate-limit
       PR: https://github.com/acme/api/pull/412
+      open: https://claude.ai/code/session_01…
+
+IN PROGRESS (2)
+  ⌨ SB-1 Fix the token refresh race in the auth middleware · 2h · api@fix/token-refresh
+  ⌨ SB-17 Accessibility pass on the product page (WCAG AA) · 25m · web
+
+TO DO (4)
+  ⌨ SB-4 Add a regression test · 2h · api@fix/token-refresh
+  …
 ```
 
-Agent view (`claude agents`) shows local background sessions; terminal tools such as tmux managers
-show terminal sessions. None of them puts your cloud sessions on the same board. session-board does,
-with plain Claude Code hooks and a tiny self-hosted server.
+## Tickets, sessions, and where tickets come from
 
-## How it works
+A **ticket** is the unit of the board: key (`SB-12`), title, markdown body, status, kind, assignee
+(`user` or `claude`), optional priority, labels, sub-tickets, links (PR, cloud session, file, URL),
+and a history of every change and comment, with who made it. A **session** is a context: a session
+has zero, one or many tickets, and you filter on it.
 
-Hooks report each session's state as it changes:
+Statuses: `todo`, `in_progress`, `waiting_on_user`, `review`, `done`, `cancelled`, `failed`. The
+board's columns are derived: **Waiting on you** = waiting on you, in review or failed, assigned to
+you; **In progress**; **To do**; **Done** folded away. Done tickets older than 30 days leave the
+default views (they are never deleted; *Show archived* brings them back).
 
-| Hook event | Board state |
-| :- | :- |
-| `UserPromptSubmit`, `PreToolUse`, `PostToolUse` | **working** (tool calls throttled to one report per 20 s) |
-| `PermissionRequest`, `Elicitation`, `Notification` (`permission_prompt`, `idle_prompt`, `elicitation_dialog`, `agent_needs_input`) | **waiting** on you, with the question or the tool asked for |
-| `Stop`, `Notification` (`agent_completed`) | **review**, with the end of Claude's last message and the PR link if any |
-| `StopFailure` | **failed** |
-| `SessionEnd` | **closed** (hidden after 2 h) |
-| `working` with no heartbeat for 30 min | shown as **stale** |
+Tickets come from three places:
+
+1. **Hooks, automatically.** Each session gets one ticket that follows it (in progress while Claude
+   works, *review* when the turn ends, *failed* on an API error, *done* when the session ends). A
+   permission prompt or a question opens a *waiting on you* sub-ticket that closes by itself when the
+   session moves on. One review ticket per session, not one per turn.
+
+   | Hook event | Ticket |
+   | :- | :- |
+   | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` | session ticket **in progress**; open questions close (tool calls throttled to one report per 20 s) |
+   | `PermissionRequest`, `Elicitation`, `Notification` (`permission_prompt`, `elicitation_dialog`, `agent_needs_input`) | a **waiting on you** ticket (*Approve Bash: …*, or the question) |
+   | `Stop`, `Notification` (`agent_completed`) | session ticket **review**, with the end of Claude's last message and the PR link |
+   | `StopFailure` | session ticket **failed**, with the error |
+   | `SessionEnd` | session ticket **done**; unanswered questions cancelled |
+   | `TaskCreated`, `TaskCompleted` | Claude's own task list mirrored as `claude` tickets (`SESSION_BOARD_MIRROR_TASKS=0` to turn off) |
+
+2. **Claude, through MCP tools.** The plugin ships a small MCP server (`ticket_create`,
+   `ticket_update`, `ticket_list`, `ticket_comment`, `ticket_get`) and a skill telling Claude when to
+   use them: an action item only you can do ("add the `STRIPE_KEY` secret", "review PR #412"), a long
+   task split into sub-tickets, what is left at the end. Tickets attach to the current session and
+   repo by themselves.
+3. **You**, from the web page (create, edit title / status / labels / priority, comment, close,
+   sub-tickets) or the terminal (`/ticket`).
 
 The hook is one zero-dependency Node script. It never blocks or fails your session: network calls
 time out after 2 s, every error is swallowed, it always exits 0, and hot-path events run `async`.
 
 ## Install
 
+Requires Node.js 22.13 or later (the board is stored with the built-in `node:sqlite`).
+
 ```bash
 claude plugin marketplace add Iskandeur/session-board
 claude plugin install session-board@session-board
 ```
 
-That's it for **local mode**: the board lives in `~/.claude/session-board/` and covers every session
-on this machine. Type `/board` (or `/session-board:board`).
+That's it for **local mode**: tickets live in `~/.claude/session-board/board.db` and cover every
+session on this machine. Type `/board` (or `/session-board:board`).
+
+**Updating from 0.1**: `claude plugin marketplace update session-board` then
+`claude plugin update session-board@session-board`, and restart your sessions. Your existing sessions
+are imported on first use (local `sessions/*.json`, or the server's `board.json`, which is kept as
+`board.json.migrated`).
 
 ### Server mode (several machines, cloud sessions)
 
@@ -62,10 +87,6 @@ openssl rand -hex 32 > token && chmod 600 token
 docker compose up -d --build        # or: SESSION_BOARD_TOKEN=… node server/server.mjs
 ```
 
-Endpoints: `POST /api/event` and `GET /api/board` (both `Authorization: Bearer <token>`),
-`POST /api/dismiss`, `GET /` (the web page, auto-refreshing; open it once as `/#token=<token>` and the
-browser remembers it), `GET /healthz`.
-
 Then point your machines at it, in any of these ways (first match wins):
 
 1. environment: `SESSION_BOARD_URL=https://board.example.com` and `SESSION_BOARD_TOKEN=…`
@@ -73,6 +94,39 @@ Then point your machines at it, in any of these ways (first match wins):
 2. the plugin's own settings, asked at install time and editable in `/config` (the token is kept in
    secure storage);
 3. `~/.claude/session-board/config.json`: `{ "url": "…", "token": "…" }`.
+
+The hooks, `/board`, `/ticket` and the MCP server all use the same setting.
+
+### API
+
+Every `/api/*` route needs `Authorization: Bearer <token>`. `GET /` serves the web page (open it once
+as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without a token.
+
+| Route | |
+| :- | :- |
+| `GET /api/tickets` | list, newest first, paginated (`limit` ≤ 500, `offset`) |
+| `GET /api/tickets/board` | the same filters, grouped in board columns |
+| `POST /api/tickets` | create `{ title, body, status, kind, assignee, priority, labels, parent, links, session_id, repo, branch }` |
+| `GET /api/tickets/SB-12` | one ticket with its history and sub-tickets |
+| `POST` or `PATCH /api/tickets/SB-12` | update any field, optional `comment` in the same call |
+| `POST /api/tickets/SB-12/comments` | `{ text }` |
+| `GET /api/facets` | repos, sessions, branches, machines, kinds and labels with counts |
+| `GET /api/sessions` | sessions, most recent first (`?repo=`) |
+| `POST /api/event`, `GET /api/board`, `POST /api/dismiss` | v0.1 routes, still served (hooks and old clients) |
+
+Filters, on the list and the board: `session`, `repo` (`owner/name`, or just `name`), `branch`,
+`machine`, `origin` (`terminal`/`cloud`), `status` (also `open`, `closed`), `assignee`, `kind`,
+`label`, `source` (`hook`/`claude`/`user`), `priority`, `parent`, `q` (full text over title, body,
+labels and comments; a key like `SB-12` finds that ticket), `created_after`, `created_before`,
+`updated_after`, `updated_before` (ISO or epoch ms), `archived=1|only`, `sort=updated|created|priority|key`.
+Comma-separate several values: `?repo=acme/api&status=todo,in_progress&label=deploy`.
+
+### The web page
+
+Search box, filter chips (click a repo, a session or a label on any card to filter on it), Board and
+List views (the list is grouped by session), a side panel with the ticket's fields, description,
+sub-tickets, links and history, and a comment box. Every filter lives in the URL: share it, bookmark
+it, use the back button. Light and dark follow your system (`?theme=light|dark` forces one).
 
 ### Cloud sessions (claude.ai/code)
 
@@ -82,7 +136,8 @@ Cloud sessions do not install plugins, but they run the hooks committed in a rep
 
 1. In a local session inside the repo, run `/session-board:install-cloud`. It copies the hook script
    to `.claude/session-board/` and registers it in `.claude/settings.json` in `--cloud-only` mode (it
-   stays silent on your machines, where the plugin already reports). Commit and push.
+   stays silent on your machines, where the plugin already reports). Commit and push. Repos set up
+   with 0.1 keep working; run it again to pick up the task mirror.
 2. In the cloud environment the repo uses (claude.ai/code → environment → edit):
    - **Environment variables**: `SESSION_BOARD_URL=https://board.example.com` and
      `SESSION_BOARD_TOKEN=proxy`
@@ -93,15 +148,19 @@ Cloud sessions do not install plugins, but they run the hooks committed in a rep
      host to **Allowed domains** (tick *Also include default list…* to keep package registries), and
      put the real token in `SESSION_BOARD_TOKEN`. Anyone who can use the environment can read it.
 
-Cloud tickets carry a direct link to the session (`https://claude.ai/code/session_…`).
+Cloud tickets carry a direct link to the session (`https://claude.ai/code/session_…`). The MCP tools
+are not available in cloud sessions (they come with the plugin); hooks are.
 
 ## In the terminal
 
-- **`/board`**: prints the board. With Claude Code 2.1.287 or later the plugin's *mod* answers it at
-  once, with no Claude turn, even while Claude is working; on older versions the
-  `/session-board:board` command prints it through Claude.
-- **Status line under the prompt** (mod, 2.1.287+): `3 waiting · 5 working · 2 review`, refreshed
-  every 20 s.
+- **`/board`**: prints the board (`--here` for this repo, `--repo <name>`, `--q <text>`). With Claude
+  Code 2.1.287 or later the plugin's *mod* answers it at once, with no Claude turn, even while
+  Claude is working; on older versions `/session-board:board` prints it through Claude.
+- **`/ticket`**: `new <title> [--label a,b] [--priority high] [--parent SB-3]`, `done <KEY> [note]`,
+  `status <KEY> <status>`, `list [--all] [words]` (default: open tickets of this repo), `show <KEY>`,
+  `comment <KEY> <text>`.
+- **Status line under the prompt** (mod, 2.1.287+): `2 for you · 3 in progress · 5 to do`,
+  refreshed every 20 s.
 - **Your own statusline**: plugins cannot set `statusLine`, so add it yourself if you prefer it:
   copy `statusline/statusline.mjs` to `~/.claude/session-board/statusline.mjs` and set
   `"statusLine": { "type": "command", "command": "node ~/.claude/session-board/statusline.mjs" }`
