@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { ASSIGNEES, PRIORITIES, STATUSES, repoFromRemote, truncate } from '../lib/core.mjs';
 import { dataDir, openBackend, sessionForCwd } from '../lib/runtime.mjs';
 
-const SERVER_INFO = { name: 'session-board', version: '0.2.2' };
+const SERVER_INFO = { name: 'session-board', version: '0.2.3' };
 const PROTOCOL = '2025-06-18';
 
 const TOOLS = [

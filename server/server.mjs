@@ -21,6 +21,9 @@
 //   POST /api/tickets/:key/comments { text }
 //   GET  /api/facets                values to filter on (repos, sessions, machines, labels, kinds)
 //   GET  /api/sessions              sessions, most recent first (?repo)
+//   POST /api/import                { board, machine, sessions, tickets }: a machine's local board.db,
+//                                   idempotent per (board, ticket id); the plugin sends it once
+//   DELETE /api/sessions/:id        a session and its tickets (cleanup, tests)
 import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -31,6 +34,7 @@ import { openStore } from '../lib/store.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MAX_BODY = 64 * 1024;
+const MAX_IMPORT_BODY = 4 * 1024 * 1024;
 
 export function readToken(env = process.env) {
   if (env.SESSION_BOARD_TOKEN) return env.SESSION_BOARD_TOKEN.trim();
@@ -55,13 +59,13 @@ function send(res, status, body, type = 'application/json; charset=utf-8') {
   res.end(typeof body === 'string' ? body : JSON.stringify(body));
 }
 
-function readBody(req) {
+function readBody(req, max = MAX_BODY) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
-      if (size > MAX_BODY) {
+      if (size > max) {
         reject(Object.assign(new Error('too large'), { status: 413 }));
         req.destroy();
       } else chunks.push(c);
@@ -71,9 +75,9 @@ function readBody(req) {
   });
 }
 
-async function jsonBody(req) {
+async function jsonBody(req, max) {
   try {
-    const v = JSON.parse((await readBody(req)) || '{}');
+    const v = JSON.parse((await readBody(req, max)) || '{}');
     if (!v || typeof v !== 'object') throw new Error('bad');
     return v;
   } catch (e) {
@@ -107,6 +111,12 @@ export function createApp({ token, store, page }) {
         const rec = store.ingest(evt);
         return send(res, 202, { ok: true, state: rec.state });
       }
+      if (path === '/api/import' && m === 'POST') {
+        const body = await jsonBody(req, MAX_IMPORT_BODY);
+        const out = store.importTickets(body);
+        if (out.imported || out.sessions) console.log(`session-board: imported ${out.imported} ticket(s), ${out.sessions} session(s) from ${String(body.machine || 'a local board').slice(0, 80)}`);
+        return send(res, 200, out);
+      }
       if (path === '/api/board' && m === 'GET') return send(res, 200, store.legacyBoard());
       if (path === '/api/dismiss' && m === 'POST') {
         const body = await jsonBody(req);
@@ -119,6 +129,11 @@ export function createApp({ token, store, page }) {
       if (path === '/api/sessions' && m === 'GET') {
         const lim = Math.min(Number(url.searchParams.get('limit')) || 100, 500);
         return send(res, 200, store.listSessions({ repo: url.searchParams.get('repo') || undefined, limit: lim }));
+      }
+      const sm = path.match(/^\/api\/sessions\/([\w.:-]{1,128})$/);
+      if (sm && m === 'DELETE') {
+        const out = store.deleteSession(sm[1]);
+        return send(res, out.session || out.tickets ? 200 : 404, out);
       }
       const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments)?$/);
       if (tm) {

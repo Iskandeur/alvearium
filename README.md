@@ -97,6 +97,29 @@ Then point your machines at it, in any of these ways (first match wins):
 
 The hooks, `/board`, `/ticket` and the MCP server all use the same setting.
 
+### Storage and upgrades
+
+Tickets live in one place at a time: the server when a URL and token are set, else
+`~/.claude/session-board/board.db` on this machine. When that changes:
+
+- **Local → server** (you set up a server, or 0.2.0 kept Claude's tickets local because its MCP
+  server did not receive the plugin settings): at the next session start, the hook sends the local
+  `board.db` to the server once (`POST /api/import`): tickets with their status, dates, labels, links,
+  sub-tickets, comments and history, plus the sessions the server does not know. Keys are renumbered
+  on the server (`SB-3` may become `SB-57`; the ticket history says which key it had). Each ticket is
+  recorded with its origin, so a second import never creates a duplicate, and the session tickets the
+  server already follows through the hooks are not copied twice. When everything is in, `board.db` is
+  renamed to `board.db.uploaded-<date>` (never deleted) and the session shows one line:
+  `session-board: 4 tickets from this machine's local board moved to the board on board.example.com`.
+- **If it cannot finish** (server down, out of time, server older than 0.2.3): nothing is renamed,
+  the start shows how many tickets are still local, once, and it retries at every start. To retry
+  now: `/session-board:board sync`.
+- **Server → local, or one server → another**: nothing is moved. The next start says where the
+  tickets stayed.
+
+The import needs the server to be 0.2.3 or later: update it (`git pull && docker compose up -d
+--build`) before or with the plugin.
+
 ### API
 
 Every `/api/*` route needs `Authorization: Bearer <token>`. `GET /` serves the web page (open it once
@@ -112,6 +135,8 @@ as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without 
 | `POST /api/tickets/SB-12/comments` | `{ text }` |
 | `GET /api/facets` | repos, sessions, branches, machines, kinds and labels with counts |
 | `GET /api/sessions` | sessions, most recent first (`?repo=`) |
+| `DELETE /api/sessions/<id>` | remove a session and its tickets |
+| `POST /api/import` | `{ board, machine, sessions, tickets }`: a local `board.db`, idempotent (used by the plugin) |
 | `POST /api/event`, `GET /api/board`, `POST /api/dismiss` | v0.1 routes, still served (hooks and old clients) |
 
 Filters, on the list and the board: `session`, `repo` (`owner/name`, or just `name`), `branch`,

@@ -30,6 +30,10 @@ unless `SESSION_BOARD_MIRROR_TASKS=0`, the titles of the tasks in Claude's own t
   server **you** run and configure. The server keeps them in one SQLite file and serves them only
   to requests that carry your token. Closed tickets leave the default views after 30 days; nothing
   is deleted automatically, so delete the file to erase the history.
+- **Switching from local to server mode**: the tickets already in the local `board.db` are sent once
+  to that same server, then the local file is renamed `board.db.uploaded-<date>` and kept on your
+  machine (delete it yourself if you want). The plugin remembers the last server URL (not the
+  token) in `~/.claude/session-board/storage.json` to tell you when the storage changes.
 
 The authors of session-board never receive any of this data. The plugin makes no network request
 other than to the server URL you configure.

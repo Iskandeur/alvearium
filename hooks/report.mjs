@@ -37,8 +37,20 @@ try {
     input = JSON.parse(raw || '{}');
   } catch {}
   const event = process.argv[2] || input.hook_event_name;
+  const started = Date.now();
   const status = await handleHook(event, input);
   if (process.env.SESSION_BOARD_DEBUG === '1') process.stderr.write(`session-board: ${event} → ${status}\n`);
+  // Storage changes (local board left behind, server switched): at most once per start, never in the
+  // cloud copy (which has no local board, and no lib/sync.mjs), never when the server is unreachable.
+  if (event === 'SessionStart' && !process.argv.includes('--cloud-only') && !['send-failed', 'backoff'].includes(status)) {
+    try {
+      const { sessionStartNotice } = await import('../lib/sync.mjs');
+      const text = await sessionStartNotice({ deadlineMs: Math.max(800, 3500 - (Date.now() - started)) });
+      if (text) process.stdout.write(JSON.stringify({ systemMessage: text }) + '\n');
+    } catch (err) {
+      if (process.env.SESSION_BOARD_DEBUG === '1') process.stderr.write(`session-board sync: ${err?.message || err}\n`);
+    }
+  }
 } catch (err) {
   if (process.env.SESSION_BOARD_DEBUG === '1') process.stderr.write(`session-board: ${err?.message || err}\n`);
 }
