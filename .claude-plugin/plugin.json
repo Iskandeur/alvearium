@@ -1,7 +1,7 @@
 {
   "name": "session-board",
   "displayName": "Session Board",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A ticket board for all your Claude Code sessions, terminal and claude.ai/code cloud: what waits on you, what is in progress, what is left to do. Tickets come from hooks, from Claude (MCP tools) and from you.",
   "author": {
     "name": "Iskandeur",

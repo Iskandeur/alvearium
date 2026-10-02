@@ -42,4 +42,9 @@ try {
 } catch (err) {
   if (process.env.SESSION_BOARD_DEBUG === '1') process.stderr.write(`session-board: ${err?.message || err}\n`);
 }
-process.exit(0);
+// No process.exit() here: on Windows, exiting while libuv handles (stdin pipe, fetch socket) are
+// still closing aborts with `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), src\win\async.c`
+// (reported 02/10 on SessionEnd and Stop). Close what we opened and let the loop drain; the unref'd
+// HARD_DEADLINE timer above stays as the last resort.
+process.exitCode = 0;
+process.stdin.destroy();

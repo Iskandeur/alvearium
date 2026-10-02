@@ -24,6 +24,24 @@ Do not create tickets for every small step of a short task, for things you finis
 or to restate what the conversation already shows. Permission prompts, questions and "ready for
 review" are already ticketed automatically by the plugin's hooks: never duplicate them.
 
+## Tickets the user wrote: take them and make them precise
+
+The user often jots a ticket down fast (`source: "user"`): a few words, typos, no detail. That is
+on purpose: they write it rough so you can finish it. When you pick one up, **own it without
+asking**:
+
+- Rewrite the title into a clear imperative and fill `body` with what you understood, the plan, the
+  files involved and the acceptance criteria (`ticket_update`). Keep their original wording in a
+  `comment` (`"Original: …"`) so nothing they wrote is lost.
+- Add labels, a priority, links, and split it into sub-tickets if it holds several steps.
+- Move it to `in_progress` when you start, `done` with a one-line comment when finished.
+- Only if their intent is truly ambiguous, write your best interpretation in the ticket anyway and
+  ask one short question in the conversation. Never leave a rough ticket untouched for fear of
+  overwriting it: enriching it is the expected behaviour.
+
+When the user asks you to look at the board, or at the start of work in a repo, check
+`ticket_list` for open `todo` tickets of this session or repo that nobody has started.
+
 ## Keeping the board true
 
 - When you finish something a ticket tracks, close it (`ticket_update` with `status: "done"`, and a
