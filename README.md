@@ -139,27 +139,39 @@ history.
 
 ## Install
 
-Requires Node.js 22.13 or later (the board is stored with the built-in `node:sqlite`).
+Requires Node.js 22.13 or later (the board is stored with the built-in `node:sqlite`), on the `PATH`
+of the shell that starts `claude`. On Windows, check it in that same shell (PowerShell, cmd or Git
+Bash): `node --version`.
+
+### Terminal sessions: a fresh install
 
 ```bash
 claude plugin marketplace add Iskandeur/session-board
 claude plugin install session-board@session-board
 ```
 
-That's it for **local mode**: tickets live in `~/.claude/session-board/board.db` and cover every
-session on this machine. Type `/board` (or `/session-board:board`).
+Then restart the sessions that are already open: a plugin loads when a session starts. That's it for
+**local mode**: tickets live in `~/.claude/session-board/board.db` (on Windows
+`%USERPROFILE%\.claude\session-board\board.db`) and cover every session on this machine.
 
-**Updating**: `claude plugin marketplace update session-board` then
-`claude plugin update session-board@session-board`, and restart your sessions. With a server,
-update the server first (`git pull && docker compose up -d --build`): 0.3 migrates the database in
-place (priorities, creators) after a full copy next to it (`board.db.schema1-<date>.bak`), and the
-0.3 page needs the 0.3 API. From 0.1: Your existing sessions
-are imported on first use (local `sessions/*.json`, or the server's `board.json`, which is kept as
-`board.json.migrated`).
+### Terminal sessions: updating from 0.2.x
 
-### Server mode (several machines, cloud sessions)
+```bash
+claude plugin marketplace update session-board
+claude plugin update session-board@session-board
+```
 
-Run the server anywhere reachable over HTTPS:
+Then restart every open session (`/exit`, then `claude --continue` to pick the conversation back
+up). If you run a server, update it **first** (`git pull && docker compose up -d --build`): 0.3
+migrates the database in place (priorities, creators) after a full copy next to it
+(`board.db.schema1-<date>.bak`), and the 0.3 page needs the 0.3 API. A local `board.db` left by 0.2.0
+moves to the server by itself at the next start (see *Storage and upgrades*). From 0.1: your existing
+sessions are imported on first use (local `sessions/*.json`, or the server's `board.json`, which is
+kept as `board.json.migrated`).
+
+### Pointing a machine at a server
+
+Run the server once, anywhere reachable over HTTPS:
 
 ```bash
 git clone https://github.com/Iskandeur/session-board && cd session-board
@@ -167,15 +179,40 @@ openssl rand -hex 32 > token && chmod 600 token
 docker compose up -d --build        # or: SESSION_BOARD_TOKEN=… node server/server.mjs
 ```
 
-Then point your machines at it, in any of these ways (first match wins):
+Then give each machine the URL and the token, in any of these ways (first match wins):
 
-1. environment: `SESSION_BOARD_URL=https://board.example.com` and `SESSION_BOARD_TOKEN=…`
-   (for example in the `env` block of `~/.claude/settings.json`);
+1. environment: `SESSION_BOARD_URL=https://board.example.com` and `SESSION_BOARD_TOKEN=…`. The
+   simplest place, identical on every OS, is the `env` block of `~/.claude/settings.json`
+   (Windows: `%USERPROFILE%\.claude\settings.json`):
+   ```json
+   { "env": { "SESSION_BOARD_URL": "https://board.example.com", "SESSION_BOARD_TOKEN": "…" } }
+   ```
 2. the plugin's own settings, asked at install time and editable in `/config` (the token is kept in
-   secure storage);
+   secure storage). The hooks and the MCP server read them; the status line does not, so prefer 1 or
+   3 if you want it;
 3. `~/.claude/session-board/config.json`: `{ "url": "…", "token": "…" }`.
 
-The hooks, `/board`, `/ticket` and the MCP server all use the same setting.
+The hooks, `/board`, `/ticket` and the MCP server all use the same setting. Agents and scripts that
+start `claude` themselves can load the plugin without installing it (`claude --plugin-dir
+<clone of this repo>`) and name themselves with the variables of *Actors and threads*.
+
+### Checking that it works
+
+1. `/session-board:board` (or `/board`) prints the board. Its first line ends with `source: server`
+   when the URL and token are picked up (`source: this machine (local mode)` otherwise); an
+   unreachable server prints
+   `could not load the board`.
+2. Ask Claude: *“create a test ticket on the board”*. It calls `ticket_create`; the ticket shows on
+   the page within a second (open `https://board.example.com/#token=<token>` once, the browser
+   remembers the token). Delete the test session afterwards from the page, or with
+   `DELETE /api/sessions/<id>`.
+3. Under the prompt, a status line such as `2 for you · 3 in progress · 5 to do` (empty counts are
+   left out; Claude Code 2.1.287 or later).
+4. Nothing shows? Start one session with `SESSION_BOARD_DEBUG=1` (PowerShell:
+   `$env:SESSION_BOARD_DEBUG=1; claude`) to print the hook errors, and try
+   `curl https://board.example.com/healthz`, which answers without a token.
+
+Sessions on claude.ai/code do not load plugins: see *Cloud sessions* below.
 
 ### Storage and upgrades
 
