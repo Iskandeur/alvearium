@@ -22,6 +22,12 @@ TO DO (4)
   …
 ```
 
+![The board, with priorities, a blocked ticket and the avatars of who holds each ticket](docs/screenshots/board-desktop-light.png)
+
+More in [`docs/screenshots`](docs/screenshots): the *Next* view, a ticket with its dependencies and
+its *who → whom* history, the feedback inbox, light and dark, desktop and phone, and a change made in
+one tab showing up in another without a reload.
+
 ## Tickets, sessions, and where tickets come from
 
 A **ticket** is the unit of the board: key (`SB-12`), title, markdown body, status, kind, assignee
