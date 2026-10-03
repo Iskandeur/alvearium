@@ -246,8 +246,16 @@ it, use the back button. Light and dark follow your system (`?theme=light|dark` 
 Cloud sessions never install plugins. They do load what a repository commits: the hooks of
 `.claude/settings.json`, the MCP servers of `.mcp.json`, `.claude/skills/` and `.claude/commands/`
 (*What carries over from your setup* in the
-[cloud environments docs](https://code.claude.com/docs/en/cloud-environments)). So session-board
-copies itself into each repository you use in the cloud, and there it works like the plugin:
+[cloud environments docs](https://code.claude.com/docs/en/cloud-environments)); your user
+`~/.claude/settings.json` and `.claude/settings.local.json` are "not read". So session-board puts a
+copy of itself into the repository's working tree, two ways:
+
+- **Per environment** (recommended, since 0.3.2): one setup script on the cloud environment, every
+  repository of every session gets the copy at clone time, nothing is committed.
+- **Per repository**: `/session-board:install-cloud`, committed. For an environment you do not
+  control, or a repository whose sessions should report wherever they run.
+
+Either way, in the session it works like the plugin:
 
 | In a cloud session | |
 | :- | :- |
@@ -256,6 +264,42 @@ copies itself into each repository you use in the cloud, and there it works like
 | `/board` and `/ticket` | Yes, since 0.3.1 (printed through Claude) |
 | The terminal mod (instant `/board`, status line under the prompt) | No: there is no terminal |
 | A session with several repositories (or a project thread) | No: the docs say it loads neither hooks nor `.mcp.json` from any of them |
+
+#### Per environment: the setup script (no commit)
+
+In claude.ai/code → your environment → edit (or *Add cloud environment*):
+
+- **Setup script**:
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/Iskandeur/session-board/v0.3.2/scripts/cloud-setup.sh | bash -s -- v0.3.2
+  ```
+  Both `v0.3.2` pin the version (use `main` twice to follow the latest).
+- **Environment variables**: `SESSION_BOARD_URL=https://board.example.com` and
+  `SESSION_BOARD_TOKEN=proxy`.
+- **API credentials** (Pro and Max): a Bearer credential, host `board.example.com`, value your
+  board token. Without API credentials (Team, Enterprise): see step 2 below.
+
+What the script does ([`scripts/cloud-setup.sh`](scripts/cloud-setup.sh), as root, before Claude
+Code starts): it fetches session-board at that ref into `/opt/session-board` (git clone, or the raw
+files if the GitHub proxy refuses a repository not attached to the session) and sets git's
+`init.templateDir`, so every repository cloned in the VM gets a `post-checkout` hook. Git runs that
+hook right after the clone, before Claude Code launches, and it writes the cloud copy (the same files
+as below) **hidden from git**: new files go to `.git/info/exclude`, and a tracked
+`.claude/settings.json` or `.mcp.json` it merges into gets `git update-index --skip-worktree`.
+`git status` stays clean and `git add -A` picks none of it up. Repositories already cloned when the
+script runs get the copy at once. The environment cache keeps `/opt/session-board` and the git
+config, so sessions that skip the setup script (cached environment) still get it at clone time. The
+script never fails a session: if it cannot fetch anything, the session starts without the board.
+
+Limits: a repository that commits its own copy keeps it (the environment does not touch it). While
+the copy is applied, an edit of your own to a tracked `.claude/settings.json` or `.mcp.json` is
+hidden from git too, and a checkout of a branch where that file differs stops with "would be
+overwritten": run `node /opt/session-board/scripts/cloud-apply.mjs --uninstall` first. A repository
+whose own `core.hooksPath` is set before the clone (rare) skips the hook. Not tested on a real cloud
+session yet at release: the docs do not say whether the platform clones with `git clone` in the VM;
+if no ticket shows up, the per-repository copy below always works.
+
+#### Per repository: install-cloud (committed)
 
 Three steps per repository:
 
@@ -321,8 +365,8 @@ the server says so once. `/session-board:install-cloud --uninstall` removes the 
 - **One repo only**: install with `--scope project` (or `local`) instead of the default user scope.
 - **One session off**: start it with `SESSION_BOARD=off claude`.
 - **One session without automatic tickets** (it can still create tickets): `SESSION_BOARD_SESSION_TICKETS=0`.
-- **Cloud sessions**: per repo, only where `/session-board:install-cloud` was committed (sessions on one
-  repository only).
+- **Cloud sessions**: every session of an environment whose setup script installs session-board, or
+  per repo where `/session-board:install-cloud` was committed (sessions on one repository only).
 
 ## Privacy
 

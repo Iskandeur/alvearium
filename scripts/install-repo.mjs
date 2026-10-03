@@ -189,13 +189,12 @@ the plugin keep using the plugin. It reports to the server named by \`SESSION_BO
 Source: https://github.com/Iskandeur/session-board
 `;
 
-function readJsonFile(path, label) {
+function readJsonFile(path) {
   if (!existsSync(path)) return {};
   try {
     return JSON.parse(readFileSync(path, 'utf8'));
   } catch {
-    console.error(`session-board: ${label} is not valid JSON; fix it first, nothing was changed.`);
-    process.exit(1);
+    throw new Error(`${path} is not valid JSON; fix it first, nothing was changed.`);
   }
 }
 
@@ -221,19 +220,20 @@ function ignoreLocalSettings(repo) {
   }
 }
 
-function main() {
-  const args = process.argv.slice(2);
-  const remove = args.includes('--uninstall');
-  const local = !args.includes('--no-local');
-  const repo = resolve(args.find((a) => !a.startsWith('--')) || process.cwd());
+/**
+ * Write (or, with remove, delete) the cloud copy in repo. Returns { notes, paths }: paths are the
+ * repo-relative files and directories this copy owns (the ones cloud-apply.mjs hides from git).
+ */
+export function install(repo, { remove = false, local = true } = {}) {
   const claudeDir = join(repo, '.claude');
   const settingsPath = join(claudeDir, 'settings.json');
   const mcpPath = join(repo, '.mcp.json');
   const localPath = join(claudeDir, 'settings.local.json');
-  const settings = readJsonFile(settingsPath, settingsPath);
-  const mcp = readJsonFile(mcpPath, mcpPath);
-  const localSettings = local ? readJsonFile(localPath, localPath) : null;
+  const settings = readJsonFile(settingsPath);
+  const mcp = readJsonFile(mcpPath);
+  const localSettings = local ? readJsonFile(localPath) : null;
   const notes = [];
+  const paths = ['.claude/session-board/', '.claude/settings.json', `.claude/skills/${SKILL_NAME}/`];
 
   mkdirSync(claudeDir, { recursive: true });
   const target = join(claudeDir, 'session-board');
@@ -251,7 +251,10 @@ function main() {
   const merged = mergeMcpJson(mcp, { remove });
   if (merged.conflict) notes.push(`.mcp.json already has a different "${MCP_NAME}" server: left as is, so the ticket tools are NOT installed.`);
   else if (merged.config === null) rmSync(mcpPath, { force: true });
-  else writeJson(mcpPath, merged.config);
+  else {
+    writeJson(mcpPath, merged.config);
+    paths.push('.mcp.json');
+  }
 
   const skillDir = join(claudeDir, 'skills', SKILL_NAME);
   if (remove) rmSync(skillDir, { recursive: true, force: true });
@@ -271,6 +274,7 @@ function main() {
     else {
       mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, vendoredCommand(name));
+      paths.push(`.claude/commands/${name}.md`);
     }
   }
 
@@ -282,6 +286,21 @@ function main() {
     } else rmSync(localPath, { force: true });
   }
 
+  return { notes, paths };
+}
+
+function main() {
+  const args = process.argv.slice(2);
+  const remove = args.includes('--uninstall');
+  const local = !args.includes('--no-local');
+  const repo = resolve(args.find((a) => !a.startsWith('--')) || process.cwd());
+  let notes;
+  try {
+    ({ notes } = install(repo, { remove, local }));
+  } catch (e) {
+    console.error(`session-board: ${e.message}`);
+    process.exit(1);
+  }
   console.log(
     remove
       ? `session-board: cloud copy removed from ${repo}`

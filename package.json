@@ -1,6 +1,6 @@
 {
   "name": "session-board",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": true,
   "description": "A ticket board for all your Claude Code sessions, terminal and cloud.",
   "license": "MIT",

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // session-board hook entry point: `node report.mjs <HookEventName>`, payload on stdin.
 // Contract: never block the session, never fail. Always exit 0, swallow every error.
+import { existsSync } from 'node:fs';
 import { VERSION } from '../lib/core.mjs';
 import { handleHook, staleCopyNotice } from '../lib/runtime.mjs';
 
@@ -46,7 +47,9 @@ try {
   // cloud copy (which has no local board, and no lib/sync.mjs), never when the server is unreachable.
   // The cloud copy, instead: one line when the server is newer than the copy committed in the repo.
   if (event === 'SessionStart' && process.argv.includes('--cloud-only')) {
-    const text = staleCopyNotice(VERSION, out.serverVersion);
+    // ENVIRONMENT: written next to the copy by scripts/cloud-apply.mjs (environment setup script, uncommitted)
+    const fromEnvironment = existsSync(new URL('../ENVIRONMENT', import.meta.url));
+    const text = staleCopyNotice(VERSION, out.serverVersion, process.env, { fromEnvironment });
     if (text) process.stdout.write(JSON.stringify({ systemMessage: text }) + '\n');
   }
   if (event === 'SessionStart' && !process.argv.includes('--cloud-only') && !['send-failed', 'backoff'].includes(status)) {
