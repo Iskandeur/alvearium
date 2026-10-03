@@ -33,8 +33,13 @@ async function readStream(res, until, timeoutMs = 4000) {
   const events = [];
   const comments = [];
   const deadline = Date.now() + timeoutMs;
+  let pending = null;
   while (Date.now() < deadline && !until(events, comments)) {
-    const { value, done } = await Promise.race([reader.read(), new Promise((r) => setTimeout(() => r({ value: undefined, done: false }), 200))]);
+    pending ??= reader.read();
+    const r = await Promise.race([pending, new Promise((ok) => setTimeout(() => ok(null), 200))]);
+    if (!r) continue;
+    pending = null;
+    const { value, done } = r;
     if (done) break;
     if (!value) continue;
     buf += dec.decode(value, { stream: true });
