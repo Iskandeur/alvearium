@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // session-board hook entry point: `node report.mjs <HookEventName>`, payload on stdin.
 // Contract: never block the session, never fail. Always exit 0, swallow every error.
-import { handleHook } from '../lib/runtime.mjs';
+import { VERSION } from '../lib/core.mjs';
+import { handleHook, staleCopyNotice } from '../lib/runtime.mjs';
 
 const MAX_STDIN = 2 * 1024 * 1024;
 const HARD_DEADLINE_MS = 4000;
@@ -38,10 +39,16 @@ try {
   } catch {}
   const event = process.argv[2] || input.hook_event_name;
   const started = Date.now();
-  const status = await handleHook(event, input);
+  const out = {};
+  const status = await handleHook(event, input, { out });
   if (process.env.SESSION_BOARD_DEBUG === '1') process.stderr.write(`session-board: ${event} → ${status}\n`);
   // Storage changes (local board left behind, server switched): at most once per start, never in the
   // cloud copy (which has no local board, and no lib/sync.mjs), never when the server is unreachable.
+  // The cloud copy, instead: one line when the server is newer than the copy committed in the repo.
+  if (event === 'SessionStart' && process.argv.includes('--cloud-only')) {
+    const text = staleCopyNotice(VERSION, out.serverVersion);
+    if (text) process.stdout.write(JSON.stringify({ systemMessage: text }) + '\n');
+  }
   if (event === 'SessionStart' && !process.argv.includes('--cloud-only') && !['send-failed', 'backoff'].includes(status)) {
     try {
       const { sessionStartNotice } = await import('../lib/sync.mjs');

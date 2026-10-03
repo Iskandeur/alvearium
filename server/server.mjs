@@ -9,7 +9,9 @@
 //   HOST                      listen address                        (default 0.0.0.0)
 //
 // Routes (all /api/* need `Authorization: Bearer <token>`):
-//   POST /api/event                 hook event (v0.1 payload, still the only thing hooks send)
+//   POST /api/event                 hook event (v0.1 payload, still the only thing hooks send);
+//                                   the reply carries `server_version` (vendored copies compare it)
+//   GET  /api/version               { version } of this server
 //   GET  /api/board                 v0.1 board (sessions in columns) + `tickets.counts`
 //   POST /api/dismiss               v0.1: { sessionId } → the session's review ticket is done
 //   GET  /api/tickets               list: ?session&repo&branch&machine&origin&status&assignee&kind
@@ -33,7 +35,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
+import { VERSION, normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
 import { openStore } from '../lib/store.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -155,8 +157,9 @@ export function createApp({ token, store, page, heartbeatMs = HEARTBEAT_MS }) {
         const evt = sanitizeEvent(body);
         if (!evt) return send(res, 400, { error: 'invalid event' });
         const rec = store.ingest(evt);
-        return send(res, 202, { ok: true, state: rec.state });
+        return send(res, 202, { ok: true, state: rec.state, server_version: VERSION });
       }
+      if (path === '/api/version' && m === 'GET') return send(res, 200, { version: VERSION });
       if (path === '/api/import' && m === 'POST') {
         const body = await jsonBody(req, MAX_IMPORT_BODY);
         const out = store.importTickets(body);

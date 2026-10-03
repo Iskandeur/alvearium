@@ -243,26 +243,59 @@ it, use the back button. Light and dark follow your system (`?theme=light|dark` 
 
 ### Cloud sessions (claude.ai/code)
 
-Cloud sessions do not install plugins, but they run the hooks committed in a repository's
-`.claude/settings.json` (see *What carries over from your setup* in the
-[cloud environments docs](https://code.claude.com/docs/en/cloud-environments)). So, per repository:
+Cloud sessions never install plugins. They do load what a repository commits: the hooks of
+`.claude/settings.json`, the MCP servers of `.mcp.json`, `.claude/skills/` and `.claude/commands/`
+(*What carries over from your setup* in the
+[cloud environments docs](https://code.claude.com/docs/en/cloud-environments)). So session-board
+copies itself into each repository you use in the cloud, and there it works like the plugin:
 
-1. In a local session inside the repo, run `/session-board:install-cloud`. It copies the hook script
-   to `.claude/session-board/` and registers it in `.claude/settings.json` in `--cloud-only` mode (it
-   stays silent on your machines, where the plugin already reports). Commit and push. Repos set up
-   with 0.1 keep working; run it again to pick up the task mirror.
-2. In the cloud environment the repo uses (claude.ai/code → environment → edit):
+| In a cloud session | |
+| :- | :- |
+| Session tickets from the hooks (waiting on you, in progress, review, failed), task mirror, subagents | Yes |
+| Claude's ticket tools (`ticket_create`, `ticket_next`, `board_feedback`, …) and the `tickets` skill | Yes, since 0.3.1 |
+| `/board` and `/ticket` | Yes, since 0.3.1 (printed through Claude) |
+| The terminal mod (instant `/board`, status line under the prompt) | No: there is no terminal |
+| A session with several repositories (or a project thread) | No: the docs say it loads neither hooks nor `.mcp.json` from any of them |
+
+Three steps per repository:
+
+1. **Copy.** In a local session inside the repo (the plugin installed), run
+   `/session-board:install-cloud`, then commit and push `.claude/` and `.mcp.json`. It writes:
+   - `.claude/session-board/`: the hook script, the MCP server, the `/board` and `/ticket` scripts,
+     their `lib/`, and `VERSION`;
+   - `.claude/settings.json`: the hooks, in `--cloud-only` mode;
+   - `.mcp.json`: a `session-board` server, merged next to your other servers (never over one with
+     the same name), in `--cloud-only` mode;
+   - `.claude/skills/session-board-tickets/` and `.claude/commands/board.md`, `ticket.md` (an
+     existing command of yours with that name is left alone).
+
+   Everything copied is silent outside a cloud session (`CLAUDE_CODE_REMOTE` is not `true`): no
+   report, and the MCP server lists no tool. On the machine where you ran it, the untracked
+   `.claude/settings.local.json` also rejects the project server and hides the copied skill and
+   commands (`disabledMcpjsonServers`, `skillOverrides`), so Claude Code does not ask you to approve
+   it and the plugin keeps doing the work (`--no-local` skips that). On another machine of yours,
+   Claude Code asks once whether to use the project's `session-board` MCP server: answer no (or yes,
+   it offers no tool there). In the cloud, project MCP servers load without a prompt.
+2. **Environment.** In the cloud environment the repo uses (claude.ai/code → environment → edit):
    - **Environment variables**: `SESSION_BOARD_URL=https://board.example.com` and
-     `SESSION_BOARD_TOKEN=proxy`
+     `SESSION_BOARD_TOKEN=proxy`.
    - **API credentials** (Pro and Max plans): add a Bearer credential for your board's host with the
-     token as value. Anthropic's proxy adds it to each request, so the token never sits in the
-     session, and that host becomes reachable even under the default *Trusted* network level.
+     token as value. Anthropic's proxy adds it to each request (hooks and MCP tools alike), so the
+     token never sits in the session, and that host becomes reachable even under the default
+     *Trusted* network level.
    - Without API credentials (Team, Enterprise): set the network level to **Custom**, add your board's
      host to **Allowed domains** (tick *Also include default list…* to keep package registries), and
      put the real token in `SESSION_BOARD_TOKEN`. Anyone who can use the environment can read it.
+3. **Check.** Start a new cloud session on the repo and ask Claude to "create a test ticket on the
+   board". It should appear on the board with the cloud badge and a link to the session; close it
+   afterwards. If Claude answers that session-board is not configured, step 2 is missing (the server
+   has no local fallback in the cloud: a board inside the VM would vanish with it).
 
-Cloud tickets carry a direct link to the session (`https://claude.ai/code/session_…`). The MCP tools
-are not available in cloud sessions (they come with the plugin); hooks are.
+Tickets made by Claude in the cloud attach to the session the hooks reported: the hooks record the
+session of the directory, the MCP server reads it (Claude Code's `CLAUDE_CODE_SESSION_ID` is the
+fallback). **Updates**: run `/session-board:install-cloud`
+again after updating the plugin, and commit. At the start of a cloud session, a copy older than
+the server says so once. `/session-board:install-cloud --uninstall` removes the copy.
 
 ## In the terminal
 
@@ -288,7 +321,8 @@ are not available in cloud sessions (they come with the plugin); hooks are.
 - **One repo only**: install with `--scope project` (or `local`) instead of the default user scope.
 - **One session off**: start it with `SESSION_BOARD=off claude`.
 - **One session without automatic tickets** (it can still create tickets): `SESSION_BOARD_SESSION_TICKETS=0`.
-- **Cloud sessions**: per repo, only where `/session-board:install-cloud` was committed.
+- **Cloud sessions**: per repo, only where `/session-board:install-cloud` was committed (sessions on one
+  repository only).
 
 ## Privacy
 

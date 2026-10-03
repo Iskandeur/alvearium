@@ -7,7 +7,7 @@
 //   ticket next [--all]                   ticket priority <KEY> <P0…P3>
 //   ticket block <KEY> --by <KEY,…>       ticket unblock <KEY> --by <KEY,…>
 import { STATUSES } from '../lib/core.mjs';
-import { openBackend } from '../lib/runtime.mjs';
+import { cloudCopyGuard, openBackend } from '../lib/runtime.mjs';
 import { callTool, currentContext } from '../mcp/server.mjs';
 
 const USAGE =
@@ -95,9 +95,15 @@ export async function run(words, { backend, context }) {
 
 if (process.argv[1] && import.meta.filename === process.argv[1]) {
   let backend;
+  // `--cloud-only`: the copy vendored into a repository (/session-board:install-cloud).
+  const args = process.argv.slice(2).filter((a) => a !== '--cloud-only');
+  const guard = process.argv.includes('--cloud-only') ? cloudCopyGuard('ticket') : '';
   try {
-    backend = await openBackend({ actor: 'user' });
-    console.log(await run(splitArgs(process.argv.slice(2)), { backend, context: currentContext() }));
+    if (guard) console.log(guard);
+    else {
+      backend = await openBackend({ actor: 'user' });
+      console.log(await run(splitArgs(args), { backend, context: currentContext() }));
+    }
   } catch (err) {
     console.log(`session-board: ${err?.message || err}`);
   } finally {

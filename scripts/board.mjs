@@ -3,16 +3,22 @@
 // Flags: --json, --repo <owner/name|name>, --session <id>, --here (this repo only), --q <text>
 // `board.mjs sync`: send this machine's local board.db to the server (see lib/sync.mjs).
 import { renderTicketsText, ticketStatusText } from '../lib/core.mjs';
-import { loadBoard } from '../lib/runtime.mjs';
+import { cloudCopyGuard, loadBoard } from '../lib/runtime.mjs';
 import { currentContext } from '../mcp/server.mjs';
 
-const argv = process.argv.slice(2);
+// `--cloud-only`: the copy vendored into a repository (/session-board:install-cloud).
+const argv = process.argv.slice(2).filter((a) => a !== '--cloud-only');
+const guard = process.argv.includes('--cloud-only')
+  ? cloudCopyGuard('board') || (argv[0] === 'sync' ? 'session-board: nothing to sync here, a cloud session writes to the server directly.' : '')
+  : '';
 const opt = (name) => {
   const i = argv.indexOf(name);
   return i >= 0 ? argv[i + 1] : undefined;
 };
 
-if (argv[0] === 'sync') {
+if (guard) {
+  console.log(guard);
+} else if (argv[0] === 'sync') {
   // Send this machine's local board.db to the server now (the SessionStart hook does it too).
   const { describeSync, syncLocalToServer } = await import('../lib/sync.mjs');
   const r = await syncLocalToServer({ deadlineMs: 120_000, requestTimeoutMs: 20_000 });

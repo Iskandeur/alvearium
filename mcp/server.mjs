@@ -5,14 +5,19 @@
 //
 // Same backend as the CLI: the board server when SESSION_BOARD_URL/TOKEN (or the plugin options)
 // are set, else the local SQLite store in ~/.claude/session-board/board.db.
+//
+// `--cloud-only`: the copy that `/session-board:install-cloud` vendors into a repository (declared in
+// the repo's .mcp.json). Outside a claude.ai/code cloud session it offers no tool at all, so a machine
+// that also has the plugin does not see every tool twice; in the cloud it needs the server (a local
+// board would die with the VM).
 import { execFileSync } from 'node:child_process';
 import { hostname } from 'node:os';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { FEEDBACK_TYPES, PRIORITIES, STATUSES, repoFromRemote, truncate } from '../lib/core.mjs';
-import { dataDir, loadConfig, openBackend, sessionForCwd } from '../lib/runtime.mjs';
+import { FEEDBACK_TYPES, PRIORITIES, STATUSES, VERSION, repoFromRemote, truncate } from '../lib/core.mjs';
+import { CLOUD_SETUP_HINT, dataDir, loadConfig, openBackend, sessionForCwd } from '../lib/runtime.mjs';
 
-export const VERSION = '0.3.0';
+export { VERSION };
 const SERVER_INFO = { name: 'session-board', version: VERSION };
 const ASSIGNEE = { type: 'string', description: 'user = the human (default); claude = Claude; or any actor id (an agent, e.g. "ci-bot")' };
 const PRIORITY = { type: 'string', enum: PRIORITIES, description: 'P0 = drop everything, P1 = next up, P2 = normal, P3 = some day' };
@@ -138,15 +143,19 @@ function git(cwd, args) {
 }
 
 /** Where the MCP server runs: the project dir of the session that spawned it. */
-export function currentContext(env = process.env, cwd = process.cwd()) {
-  const remembered = sessionForCwd(dataDir(env), cwd);
-  const sessionId = env.CLAUDE_SESSION_ID || env.CLAUDE_CODE_SESSION_ID || remembered?.sessionId || null;
+export function currentContext(env = process.env, cwd = env.CLAUDE_PROJECT_DIR || process.cwd()) {
+  const remembered = sessionForCwd(dataDir(env), cwd) || (cwd !== process.cwd() ? sessionForCwd(dataDir(env), process.cwd()) : null);
   const cloud = env.CLAUDE_CODE_REMOTE === 'true';
+  const fromEnv = env.CLAUDE_SESSION_ID || env.CLAUDE_CODE_SESSION_ID;
+  // A cloud VM runs one session: the id the hooks recorded for this directory is the hooks' own
+  // `session_id`, so it wins there. Locally several sessions share a directory: the env wins.
+  const sessionId = (cloud ? remembered?.sessionId || fromEnv : fromEnv || remembered?.sessionId) || null;
   const branch = git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
   const cfg = loadConfig(env);
   return {
     actor: cfg.actor || 'claude',
     session_id: sessionId && /^[\w.:-]{1,128}$/.test(sessionId) ? sessionId : null,
+    ...(cloud && remembered?.sessionId ? { fromHooks: true } : {}),
     repo: repoFromRemote(git(cwd, ['remote', 'get-url', 'origin'])) || remembered?.repo || null,
     branch: branch || remembered?.branch || null,
     cwd,
@@ -184,7 +193,7 @@ export async function callTool(name, args = {}, { backend, context }) {
       const body = { ...args };
       const where = body.session ?? 'current';
       delete body.session;
-      const { actor: _actor, ...ctx } = context;
+      const { actor: _actor, fromHooks: _fromHooks, ...ctx } = context;
       if (where === 'current') Object.assign(body, Object.fromEntries(Object.entries(ctx).filter(([, v]) => v != null)));
       else if (where !== 'none') Object.assign(body, { session_id: where, cwd: context.cwd, machine: context.machine, origin: context.origin });
       else Object.assign(body, { repo: context.repo, branch: context.branch, cwd: context.cwd, machine: context.machine, origin: context.origin });
@@ -276,8 +285,19 @@ export async function callTool(name, args = {}, { backend, context }) {
   }
 }
 
+/**
+ * What this process offers. `cloudOnly` (the vendored copy): nothing outside the cloud, and in the
+ * cloud an actionable error instead of a local board when the server is not configured.
+ */
+export function mode({ cloudOnly = false, env = process.env } = {}) {
+  if (!cloudOnly) return 'full';
+  if (env.CLAUDE_CODE_REMOTE !== 'true') return 'off';
+  return loadConfig(env).remote ? 'full' : 'unconfigured';
+}
+
 /** One JSON-RPC message in, zero or one out. */
 export async function handleMessage(msg, deps) {
+  const offered = deps.mode || 'full';
   const { id, method, params } = msg || {};
   const reply = (result) => ({ jsonrpc: '2.0', id, result });
   const fail = (code, message) => ({ jsonrpc: '2.0', id: id ?? null, error: { code, message } });
@@ -290,17 +310,20 @@ export async function handleMessage(msg, deps) {
           protocolVersion: typeof params?.protocolVersion === 'string' ? params.protocolVersion : PROTOCOL,
           capabilities: { tools: { listChanged: false } },
           serverInfo: SERVER_INFO,
-          instructions:
+          ...(offered === 'off' ? {} : { instructions:
             'Tickets on the session board. Create one for every action item the human must do, and to track the steps of long work (with priorities P0-P3 and blocked_by dependencies). ' +
-            'Use ticket_next to pick what to do. Report anything that wastes your time, or an improvement, with board_feedback. Keys look like SB-12.',
+            'Use ticket_next to pick what to do. Report anything that wastes your time, or an improvement, with board_feedback. Keys look like SB-12.' +
+            (offered === 'unconfigured' ? ' ' + CLOUD_SETUP_HINT : ''),
+          }),
         });
       case 'ping':
         return reply({});
       case 'tools/list':
-        return reply({ tools: TOOLS });
+        return reply({ tools: offered === 'off' ? [] : TOOLS });
       case 'tools/call': {
         const name = params?.name;
-        if (!TOOLS.some((t) => t.name === name)) return fail(-32602, `unknown tool ${name}`);
+        if (offered === 'off' || !TOOLS.some((t) => t.name === name)) return fail(-32602, `unknown tool ${name}`);
+        if (offered === 'unconfigured') return reply({ content: [{ type: 'text', text: `Error: ${CLOUD_SETUP_HINT}` }], isError: true });
         try {
           const backend = await deps.backend();
           const text = await callTool(name, params?.arguments || {}, { backend, context: deps.context() });
@@ -322,10 +345,12 @@ async function main() {
   let backend;
   let ctx;
   const deps = {
+    mode: mode({ cloudOnly: process.argv.includes('--cloud-only') }),
     backend: async () => (backend ??= await openBackend({ actor: 'agent' })),
     context: () => {
-      // Re-read: the hooks may have recorded the session after the server started.
-      if (!ctx || !ctx.session_id) ctx = currentContext();
+      // Re-read: the hooks may have recorded the session after the server started (in the cloud,
+      // where their record wins over the env, until they have).
+      if (!ctx || !ctx.session_id || (ctx.origin === 'cloud' && !ctx.fromHooks)) ctx = currentContext();
       return ctx;
     },
   };
