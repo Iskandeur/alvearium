@@ -23,6 +23,8 @@ export const EVENTS = {
   SessionEnd: false,
   TaskCreated: true,
   TaskCompleted: true,
+  SubagentStart: true,
+  SubagentStop: true,
 };
 
 const isOurs = (group) => Array.isArray(group?.hooks) && group.hooks.some((h) => typeof h.command === 'string' && h.command.includes(MARKER));

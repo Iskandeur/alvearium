@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 // Tickets from the terminal (the /ticket command). The human is the actor.
-//   ticket new <title> [--body text] [--label a,b] [--priority high] [--assignee claude] [--parent SB-3] [--no-session]
+//   ticket new <title> [--body text] [--label a,b] [--priority P1] [--assignee claude] [--parent SB-3] [--no-session]
 //   ticket done <KEY> [comment…]          ticket status <KEY> <status>
 //   ticket list [--repo|--all] [--closed] [words…]   (default: open tickets of this repo)
 //   ticket show <KEY>                     ticket comment <KEY> <text…>
+//   ticket next [--all]                   ticket priority <KEY> <P0…P3>
+//   ticket block <KEY> --by <KEY,…>       ticket unblock <KEY> --by <KEY,…>
 import { STATUSES } from '../lib/core.mjs';
 import { openBackend } from '../lib/runtime.mjs';
 import { callTool, currentContext } from '../mcp/server.mjs';
 
-const USAGE = 'usage: /ticket new <title> | done <KEY> | status <KEY> <status> | list [--all] [words] | show <KEY> | comment <KEY> <text>';
+const USAGE =
+  'usage: /ticket new <title> [--priority P1] [--blocked-by SB-3] | next [--all] | done <KEY> | status <KEY> <status> | priority <KEY> <P0-P3> | ' +
+  'block <KEY> --by <KEY> | unblock <KEY> --by <KEY> | list [--all] [words] | show <KEY> | comment <KEY> <text>';
 
 /** Split "$ARGUMENTS" (one string from the slash command) or argv into words, honouring quotes. */
 export function splitArgs(argv) {
@@ -46,6 +50,7 @@ export async function run(words, { backend, context }) {
         priority: flags.priority,
         assignee: flags.assignee || 'user',
         parent: flags.parent,
+        blocked_by: flags['blocked-by'] ? String(flags['blocked-by']).split(',') : undefined,
         kind: flags.kind,
         session: flags['no-session'] ? 'none' : 'current',
       });
@@ -61,6 +66,18 @@ export async function run(words, { backend, context }) {
       if (!rest[0] || !STATUSES.includes(rest[1])) return `usage: /ticket status <KEY> <${STATUSES.join('|')}>`;
       return actorTool('ticket_update', { key: rest[0], status: rest[1] });
     }
+    case 'next':
+      return actorTool('ticket_next', { scope: flags.all ? 'all' : flags.session ? 'session' : 'repo', label: flags.label, limit: 15 });
+    case 'block':
+    case 'unblock': {
+      // ticket block SB-5 --by SB-3,SB-4   (SB-5 waits for SB-3 and SB-4)
+      const by = flags.by ? String(flags.by).split(',') : rest.slice(1);
+      if (!rest[0] || !by.length) return 'usage: /ticket block <KEY> --by <KEY>[,<KEY>]   (or unblock)';
+      return actorTool('ticket_update', { key: rest[0], [cmd === 'block' ? 'blocked_by_add' : 'blocked_by_remove']: by });
+    }
+    case 'priority':
+      if (!rest[0] || !rest[1]) return 'usage: /ticket priority <KEY> <P0|P1|P2|P3|none>';
+      return actorTool('ticket_update', { key: rest[0], priority: rest[1] === 'none' ? '' : rest[1] });
     case 'show':
       return rest[0] ? actorTool('ticket_get', { key: rest[0] }) : USAGE;
     case 'comment':

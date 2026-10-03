@@ -63,7 +63,7 @@ test('mcp over stdio: initialize, tools/list, ticket_create attached to the curr
     c.notify('notifications/initialized');
 
     const list = await c.request('tools/list', {});
-    assert.deepEqual(list.result.tools.map((t) => t.name), ['ticket_create', 'ticket_update', 'ticket_list', 'ticket_comment', 'ticket_get']);
+    assert.deepEqual(list.result.tools.map((t) => t.name), ['ticket_create', 'ticket_update', 'ticket_next', 'board_feedback', 'ticket_list', 'ticket_comment', 'ticket_get']);
     for (const t of list.result.tools) assert.equal(t.inputSchema.type, 'object');
 
     const created = await c.request('tools/call', { name: 'ticket_create', arguments: { title: 'Add the NPM_TOKEN secret to the repo', body: 'Settings → Secrets → Actions', labels: ['ci'] } });
@@ -113,7 +113,7 @@ test('/ticket CLI: argument parsing and commands', async () => {
   const backend = await openBackend({ env: { SESSION_BOARD_DIR: dir }, actor: 'user' });
   const context = { session_id: null, repo: 'acme/cli', branch: 'main', cwd: '/w', machine: 'mac', origin: 'terminal' };
   const out = await run(splitArgs(['new "Renew the TLS cert" --label ops --priority high']), { backend, context });
-  assert.match(out, /Created SB-1 \[todo, on user\] Renew the TLS cert · acme\/cli@main · #ops/);
+  assert.match(out, /Created SB-1 P1 \[todo, on user\] Renew the TLS cert · acme\/cli@main · #ops/);
   assert.match(await run(['list'], { backend, context }), /1 ticket \(repo, open\)/);
   assert.match(await run(['done', 'SB-1', 'renewed'], { backend, context }), /\[done/);
   assert.match(await run(['list'], { backend, context }), /No open tickets/);

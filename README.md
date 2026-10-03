@@ -1,8 +1,9 @@
 # session-board
 
-One ticket board for **all** your Claude Code work, terminal and claude.ai/code cloud alike: what is
-**waiting on you**, what is **in progress**, what is left **to do**. Every ticket knows its session,
-repository, branch and machine, so you can look at everything at once or at one repo, one session.
+One ticket board for **all** your Claude Code work, terminal and claude.ai/code cloud alike, and for
+every agent and subagent that works with you: what is **waiting on you**, what is **in progress**,
+what to do **next**. Every ticket knows its session, repository, branch, machine and who opened it,
+so you can look at everything at once or at one repo, one session, one agent. The page updates live.
 
 ```
 WAITING ON YOU (3)
@@ -24,9 +25,9 @@ TO DO (4)
 ## Tickets, sessions, and where tickets come from
 
 A **ticket** is the unit of the board: key (`SB-12`), title, markdown body, status, kind, assignee
-(`user` or `claude`), optional priority, labels, sub-tickets, links (PR, cloud session, file, URL),
-and a history of every change and comment, with who made it. A **session** is a context: a session
-has zero, one or many tickets, and you filter on it.
+(`user`, `claude`, or any agent id), priority `P0`–`P3`, labels, sub-tickets, dependencies, links
+(PR, cloud session, file, URL), and a history of every change and comment, with who made it and for
+whom. A **session** is a context: a session has zero, one or many tickets, and you filter on it.
 
 Statuses: `todo`, `in_progress`, `waiting_on_user`, `review`, `done`, `cancelled`, `failed`. The
 board's columns are derived: **Waiting on you** = waiting on you, in review or failed, assigned to
@@ -48,17 +49,87 @@ Tickets come from three places:
    | `StopFailure` | session ticket **failed**, with the error |
    | `SessionEnd` | session ticket **done**; unanswered questions cancelled |
    | `TaskCreated`, `TaskCompleted` | Claude's own task list mirrored as `claude` tickets (`SESSION_BOARD_MIRROR_TASKS=0` to turn off) |
+   | `SubagentStart`, `SubagentStop` | a line in the session ticket's history: *Claude → Explore: started it*, *Explore → Claude: finished: …* |
 
 2. **Claude, through MCP tools.** The plugin ships a small MCP server (`ticket_create`,
-   `ticket_update`, `ticket_list`, `ticket_comment`, `ticket_get`) and a skill telling Claude when to
-   use them: an action item only you can do ("add the `STRIPE_KEY` secret", "review PR #412"), a long
-   task split into sub-tickets, what is left at the end. Tickets attach to the current session and
-   repo by themselves.
+   `ticket_update`, `ticket_next`, `ticket_list`, `ticket_comment`, `ticket_get`, `board_feedback`)
+   and a skill telling Claude when to use them: an action item only you can do ("add the
+   `STRIPE_KEY` secret", "review PR #412"), a long task split into prioritized sub-tickets with their
+   dependencies, what to pick next, what is left at the end, and what wasted its time. Tickets attach
+   to the current session and repo by themselves.
 3. **You**, from the web page (create, edit title / status / labels / priority, comment, close,
    sub-tickets) or the terminal (`/ticket`).
 
 The hook is one zero-dependency Node script. It never blocks or fails your session: network calls
 time out after 2 s, every error is swallowed, it always exits 0, and hot-path events run `async`.
+
+## Realtime
+
+The page keeps one connection open to `GET /api/stream` (Server-Sent Events) and redraws only the
+cards that changed, with a short flash, the moment a hook, an agent or another tab changes a ticket:
+no reload, no flicker. The dot in the header says **Live**; if the stream cannot be opened (a proxy
+that buffers, a network change) it reconnects by itself with backoff and polls every 10 s meanwhile
+(**Polling**). An open ticket refreshes too, unless you are editing it.
+
+The stream sends one `change` event per committed change, with a minimal payload
+(`{ type, op, key, fields, version }`: `type` is `ticket`, `comment`, `dependency`, `reorder` or
+`session`), and a `:` heartbeat comment every 15 s. Its headers (`Cache-Control: no-cache`,
+`X-Accel-Buffering: no`) keep nginx and similar proxies from buffering it. If you put the server
+behind your own reverse proxy, make sure it streams responses (for nginx, `proxy_buffering off` is
+implied by the header; for a Node relay, pipe the body instead of reading it whole).
+
+## Dependencies and priority
+
+- **Priority** `P0` (drop everything) to `P3` (some day); 0.2 values are migrated
+  (`urgent`→`P0`, `high`→`P1`, `medium`→`P2`, `low`→`P3`), and the API still accepts those names.
+- **"A blocks B"**: `blocked_by` on create, `blocked_by_add` / `blocked_by_remove` on update (API,
+  MCP, `/ticket block SB-5 --by SB-3`, or the *Dependencies* section of the ticket panel). Many to
+  many; a dependency that would close a cycle is refused. Each ticket carries `blocked` (an open
+  blocker remains), `blocked_by` and `blocking`. A blocked card is hatched with a ⛔ badge. When its
+  last blocker is done (or cancelled), the ticket is unblocked by itself and its history says so;
+  reopening the blocker blocks it again.
+- **Manual order**: drag a card in the *To do* column or a row in *Next* (`POST
+  /api/tickets/SB-5/move { before | after }`). Dropped among tickets of another priority, it takes
+  that priority.
+- **Next** (page view, `GET /api/tickets/next`, MCP `ticket_next`, `/ticket next`): open tickets that
+  nothing blocks (to do and in progress), most important first, then your manual order, then the
+  oldest. Session, question and feedback tickets are not work and stay out. Same filters as the list
+  (repo, session, actor, assignee, label…), plus the number of blocked tickets left aside.
+
+## Actors and threads
+
+An **actor** is whoever acts on the board: `{ id, type: human | agent | subagent | system, name }`.
+Built in: `user` (you), `claude`, and `hook` (the session itself). Every history line carries its
+`actor` and, when there is one, a `target`: *CI bot → You* for a comment addressed to you, *Claude →
+Explore* when Claude starts a subagent, *Explore → Claude* when it reports back (from the
+`SubagentStart` / `SubagentStop` hooks, `agent_id` and `agent_type`), *Claude → ci-bot* when a
+ticket is handed over. Tickets record `created_by`; `assignee` takes any actor id (`user` and
+`claude` work as before). Cards show the assignee's avatar; the *Actor* filter shows what an actor
+holds or opened.
+
+Optional environment variables, all off by default (nothing changes when they are unset), read by
+the hooks and the MCP server of a session:
+
+| Variable | Effect |
+| :- | :- |
+| `SESSION_BOARD_ACTOR` | id of the agent running this session (e.g. `ci-bot`, `job-42`), instead of `claude`; its subagents become `ci-bot/Explore` |
+| `SESSION_BOARD_ACTOR_NAME` | its display name |
+| `SESSION_BOARD_THREAD` | one stable name for a conversation that lives across several short sessions (a bot, a tmux loop, CI): all those sessions share **one** session ticket, which follows the latest session and is not closed at `SessionEnd` |
+| `SESSION_BOARD_SESSION_TICKETS=0` | no automatic tickets at all for this session (session, questions, task mirror, subagent lines): for routine or scripted sessions. Tickets created explicitly through MCP still attach to the session |
+
+## Feedback inbox
+
+A board-wide inbox for what does not work or could work better, written by the sessions themselves.
+The MCP tool `board_feedback` (`title`, `detail`, `type`: `bug` | `suggestion` | `friction`,
+optional `about` and `priority`) files a ticket of kind `feedback`, with its context attached
+(session, repo, branch, machine, actor, plugin version). The skill tells every session to use it as
+soon as a tool, an instruction or the board itself makes it lose time, or when it sees an
+improvement.
+
+Feedback stays out of the board and the lists (ask for it with `kind=feedback`). The page has its
+own **Feedback** view, with the open count in the header, filters by type, actor and repo, and a
+resolution box: *Mark handled* (`done`) or *Won't do* (`cancelled`), with a comment kept in the
+history.
 
 ## Install
 
@@ -72,8 +143,11 @@ claude plugin install session-board@session-board
 That's it for **local mode**: tickets live in `~/.claude/session-board/board.db` and cover every
 session on this machine. Type `/board` (or `/session-board:board`).
 
-**Updating from 0.1**: `claude plugin marketplace update session-board` then
-`claude plugin update session-board@session-board`, and restart your sessions. Your existing sessions
+**Updating**: `claude plugin marketplace update session-board` then
+`claude plugin update session-board@session-board`, and restart your sessions. With a server,
+update the server first (`git pull && docker compose up -d --build`): 0.3 migrates the database in
+place (priorities, creators) after a full copy next to it (`board.db.schema1-<date>.bak`), and the
+0.3 page needs the 0.3 API. From 0.1: Your existing sessions
 are imported on first use (local `sessions/*.json`, or the server's `board.json`, which is kept as
 `board.json.migrated`).
 
@@ -122,18 +196,23 @@ The import needs the server to be 0.2.3 or later: update it (`git pull && docker
 
 ### API
 
-Every `/api/*` route needs `Authorization: Bearer <token>`. `GET /` serves the web page (open it once
+Every `/api/*` route needs `Authorization: Bearer <token>`. A client may say who it is with
+`x-session-board-actor: <id>` (and `x-session-board-actor-name`); the plugin's MCP server does. `GET /` serves the web page (open it once
 as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without a token.
 
 | Route | |
 | :- | :- |
 | `GET /api/tickets` | list, newest first, paginated (`limit` ≤ 500, `offset`) |
 | `GET /api/tickets/board` | the same filters, grouped in board columns |
-| `POST /api/tickets` | create `{ title, body, status, kind, assignee, priority, labels, parent, links, session_id, repo, branch }` |
+| `GET /api/tickets/next` | open, unblocked work by priority → manual rank → age (same filters), plus the `blocked` count |
+| `POST /api/tickets/SB-12/move` | `{ before }` or `{ after }`: manual order |
+| `GET /api/stream` | Server-Sent Events: one `change` per change, a heartbeat every 15 s |
+| `GET /api/actors` | actors with their type, name, parent and open-ticket count |
+| `POST /api/tickets` | create `{ title, body, status, kind, subtype, assignee, priority, labels, parent, blocked_by, links, session_id, repo, branch }` |
 | `GET /api/tickets/SB-12` | one ticket with its history and sub-tickets |
-| `POST` or `PATCH /api/tickets/SB-12` | update any field, optional `comment` in the same call |
-| `POST /api/tickets/SB-12/comments` | `{ text }` |
-| `GET /api/facets` | repos, sessions, branches, machines, kinds and labels with counts |
+| `POST` or `PATCH /api/tickets/SB-12` | update any field, `blocked_by_add` / `blocked_by_remove`, optional `comment` (and `to`) in the same call |
+| `POST /api/tickets/SB-12/comments` | `{ text, to? }` |
+| `GET /api/facets` | repos, sessions, branches, machines, kinds, labels and actors with counts, and the open feedback count |
 | `GET /api/sessions` | sessions, most recent first (`?repo=`) |
 | `DELETE /api/sessions/<id>` | remove a session and its tickets |
 | `POST /api/import` | `{ board, machine, sessions, tickets }`: a local `board.db`, idempotent (used by the plugin) |
@@ -141,16 +220,19 @@ as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without 
 
 Filters, on the list and the board: `session`, `repo` (`owner/name`, or just `name`), `branch`,
 `machine`, `origin` (`terminal`/`cloud`), `status` (also `open`, `closed`), `assignee`, `kind`,
-`label`, `source` (`hook`/`claude`/`user`), `priority`, `parent`, `q` (full text over title, body,
+`label`, `source` (`hook`/`claude`/`user`), `priority` (`P0`…`P3`, `none`), `actor` (holds or opened it),
+`created_by`, `subtype`, `blocked=1|0`, `parent`, `q` (full text over title, body,
 labels and comments; a key like `SB-12` finds that ticket), `created_after`, `created_before`,
-`updated_after`, `updated_before` (ISO or epoch ms), `archived=1|only`, `sort=updated|created|priority|key`.
+`updated_after`, `updated_before` (ISO or epoch ms), `archived=1|only`, `sort=updated|created|priority|key|next`.
 Comma-separate several values: `?repo=acme/api&status=todo,in_progress&label=deploy`.
 
 ### The web page
 
-Search box, filter chips (click a repo, a session or a label on any card to filter on it), Board and
-List views (the list is grouped by session), a side panel with the ticket's fields, description,
-sub-tickets, links and history, and a comment box. Every filter lives in the URL: share it, bookmark
+Search box, filter chips (click a repo, a session or a label on any card to filter on it), Board,
+Next and List views (the list is grouped by session) and the Feedback inbox, live updates, drag and
+drop in *To do* and *Next*, a side panel with the ticket's fields, description, sub-tickets,
+dependencies (*Blocked by* / *Blocks*, add one by key), links and the history (*who → whom*), and a
+comment box. Every filter lives in the URL: share it, bookmark
 it, use the back button. Light and dark follow your system (`?theme=light|dark` forces one).
 
 ### Cloud sessions (claude.ai/code)
@@ -181,9 +263,10 @@ are not available in cloud sessions (they come with the plugin); hooks are.
 - **`/board`**: prints the board (`--here` for this repo, `--repo <name>`, `--q <text>`). With Claude
   Code 2.1.287 or later the plugin's *mod* answers it at once, with no Claude turn, even while
   Claude is working; on older versions `/session-board:board` prints it through Claude.
-- **`/ticket`**: `new <title> [--label a,b] [--priority high] [--parent SB-3]`, `done <KEY> [note]`,
-  `status <KEY> <status>`, `list [--all] [words]` (default: open tickets of this repo), `show <KEY>`,
-  `comment <KEY> <text>`.
+- **`/ticket`**: `new <title> [--label a,b] [--priority P1] [--parent SB-3] [--blocked-by SB-2]`,
+  `next [--all]`, `done <KEY> [note]`, `status <KEY> <status>`, `priority <KEY> <P0-P3|none>`,
+  `block <KEY> --by <KEY>` / `unblock`, `list [--all] [words]` (default: open tickets of this repo),
+  `show <KEY>`, `comment <KEY> <text>`.
 - **Status line under the prompt** (mod, 2.1.287+): `2 for you · 3 in progress · 5 to do`,
   refreshed every 20 s.
 - **Your own statusline**: plugins cannot set `statusLine`, so add it yourself if you prefer it:
@@ -198,6 +281,7 @@ are not available in cloud sessions (they come with the plugin); hooks are.
 - **One repo off**: `claude plugin disable session-board@session-board --scope local` inside the repo.
 - **One repo only**: install with `--scope project` (or `local`) instead of the default user scope.
 - **One session off**: start it with `SESSION_BOARD=off claude`.
+- **One session without automatic tickets** (it can still create tickets): `SESSION_BOARD_SESSION_TICKETS=0`.
 - **Cloud sessions**: per repo, only where `/session-board:install-cloud` was committed.
 
 ## Privacy

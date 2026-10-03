@@ -63,7 +63,7 @@ test('sync: local tickets reach the server once, keys renumbered, history, dates
     assert.equal(list.length, 1);
     const t = server.getTicket(list[0].key);
     assert.equal(t.status, 'done');
-    assert.equal(t.priority, 'high');
+    assert.equal(t.priority, 'P1', 'the 0.2 priority "high" arrives as P1');
     assert.deepEqual(t.labels, ['deploy']);
     assert.equal(t.created_at, t0);
     assert.equal(t.closed_at, t0 + 3000);

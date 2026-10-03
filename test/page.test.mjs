@@ -32,3 +32,14 @@ test('page: filters live in the URL (shareable, back button)', () => {
   assert.match(page, /addEventListener\('popstate'/);
   for (const k of ['repo', 'session', 'status', 'assignee', 'kind', 'label', 'origin', 'machine']) assert.ok(page.includes(`'${k}'`), k);
 });
+
+test('page 0.3: live stream with a polling fallback, Next and Feedback views, dependencies and actors', () => {
+  assert.match(page, /fetch\('api\/stream'/, 'subscribes to the change stream');
+  assert.match(page, /Polling/, 'says when it falls back to polling');
+  assert.match(page, /tickets\/next/);
+  assert.match(page, /\/move`/, 'drag and drop saves the order');
+  for (const v of ["'next'", "'feedback'", "'actor'", "'priority'"]) assert.ok(page.includes(v), v);
+  assert.match(page, /blocked_by_add/);
+  assert.match(page, /class="arrow">→/, 'history reads "from → to"');
+  assert.match(page, /id="fbCount"/);
+});

@@ -1,5 +1,5 @@
 {
-  "description": "session-board: turn each session's state into tickets (waiting on you / in progress / review / failed), mirror Claude's task list, and draw the board in the terminal",
+  "description": "session-board: turn each session's state into tickets (waiting on you / in progress / review / failed), mirror Claude's task list, record who hands work to which subagent, and draw the board in the terminal",
   "modules": [
     "./mod.mjs"
   ],
@@ -150,6 +150,32 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" TaskCompleted",
+            "async": true,
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" SubagentStart",
+            "async": true,
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/report.mjs\" SubagentStop",
             "async": true,
             "timeout": 5
           }

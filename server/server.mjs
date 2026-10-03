@@ -15,6 +15,10 @@
 //   GET  /api/tickets               list: ?session&repo&branch&machine&origin&status&assignee&kind
 //                                   &label&source&priority&parent&q&created_after…&archived&sort&limit&offset
 //   GET  /api/tickets/board         same filters, grouped in board columns
+//   GET  /api/tickets/next          open, unblocked work, by priority → rank → age (same filters + actor)
+//   POST /api/tickets/:key/move     { after | before }: manual order (drag and drop)
+//   GET  /api/stream                Server-Sent Events: one `change` per change, `:` heartbeat every 15 s
+//   GET  /api/actors                who acts on the board (humans, agents, subagents, system)
 //   POST /api/tickets               create
 //   GET  /api/tickets/:key          one ticket with history and sub-tickets
 //   POST|PATCH /api/tickets/:key    update (status, title, body, labels, …, optional `comment`)
@@ -29,7 +33,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseFilters, sanitizeEvent } from '../lib/core.mjs';
+import { normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
 import { openStore } from '../lib/store.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -85,10 +89,52 @@ async function jsonBody(req, max) {
   }
 }
 
-/** Who made a change: the MCP server says `claude`; the page, the CLI and anything else is the user. */
-const actorOf = (req) => (req.headers['x-session-board-actor'] === 'claude' ? 'claude' : 'user');
+/**
+ * Who made a change: the `x-session-board-actor` header (the MCP server sends `claude`, or the
+ * SESSION_BOARD_ACTOR of its session), optionally named by `x-session-board-actor-name`. The page,
+ * the CLI and anything without the header is the user.
+ */
+function actorOf(req, store) {
+  const id = normalizeActorId(req.headers['x-session-board-actor']);
+  if (!id || id === 'user') return 'user';
+  if (id === 'claude' || id === 'hook') return id;
+  let name = null;
+  try {
+    name = decodeURIComponent(String(req.headers['x-session-board-actor-name'] || '')).trim() || null;
+  } catch {}
+  store.touchActor({ id, type: 'agent', name });
+  return id;
+}
 
-export function createApp({ token, store, page }) {
+export const HEARTBEAT_MS = 15000;
+
+/**
+ * GET /api/stream: Server-Sent Events, one `change` event per committed change (ticket created or
+ * updated, comment, dependency, reorder, session activity) with a minimal payload, a `:` heartbeat
+ * every 15 s, and headers that keep proxies from buffering. The client reloads what it shows.
+ */
+function stream(req, res, store, heartbeatMs) {
+  res.writeHead(200, {
+    'content-type': 'text/event-stream; charset=utf-8',
+    'cache-control': 'no-cache, no-transform',
+    connection: 'keep-alive',
+    'x-accel-buffering': 'no',
+    'x-content-type-options': 'nosniff',
+  });
+  res.flushHeaders?.();
+  // 2 KB of comment first: some proxies hold the first bytes of a response until they have enough.
+  res.write(`: ${' '.repeat(2048)}\nretry: 3000\n\nevent: hello\ndata: ${JSON.stringify({ version: store.version, at: Date.now() })}\n\n`);
+  const off = store.onChange((c) => res.write(`id: ${c.version}\nevent: change\ndata: ${JSON.stringify(c)}\n\n`));
+  const beat = setInterval(() => res.write(`: hb ${Date.now()}\n\n`), heartbeatMs);
+  const stop = () => {
+    clearInterval(beat);
+    off();
+  };
+  req.on('close', stop);
+  res.on('error', stop);
+}
+
+export function createApp({ token, store, page, heartbeatMs = HEARTBEAT_MS }) {
   return async (req, res) => {
     try {
       const url = new URL(req.url, 'http://local');
@@ -123,8 +169,15 @@ export function createApp({ token, store, page }) {
         return send(res, store.dismissSession(String(body?.sessionId ?? '')) ? 200 : 404, { ok: true });
       }
       if (path === '/api/tickets' && m === 'GET') return send(res, 200, store.listTickets(parseFilters(url.searchParams)));
+      if (path === '/api/stream' && m === 'GET') return stream(req, res, store, heartbeatMs);
       if (path === '/api/tickets/board' && m === 'GET') return send(res, 200, store.ticketBoard(parseFilters(url.searchParams)));
-      if (path === '/api/tickets' && m === 'POST') return send(res, 201, store.createTicket(await jsonBody(req), { actor: actorOf(req) }));
+      if (path === '/api/tickets/next' && m === 'GET') {
+        const f = parseFilters(url.searchParams);
+        if (!url.searchParams.get('limit')) f.limit = 50;
+        return send(res, 200, store.nextTickets(f));
+      }
+      if (path === '/api/tickets' && m === 'POST') return send(res, 201, store.createTicket(await jsonBody(req), { actor: actorOf(req, store) }));
+      if (path === '/api/actors' && m === 'GET') return send(res, 200, { actors: store.listActors() });
       if (path === '/api/facets' && m === 'GET') return send(res, 200, store.facets());
       if (path === '/api/sessions' && m === 'GET') {
         const lim = Math.min(Number(url.searchParams.get('limit')) || 100, 500);
@@ -135,19 +188,24 @@ export function createApp({ token, store, page }) {
         const out = store.deleteSession(sm[1]);
         return send(res, out.session || out.tickets ? 200 : 404, out);
       }
-      const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments)?$/);
+      const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move)?$/);
       if (tm) {
         const key = tm[1];
+        if (tm[2] === '/move') {
+          if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
+          const body = await jsonBody(req);
+          return send(res, 200, store.moveTicket(key, { after: body.after || null, before: body.before || null }, { actor: actorOf(req, store) }));
+        }
         if (tm[2]) {
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
           const body = await jsonBody(req);
-          return send(res, 201, store.comment(key, String(body.text ?? ''), { actor: actorOf(req) }));
+          return send(res, 201, store.comment(key, String(body.text ?? ''), { actor: actorOf(req, store), to: body.to }));
         }
         if (m === 'GET') {
           const t = store.getTicket(key);
           return t ? send(res, 200, t) : send(res, 404, { error: 'ticket not found' });
         }
-        if (m === 'POST' || m === 'PATCH') return send(res, 200, store.updateTicket(key, await jsonBody(req), { actor: actorOf(req) }));
+        if (m === 'POST' || m === 'PATCH') return send(res, 200, store.updateTicket(key, await jsonBody(req), { actor: actorOf(req, store) }));
         return send(res, 405, { error: 'method not allowed' });
       }
       return send(res, 404, { error: 'not found' });

@@ -1,6 +1,6 @@
 # Privacy policy: session-board
 
-*Last updated: 2 October 2026*
+*Last updated: 3 October 2026*
 
 session-board is a Claude Code plugin plus an optional self-hosted server. It has no central
 service, no analytics, and no telemetry. Nobody but you receives anything it collects.
@@ -21,6 +21,12 @@ Set `SESSION_BOARD_SEND_TEXT=0` to record states only, with no prompt, command o
 
 It also records the tickets you or Claude create (title, description, labels, comments, links) and,
 unless `SESSION_BOARD_MIRROR_TASKS=0`, the titles of the tasks in Claude's own task list.
+
+Since 0.3 it also records who acted: the type of each subagent Claude starts (for example
+`Explore`) and the end of the subagent's last message (280 characters at most, none with
+`SESSION_BOARD_SEND_TEXT=0`), the actor id and name you may set with `SESSION_BOARD_ACTOR`, and the
+feedback sessions file with `board_feedback` (its text, plus the session, repository, machine and
+plugin version).
 
 ## Where it goes
 

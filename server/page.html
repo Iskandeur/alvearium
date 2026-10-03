@@ -270,6 +270,92 @@
     .formActs .msg { margin-right: auto; color: var(--danger); font-size: 12.5px; }
     .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 20; }
 
+    /* 0.3: actors, priority, dependencies, next, feedback, live updates */
+    .av { flex: none; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 10.5px; font-weight: 600; color: #fff; background: hsl(var(--h, 230) 52% 52%); letter-spacing: 0; line-height: 1; }
+    .av.human { border-radius: 50%; box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.35); }
+    .av.agent { border-radius: 6px; }
+    .av.subagent { border-radius: 6px; width: 18px; height: 18px; font-size: 9.5px; opacity: 0.9; outline: 1.5px dashed hsl(var(--h, 230) 52% 52%); outline-offset: 1px; background: hsl(var(--h, 230) 45% 60%); }
+    .av.system { background: var(--faint); border-radius: 4px; }
+    .av.lg { width: 22px; height: 22px; font-size: 11px; }
+    .tags .av { margin-left: auto; }
+    .tags .av + .age { margin-left: 6px; }
+    .who { display: inline-flex; align-items: center; gap: 5px; vertical-align: middle; }
+    .who b { font-weight: 500; color: var(--text); }
+    .arrow { color: var(--faint); margin: 0 3px; }
+    .prio { display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 5px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; background: var(--chip); color: var(--muted); flex: none; }
+    .prio.P0 { background: var(--danger); color: #fff; }
+    .prio.P1 { background: var(--danger-soft); color: var(--danger); }
+    .prio.P2 { background: var(--accent-soft); color: var(--accent); }
+    .head .prio { margin-top: 1px; }
+    .tag.blocked { color: var(--danger); background: var(--danger-soft); font-weight: 500; }
+    .card.blocked { background: repeating-linear-gradient(-45deg, var(--card), var(--card) 8px, color-mix(in srgb, var(--danger) 4%, var(--card)) 8px, color-mix(in srgb, var(--danger) 4%, var(--card)) 16px); }
+    .card.flash, .row.flash { animation: flash 1.6s ease-out; }
+    @keyframes flash { 0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 55%, transparent); } 100% { box-shadow: var(--shadow); } }
+    @media (prefers-reduced-motion: reduce) { .card.flash, .row.flash { animation: none; } }
+    .card[draggable="true"], .nrow[draggable="true"] { cursor: grab; }
+    .dragging { opacity: 0.45; }
+    .drop-before { box-shadow: 0 -3px 0 0 var(--accent) !important; }
+    .drop-after { box-shadow: 0 3px 0 0 var(--accent) !important; }
+    .live.poll i { background: #d8a03a; opacity: 1; }
+    .fbBtn { position: relative; }
+    .fbBtn .n { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; }
+    :root[data-theme="dark"] .fbBtn .n { color: #0e0f11; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .fbBtn .n { color: #0e0f11; } }
+    .fbBtn .n.zero { background: var(--chip); color: var(--faint); }
+
+    /* Next view */
+    .nextHead { display: flex; align-items: baseline; gap: 10px; margin: 2px 2px 10px; color: var(--muted); font-size: 13px; }
+    .nextHead h2 { margin: 0; font-size: 15px; color: var(--text); font-weight: 600; }
+    .nrow { display: grid; grid-template-columns: 26px 30px minmax(0, 1fr) auto 64px; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; background: var(--card); }
+    .nrow:first-child { border-top: 0; }
+    .nrow:hover, .nrow.sel { background: var(--accent-soft); }
+    .nrow .pos { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
+    .nrow .t { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .nrow .tt { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .nrow .sub { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--faint); overflow: hidden; white-space: nowrap; }
+    .nrow .when { font-size: 12px; color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; }
+    .nrow .grip { color: var(--faint); font-size: 14px; letter-spacing: -2px; user-select: none; }
+
+    /* Dependencies in the panel */
+    .deps { display: flex; flex-direction: column; gap: 2px; }
+    .dep { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 7px; font-size: 13px; cursor: pointer; }
+    .dep:hover { background: var(--chip); }
+    .dep .k { color: var(--faint); font-size: 12px; }
+    .dep .tt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dep.closed .tt { color: var(--faint); text-decoration: line-through; }
+    .dep .rm { border: 0; background: none; color: var(--faint); width: 22px; height: 22px; border-radius: 6px; font-size: 15px; }
+    .dep .rm:hover { background: var(--danger-soft); color: var(--danger); }
+    .depAdd { display: flex; gap: 6px; margin-top: 6px; }
+    .depAdd input { width: 110px; height: 28px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--card); padding: 0 8px; }
+    .depAdd .btn { height: 28px; }
+    .depCols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .depCols h4 { margin: 0 0 4px; font-size: 12px; font-weight: 500; color: var(--faint); }
+    .ev .who .av { width: 16px; height: 16px; font-size: 9px; }
+    .ev.agent::before { background: var(--lane); border-style: dashed; }
+    .ev.dependency::before, .ev.unblocked::before { border-color: var(--ok); }
+    .ev.unblocked::before { background: var(--ok); }
+    .ev.blocked::before { background: var(--danger); border-color: var(--danger); }
+
+    /* Feedback view */
+    .fbList .row { grid-template-columns: 74px 92px minmax(0, 1fr) 150px 64px; }
+    .ftype { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11.5px; font-weight: 500; background: var(--chip); color: var(--muted); }
+    .ftype.bug { background: var(--danger-soft); color: var(--danger); }
+    .ftype.suggestion { background: var(--ok-soft); color: var(--ok); }
+    .ftype.friction { background: color-mix(in srgb, #d8a03a 16%, transparent); color: #b07a14; }
+    .resolve { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 10px; background: var(--lane); margin-bottom: 14px; }
+    .resolve textarea { min-height: 54px; }
+    .resolve .acts { display: flex; gap: 8px; justify-content: flex-end; }
+
+    @media (max-width: 900px) {
+      .nrow { grid-template-columns: 30px minmax(0, 1fr) auto 30px; gap: 8px; padding: 10px 12px; }
+      .nrow .pos { display: none; }
+      .depCols { grid-template-columns: 1fr; }
+      .fbList .row { grid-template-columns: minmax(0, 1fr) auto; }
+      .fbList .row .ft { grid-column: 1; grid-row: 2; padding-left: 16px; }
+      .seg button { padding: 0 9px; }
+      .fbBtn .opt { display: none; }
+    }
+
     /* Auth */
     #auth { max-width: 440px; margin: 12vh auto 0; padding: 0 24px; text-align: center; }
     #auth h2 { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
@@ -317,6 +403,10 @@
         <span id="summary"></span>
         <span class="live" id="live" title=""><i></i><span class="opt" id="liveText">Connecting</span></span>
       </div>
+      <button class="btn fbBtn" type="button" data-view="feedback" id="fbBtn" title="Feedback inbox: bugs, suggestions and frictions reported by sessions">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+        <span class="opt">Feedback</span><span class="n zero" id="fbCount">0</span>
+      </button>
       <button class="btn primary" type="button" data-act="new">
         <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         <span>New</span>
@@ -356,6 +446,8 @@
       </details>
     </div>
     <div id="listView" hidden></div>
+    <div id="nextView" hidden></div>
+    <div id="feedbackView" hidden></div>
   </main>
 
   <div class="scrim" id="scrim" hidden></div>
@@ -388,11 +480,12 @@
       }
 
       // ---- state: everything that matters lives in the URL ------------------------------------
-      const FILTERS = ['repo', 'session', 'status', 'assignee', 'kind', 'label', 'origin', 'machine', 'branch'];
+      const FILTERS = ['repo', 'session', 'actor', 'status', 'priority', 'assignee', 'kind', 'subtype', 'label', 'origin', 'machine', 'branch'];
+      const VIEWS = ['board', 'next', 'list', 'feedback'];
       let state = readUrl();
       function readUrl() {
         const p = new URLSearchParams(location.search);
-        const s = { q: p.get('q') || '', view: p.get('view') === 'list' ? 'list' : 'board', ticket: p.get('ticket') || '', archived: p.get('archived') === '1', f: {} };
+        const s = { q: p.get('q') || '', view: VIEWS.includes(p.get('view')) ? p.get('view') : 'board', ticket: p.get('ticket') || '', archived: p.get('archived') === '1', f: {} };
         for (const k of FILTERS) if (p.get(k)) s.f[k] = p.get(k);
         const theme = p.get('theme');
         if (theme === 'light' || theme === 'dark') root.dataset.theme = theme;
@@ -402,7 +495,7 @@
         const p = new URLSearchParams();
         if (state.q) p.set('q', state.q);
         for (const k of FILTERS) if (state.f[k]) p.set(k, state.f[k]);
-        if (state.view === 'list') p.set('view', 'list');
+        if (state.view !== 'board') p.set('view', state.view);
         if (state.archived) p.set('archived', '1');
         if (state.ticket) p.set('ticket', state.ticket);
         const theme = new URLSearchParams(location.search).get('theme');
@@ -416,6 +509,7 @@
         if (state.q) p.set('q', state.q);
         for (const k of FILTERS) if (state.f[k]) p.set(k, state.f[k]);
         if (state.archived) p.set('archived', '1');
+        if (state.view === 'feedback') p.set('kind', 'feedback');
         for (const [k, v] of Object.entries(extra)) p.set(k, v);
         return p.toString() ? '?' + p : '';
       }
@@ -444,6 +538,43 @@
       const ACT = { working: 'working', waiting: 'needs you', idle: 'idle', closed: 'closed' };
       const sessionName = (t) => t.session?.title || (t.session_id ? 'Session ' + t.session_id.slice(0, 6) : '');
 
+      // ---- actors: who did what, to whom ------------------------------------------------------
+      const actors = new Map([
+        ['user', { id: 'user', type: 'human', name: 'You' }],
+        ['claude', { id: 'claude', type: 'agent', name: 'Claude' }],
+        ['hook', { id: 'hook', type: 'system', name: 'Session' }],
+      ]);
+      function learnActors(list) {
+        for (const a of Object.values(list || {})) if (a && a.id) actors.set(a.id, { ...actors.get(a.id), ...a, name: a.id === 'user' ? 'You' : a.name || a.id });
+      }
+      function actor(id) {
+        if (actors.has(id)) return actors.get(id);
+        const sub = String(id || '').includes('/');
+        return { id, type: sub ? 'subagent' : 'agent', name: sub ? String(id).split('/').pop() : String(id || '?') };
+      }
+      const actorName = (id) => actor(id).name;
+      function hue(id) {
+        if (id === 'user') return 152;
+        if (id === 'claude') return 18;
+        let h = 0;
+        for (const c of String(id)) h = (h * 31 + c.charCodeAt(0)) % 360;
+        return h;
+      }
+      function initials(a) {
+        const n = String(a.name || a.id || '?').replace(/[^\p{L}\p{N} ]/gu, ' ').trim();
+        const parts = n.split(/\s+/).filter(Boolean);
+        return (parts.length > 1 ? parts[0][0] + parts[1][0] : n.slice(0, a.type === 'subagent' ? 2 : 1)).toUpperCase() || '?';
+      }
+      function avatar(id, extra = '') {
+        const a = actor(id);
+        const title = `${a.name}${a.type === 'subagent' ? ' (subagent' + (a.parent ? ' of ' + actorName(a.parent) : '') + ')' : a.type === 'human' ? '' : ' (' + a.type + ')'}`;
+        return `<span class="av ${esc(a.type)} ${extra}" style="--h:${hue(id)}" title="${esc(title)}">${esc(initials(a))}</span>`;
+      }
+      const who = (id) => `<span class="who">${avatar(id)}<b>${esc(actorName(id))}</b></span>`;
+      const PRIO = { P0: 'P0 · now', P1: 'P1 · next', P2: 'P2 · normal', P3: 'P3 · later' };
+      const prio = (p) => (p ? `<span class="prio ${esc(p)}" title="Priority ${esc(PRIO[p] || p)}">${esc(p)}</span>` : '');
+      const FTYPE = { bug: 'Bug', suggestion: 'Suggestion', friction: 'Friction' };
+
       const plain = (s) => String(s || '').replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim();
       /** Tiny, safe markdown: escape first, then `code`, **bold**, links. */
       function md(s) {
@@ -471,13 +602,18 @@
         const out = [];
         if (t.repo && !state.f.repo) out.push(`<button type="button" class="tag" data-filter="repo" data-value="${esc(t.repo)}" title="Filter on ${esc(t.repo)}">${esc(repoName(t.repo))}${t.branch && t.branch !== 'HEAD' && t.branch !== 'main' && t.branch !== 'master' ? ' · ' + esc(t.branch) : ''}</button>`);
         if (t.session_id && !state.f.session && !opts.noSession && t.kind !== 'session') out.push(`<button type="button" class="tag sess" data-filter="session" data-value="${esc(t.session_id)}" title="Session: ${esc(sessionName(t))}">${t.origin === 'cloud' ? '☁ ' : '› '}${esc(sessionName(t))}</button>`);
-        if (t.priority === 'urgent' || t.priority === 'high') out.push(`<span class="tag prio-${t.priority}">${t.priority}</span>`);
+        if (t.blocked) {
+          const open = (t.blocked_by || []).filter((b) => b.status !== 'done' && b.status !== 'cancelled');
+          out.push(`<span class="tag blocked" title="Blocked by ${esc(open.map((b) => b.key + ' ' + b.title).join(', '))}">⛔ ${esc(open.map((b) => b.key).join(', ') || 'blocked')}</span>`);
+        }
+        if (!t.blocked && t.blocking?.some((b) => b.status !== 'done' && b.status !== 'cancelled')) out.push(`<span class="tag" title="Blocks ${esc(t.blocking.map((b) => b.key).join(', '))}">blocks ${t.blocking.filter((b) => b.status !== 'done' && b.status !== 'cancelled').length}</span>`);
         for (const l of t.labels || []) out.push(`<button type="button" class="tag lbl" data-filter="label" data-value="${esc(l)}">#${esc(l)}</button>`);
         const pr = (t.links || []).find((l) => l.type === 'pr' && httpsUrl(l.url));
         if (pr) out.push(`<a class="tag" href="${esc(pr.url)}" target="_blank" rel="noopener" data-stop="1">PR #${esc((pr.url.match(/(\d+)$/) || [])[1] || '')} ↗</a>`);
         if (t.children_count) out.push(`<span class="tag" title="Sub-tickets">↳ ${t.children_count}</span>`);
         if (t.comments_count) out.push(`<span class="tag" title="Comments">💬 ${t.comments_count}</span>`);
-        out.push(`<span class="age" title="${esc(when(t.status_at))}">${ago(t.status_at, now)}</span>`);
+        if (!opts.noAvatar && t.assignee) out.push(avatar(t.assignee));
+        out.push(`<span class="age" title="${esc(when(t.status_at))}${t.created_by && t.created_by !== t.assignee ? ' · opened by ' + esc(actorName(t.created_by)) : ''}">${ago(t.status_at, now)}</span>`);
         return out.join('');
       }
 
@@ -488,8 +624,9 @@
         else if (!r && t.status === 'in_progress' && t.kind === 'session' && t.session?.activity === 'waiting') note = 'Waiting for you in the session';
         else if (!r && t.body && t.column !== 'done') note = esc(plain(t.body));
         const live = t.status === 'in_progress' && t.kind === 'session' && t.session?.activity === 'working' ? '1' : '0';
-        return `<article class="card${t.stale || t.status === 'cancelled' ? ' dim' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" data-live="${live}" tabindex="0">
-          <div class="head"><span class="dot"></span><h3 class="title">${esc(t.title)}</h3><span class="key">${esc(t.key)}</span></div>
+        const drag = t.column === 'todo' ? ' draggable="true"' : '';
+        return `<article class="card${t.stale || t.status === 'cancelled' ? ' dim' : ''}${t.blocked ? ' blocked' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" data-live="${live}" tabindex="0"${drag}>
+          <div class="head"><span class="dot"></span><h3 class="title">${esc(t.title)}</h3>${prio(t.priority)}<span class="key">${esc(t.key)}</span></div>
           ${r ? `<div class="reason">${r}</div>` : ''}${note ? `<div class="note">${note}</div>` : ''}
           <div class="tags">${tags(t, now)}</div>
         </article>`;
@@ -497,7 +634,46 @@
 
       const EMPTY_WAITING = '<div class="empty big"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9.25" stroke="currentColor" stroke-width="1.5"/><path d="m8 12.3 2.6 2.6L16 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><strong>Nothing waiting on you</strong><span>Questions, approvals and reviews show up here.</span></div>';
       const EMPTY = (t) => `<div class="empty">${t}</div>`;
-      const setHtml = (el, html) => { if (el.__html !== html) { el.innerHTML = html; el.__html = html; } };
+      const setHtml = (el, html) => { if (el.__html !== html) { el.innerHTML = html; el.__html = html; el.__nodes = null; el.__sig = null; } };
+      /**
+       * Keyed update of a list of cards or rows: unchanged nodes stay in place (no flicker, hover and
+       * focus kept), changed ones are swapped, and the ones a live change touched flash once.
+       */
+      let changedKeys = new Set();
+      function reconcile(el, items, { empty = '', tail = '' } = {}) {
+        const sig = items.map((i) => i.html).join('\u0001') + '\u0002' + tail;
+        if (el.__sig === sig) return;
+        el.__sig = sig;
+        el.__html = null;
+        if (!items.length) {
+          el.innerHTML = empty;
+          el.__nodes = null;
+          return;
+        }
+        const old = el.__nodes || new Map();
+        const next = new Map();
+        const nodes = [];
+        for (const it of items) {
+          let node = old.get(it.key);
+          if (!node || node.__html !== it.html) {
+            const tpl = document.createElement('template');
+            tpl.innerHTML = it.html.trim();
+            const fresh = tpl.content.firstElementChild;
+            fresh.__html = it.html;
+            if (changedKeys.has(it.key)) fresh.classList.add('flash');
+            node = fresh;
+          }
+          next.set(it.key, node);
+          nodes.push(node);
+        }
+        if (tail) {
+          const tpl = document.createElement('template');
+          tpl.innerHTML = tail.trim();
+          nodes.push(...tpl.content.childNodes);
+        }
+        el.replaceChildren(...nodes);
+        el.__nodes = next;
+      }
 
       // ---- filter bar ---------------------------------------------------------------------------
       let facets = { repos: [], sessions: [], labels: [], machines: [], kinds: [], branches: [] };
@@ -507,7 +683,10 @@
           return s ? (s.title || 'Session ' + v.slice(0, 6)) : 'Session ' + v.slice(0, 8);
         }
         if (k === 'status') return v.split(',').map((x) => STATUS[x] || x).join(', ');
-        if (k === 'assignee') return v === 'user' ? 'Assigned to you' : 'Assigned to Claude';
+        if (k === 'assignee') return v === 'user' ? 'Assigned to you' : 'Assigned to ' + actorName(v);
+        if (k === 'actor') return actorName(v);
+        if (k === 'priority') return v.split(',').join(', ');
+        if (k === 'subtype') return v.split(',').map((x) => FTYPE[x] || x).join(', ');
         if (k === 'label') return '#' + v;
         return v;
       }
@@ -516,60 +695,92 @@
         if (k === 'repo') return facets.repos.map((r) => o(r.value, repoName(r.value) + (facets.repos.filter((x) => repoName(x.value) === repoName(r.value)).length > 1 ? ' (' + r.value + ')' : ''), r.open || ''));
         if (k === 'session') return facets.sessions.filter((s) => !state.f.repo || s.repo === state.f.repo || repoName(s.repo) === state.f.repo).slice(0, 80).map((s) => o(s.id, `${s.title || 'Session ' + s.id.slice(0, 6)}${s.repo ? ' — ' + repoName(s.repo) : ''}`, s.open || ''));
         if (k === 'status') return [['open', 'Open'], ['todo', 'To do'], ['in_progress', 'In progress'], ['waiting_on_user', 'Waiting on you'], ['review', 'Review'], ['failed', 'Failed'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([v, l]) => o(v, l));
-        if (k === 'assignee') return [o('user', 'You'), o('claude', 'Claude')];
+        if (k === 'assignee') return [o('user', 'You'), ...(facets.actors || []).filter((a) => a.id !== 'user' && a.type !== 'system').map((a) => o(a.id, a.name, a.open || ''))];
+        if (k === 'actor') return (facets.actors || []).filter((a) => a.type !== 'system').map((a) => o(a.id, (a.type === 'subagent' ? '↳ ' : '') + (a.id === 'user' ? 'You' : a.name), a.open || ''));
+        if (k === 'priority') return [o('P0', 'P0 · now'), o('P1', 'P1 · next'), o('P2', 'P2 · normal'), o('P3', 'P3 · later'), o('none', 'No priority')];
+        if (k === 'subtype') return [o('bug', 'Bug'), o('suggestion', 'Suggestion'), o('friction', 'Friction')];
         if (k === 'label') return facets.labels.map((l) => o(l.value, '#' + l.value, l.total));
         if (k === 'kind') return facets.kinds.map((x) => o(x.value, x.value, x.open || ''));
         if (k === 'origin') return [o('terminal', 'Terminal'), o('cloud', 'Cloud')];
         if (k === 'machine') return facets.machines.map((x) => o(x.value, x.value, x.open || ''));
         return [];
       }
-      const PICK_LABEL = { repo: 'Repo', session: 'Session', status: 'Status', assignee: 'Assignee', label: 'Label', kind: 'Kind', origin: 'Origin', machine: 'Machine' };
+      const PICK_LABEL = { repo: 'Repo', session: 'Session', actor: 'Actor', priority: 'Priority', status: 'Status', assignee: 'Assignee', subtype: 'Type', label: 'Label', kind: 'Kind', origin: 'Origin', machine: 'Machine' };
       function renderFilters() {
-        const parts = [`<div class="seg" role="group" aria-label="View"><button type="button" data-view="board" aria-pressed="${state.view === 'board'}">Board</button><button type="button" data-view="list" aria-pressed="${state.view === 'list'}">List</button></div>`];
+        const seg = [['board', 'Board'], ['next', 'Next'], ['list', 'List']].map(([v, l]) => `<button type="button" data-view="${v}" aria-pressed="${state.view === v}">${l}</button>`).join('');
+        const parts = [`<div class="seg" role="group" aria-label="View">${seg}${state.view === 'feedback' ? '<button type="button" data-view="feedback" aria-pressed="true">Feedback</button>' : ''}</div>`];
         for (const k of FILTERS) {
           if (!state.f[k]) continue;
           parts.push(`<span class="chip"><span><em>${esc(PICK_LABEL[k] || k)}</em> ${esc(chipLabel(k, state.f[k]))}</span><button type="button" data-unfilter="${k}" aria-label="Remove filter">×</button></span>`);
         }
         for (const k of Object.keys(PICK_LABEL)) {
           if (state.f[k]) continue;
+          if (k === 'subtype' && state.view !== 'feedback') continue;
+          if (k === 'kind' && state.view === 'feedback') continue;
           const opts = options(k);
-          if (!opts.length || (k === 'machine' && opts.length < 2) || (k === 'origin' && !facets.hasCloud)) continue;
+          if (!opts.length || (k === 'machine' && opts.length < 2) || (k === 'origin' && !facets.hasCloud) || (k === 'actor' && opts.length < 2)) continue;
           parts.push(`<span class="pick"><select data-pick="${k}" aria-label="Filter by ${esc(PICK_LABEL[k])}"><option value="">${esc(PICK_LABEL[k])}</option>${opts.join('')}</select></span>`);
         }
         if (Object.keys(state.f).length || state.q) parts.push('<button type="button" class="clear" data-act="clear">Clear</button>');
         parts.push('<span class="spacer"></span>');
         parts.push(`<button type="button" class="clear" data-act="archived" title="Done and cancelled tickets closed more than 30 days ago">${state.archived ? 'Hide archived' : 'Show archived'}</button>`);
         setHtml($('filters'), parts.join(''));
+        $('fbBtn').setAttribute('aria-pressed', String(state.view === 'feedback'));
       }
 
       // ---- board / list -------------------------------------------------------------------------
       let listLimit = 100;
       let lastBoard = null;
+      let refreshing = null;
+      let refreshAgain = false;
+      /** One refresh at a time; a refresh asked for during one runs right after it. */
       async function refresh() {
-        let data;
-        try {
-          data = state.view === 'list' ? await api('tickets' + query({ limit: listLimit, sort: 'updated' })) : await api('tickets/board' + query());
-        } catch (e) {
-          if (e.message !== 'locked') live('off', 'Offline');
-          return;
+        if (refreshing) {
+          refreshAgain = true;
+          return refreshing;
         }
-        $('auth').hidden = true;
-        $('main').hidden = false;
-        const now = data.now ?? Date.now();
-        if (state.view === 'list') renderList(data, now);
-        else renderBoard(data, now);
-        live('on', 'Live');
+        refreshing = (async () => {
+          let data;
+          const view = state.view;
+          try {
+            if (view === 'list') data = await api('tickets' + query({ limit: listLimit, sort: 'updated' }));
+            else if (view === 'next') data = await api('tickets/next' + query({ limit: 100 }));
+            else if (view === 'feedback') data = await api('tickets' + query({ limit: 300, sort: 'updated', archived: '1' }));
+            else data = await api('tickets/board' + query());
+          } catch (e) {
+            if (e.message !== 'locked') live('off', 'Offline');
+            return;
+          }
+          $('auth').hidden = true;
+          $('main').hidden = false;
+          const now = data.now ?? Date.now();
+          for (const id of ['boardView', 'listView', 'nextView', 'feedbackView']) $(id).hidden = id !== view + 'View';
+          if (view === 'list') renderList(data, now);
+          else if (view === 'next') renderNext(data, now);
+          else if (view === 'feedback') renderFeedback(data, now);
+          else renderBoard(data, now);
+          changedKeys = new Set();
+          lastRefresh = Date.now();
+          if (!streamOn) live('poll', 'Polling');
+        })();
+        try {
+          await refreshing;
+        } finally {
+          refreshing = null;
+          if (refreshAgain) {
+            refreshAgain = false;
+            refresh();
+          }
+        }
       }
 
       function renderBoard(b, now) {
         lastBoard = b;
-        $('boardView').hidden = false;
-        $('listView').hidden = true;
         const c = b.counts || {};
         const col = (name, empty) => {
           const list = b.columns?.[name] || [];
           const more = (c[name] || 0) - list.length;
-          setHtml($('col-' + name), list.length ? list.map((t) => card(t, now)).join('') + (more > 0 ? `<div class="more">+ ${more} more — use the list view</div>` : '') : empty);
+          reconcile($('col-' + name), list.map((t) => ({ key: t.key, html: card(t, now) })), { empty, tail: more > 0 ? `<div class="more">+ ${more} more — use the list view</div>` : '' });
           if (name !== 'done') $('n-' + name).textContent = String(c[name] || 0);
         };
         col('waiting', EMPTY_WAITING);
@@ -582,9 +793,61 @@
         summary(c);
       }
 
+      function nextRow(t, i, now) {
+        const sub = [];
+        if (t.repo && !state.f.repo) sub.push(`<span>${esc(repoName(t.repo))}</span>`);
+        if (t.status === 'in_progress') sub.push('<span class="pill" data-s="in_progress">In progress</span>');
+        if (t.blocking?.length) sub.push(`<span title="Blocks ${esc(t.blocking.map((b) => b.key).join(', '))}">unblocks ${t.blocking.length}</span>`);
+        for (const l of (t.labels || []).slice(0, 3)) sub.push(`<span>#${esc(l)}</span>`);
+        sub.push(`<span>${esc(t.key)}</span>`);
+        return `<div class="nrow${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" draggable="true" tabindex="0">
+          <span class="pos">${i + 1}</span>
+          <span>${prio(t.priority) || '<span class="prio">–</span>'}</span>
+          <span class="t"><span class="tt" title="${esc(t.title)}">${esc(t.title)}</span><span class="sub">${sub.join('<span>·</span>')}</span></span>
+          <span>${avatar(t.assignee)}</span>
+          <span class="when" title="Created ${esc(when(t.created_at))}">${ago(t.created_at, now)}</span>
+        </div>`;
+      }
+      function renderNext(r, now) {
+        const head = `<div class="nextHead"><h2>Next</h2><span>${r.total} ready${r.blocked ? ` · ${r.blocked} blocked` : ''} · priority, then your order (drag to reorder), then the oldest</span></div>`;
+        if (!r.tickets.length) {
+          setHtml($('nextView'), head + `<div class="list"><div class="empty big"><strong>Nothing ready</strong><span>${r.blocked ? r.blocked + ' ticket(s) wait for a blocker.' : 'Open, unblocked tickets show up here.'}</span></div></div>`);
+          return;
+        }
+        let box = $('nextView').querySelector('#nextList');
+        if (!box) {
+          setHtml($('nextView'), head + '<div class="list" id="nextList"></div>');
+          box = $('nextView').querySelector('#nextList');
+        } else $('nextView').querySelector('.nextHead').outerHTML = head;
+        reconcile(box, r.tickets.map((t, i) => ({ key: t.key, html: nextRow(t, i, now) })), { tail: r.total > r.tickets.length ? `<div class="listFoot"><span>${r.total - r.tickets.length} more</span></div>` : '' });
+        summaryFromApi();
+      }
+      function renderFeedback(r, now) {
+        const open = r.tickets.filter((t) => t.status !== 'done' && t.status !== 'cancelled');
+        const closed = r.tickets.filter((t) => t.status === 'done' || t.status === 'cancelled');
+        const row = (t) => `<div class="row${t.status === 'done' || t.status === 'cancelled' ? ' closed' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-s="${esc(t.status)}" tabindex="0">
+              <span class="k">${esc(t.key)}</span>
+              <span class="ft"><span class="ftype ${esc(t.subtype || 'suggestion')}">${esc(FTYPE[t.subtype] || 'Suggestion')}</span></span>
+              <span class="t"><span class="dot" data-s="${esc(t.status)}"></span><span class="tt" title="${esc(t.title)}">${esc(t.title)}</span></span>
+              <span class="lb">${avatar(t.created_by || 'claude')}<span class="tag">${esc(actorName(t.created_by || 'claude'))}</span>${t.repo ? `<span class="tag">${esc(repoName(t.repo))}</span>` : ''}</span>
+              <span class="when" title="${esc(when(t.created_at))}">${ago(t.created_at, now)}</span>
+            </div>`;
+        const html = [];
+        html.push(`<div class="nextHead"><h2>Feedback</h2><span>${open.length} to handle · ${closed.length} handled · reported by sessions with <code>board_feedback</code></span></div>`);
+        if (!r.tickets.length) {
+          html.push('<div class="list fbList"><div class="empty big"><strong>No feedback yet</strong><span>Sessions report bugs, suggestions and frictions here.</span></div></div>');
+        } else {
+          html.push('<div class="list fbList">');
+          html.push(`<div class="group"><span class="grow"><b>To handle</b></span><span>${open.length}</span></div>`);
+          html.push(open.length ? open.map(row).join('') : '<div class="empty">Inbox zero.</div>');
+          if (closed.length) html.push(`<div class="group"><span class="grow"><b>Handled</b></span><span>${closed.length}</span></div>`, closed.map(row).join(''));
+          html.push('</div>');
+        }
+        setHtml($('feedbackView'), html.join(''));
+        summaryFromApi();
+      }
+
       function renderList(r, now) {
-        $('boardView').hidden = true;
-        $('listView').hidden = false;
         if (!r.tickets.length) {
           setHtml($('listView'), `<div class="list">${EMPTY_WAITING.replace('Nothing waiting on you', 'No tickets match').replace('Questions, approvals and reviews show up here.', 'Try another filter or search.')}</div>`);
           return;
@@ -624,7 +887,7 @@
 
       let lastCounts = null;
       async function summaryFromApi() {
-        try { summary((await api('tickets/board' + query({ limit: 1 }))).counts); } catch {}
+        try { summary((await api('tickets/board' + query(state.view === 'feedback' ? { limit: 1, kind: '' } : { limit: 1 }))).counts); } catch {}
       }
       function summary(c) {
         lastCounts = c;
@@ -664,18 +927,36 @@
         if (state.ticket) document.querySelectorAll(`[data-open="${CSS.escape(state.ticket)}"]`).forEach((el) => el.classList.add('sel'));
       }
       const sel = (name, value, opts) => `<select name="${name}">${opts.map(([v, l]) => `<option value="${esc(v)}"${String(value ?? '') === v ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
-      function eventLine(e) {
-        const who = e.actor === 'hook' ? 'Session' : e.actor === 'claude' ? 'Claude' : 'You';
-        const at = `<time title="${esc(new Date(e.at).toLocaleString())}">${esc(when(e.at))}</time>`;
-        if (e.type === 'comment') return `<div class="ev comment"><b>${who}</b> commented${at}<div class="said">${md(e.text)}</div></div>`;
-        if (e.type === 'created') return `<div class="ev"><b>${who}</b> created it${e.to_status ? ' as ' + esc(STATUS[e.to_status] || e.to_status) : ''}${at}</div>`;
-        if (e.type === 'status' || e.type === 'reopened') return `<div class="ev"><b>${who}</b> ${e.type === 'reopened' ? 'reopened it' : 'moved it'}: ${esc(STATUS[e.from_status] || e.from_status)} → <b>${esc(STATUS[e.to_status] || e.to_status)}</b>${at}${e.text ? `<div class="said">${md(e.text)}</div>` : ''}</div>`;
-        if (e.type === 'edit') return `<div class="ev"><b>${who}</b> edited ${esc(e.text || 'it')}${at}</div>`;
-        return `<div class="ev"><b>${who}</b> ${md(e.text || e.type)}${at}</div>`;
+      /** "CI bot → You": who acted, and who it was for when there is someone. */
+      function fromTo(e) {
+        return who(e.actor) + (e.target ? `<span class="arrow">→</span>${who(e.target)}` : '');
       }
+      function eventLine(e) {
+        const by = fromTo(e);
+        const at = `<time title="${esc(new Date(e.at).toLocaleString())}">${esc(when(e.at))}</time>`;
+        if (e.type === 'comment') return `<div class="ev comment">${by} commented${at}<div class="said">${md(e.text)}</div></div>`;
+        if (e.type === 'created') return `<div class="ev">${who(e.actor)} created it${e.to_status ? ' as ' + esc(STATUS[e.to_status] || e.to_status) : ''}${e.target ? `<span class="arrow">→</span>${who(e.target)}` : ''}${at}</div>`;
+        if (e.type === 'status' || e.type === 'reopened') return `<div class="ev">${by} ${e.type === 'reopened' ? 'reopened it' : 'moved it'}: ${esc(STATUS[e.from_status] || e.from_status)} → <b>${esc(STATUS[e.to_status] || e.to_status)}</b>${at}${e.text ? `<div class="said">${md(e.text)}</div>` : ''}</div>`;
+        if (e.type === 'assigned') return `<div class="ev">${who(e.actor)} handed it over<span class="arrow">→</span>${who(e.target || e.text)}${at}</div>`;
+        if (e.type === 'edit') return `<div class="ev">${by} edited ${esc(e.text || 'it')}${at}</div>`;
+        if (e.type === 'agent') return `<div class="ev agent">${by} ${md(e.text || '')}${at}</div>`;
+        return `<div class="ev ${esc(e.type)}">${by} ${md(e.text || e.type)}${at}</div>`;
+      }
+      function depList(list, rel) {
+        if (!list?.length) return '<div class="empty" style="padding:6px 8px;text-align:left">None</div>';
+        return list
+          .map((d) => `<div class="dep${d.status === 'done' || d.status === 'cancelled' ? ' closed' : ''}" data-open="${esc(d.key)}"><span class="dot" data-s="${esc(d.status)}"></span><span class="k">${esc(d.key)}</span><span class="tt" title="${esc(d.title)}">${esc(d.title)}</span><button type="button" class="rm" data-undep="${esc(d.key)}" data-rel="${rel}" title="Remove this dependency" aria-label="Remove">×</button></div>`)
+          .join('');
+      }
+      const assigneeOpts = (cur) => {
+        const list = [['user', 'You'], ['claude', 'Claude'], ...[...actors.values()].filter((a) => !['user', 'claude', 'hook'].includes(a.id) && a.type !== 'system').map((a) => [a.id, (a.type === 'subagent' ? '↳ ' : '') + a.name])];
+        if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur)]);
+        return list;
+      };
       function renderPanel(t) {
         panelDirty = false;
         const now = Date.now();
+        learnActors(t.actors);
         const ctx = [];
         if (t.repo) ctx.push(`<button type="button" class="tag" data-filter="repo" data-value="${esc(t.repo)}">${esc(t.repo)}</button>`);
         if (t.branch && t.branch !== 'HEAD') ctx.push(`<span class="tag">⎇ ${esc(t.branch)}</span>`);
@@ -690,20 +971,27 @@
             <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
             <div class="fields">
               <label>Status</label>${sel('status', t.status, Object.entries(STATUS))}
-              <label>Assignee</label>${sel('assignee', t.assignee, [['user', 'You'], ['claude', 'Claude']])}
-              <label>Priority</label>${sel('priority', t.priority || '', [['', 'None'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['urgent', 'Urgent']])}
+              <label>Assignee</label>${sel('assignee', t.assignee, assigneeOpts(t.assignee))}
+              <label>Priority</label>${sel('priority', t.priority || '', [['', 'None'], ['P0', 'P0 · now'], ['P1', 'P1 · next'], ['P2', 'P2 · normal'], ['P3', 'P3 · later']])}
+              ${t.kind === 'feedback' ? `<label>Type</label>${sel('subtype', t.subtype || 'suggestion', [['bug', 'Bug'], ['suggestion', 'Suggestion'], ['friction', 'Friction']])}` : ''}
               <label>Labels</label><input name="labels" value="${esc((t.labels || []).join(', '))}" placeholder="comma, separated">
               <span class="lab">Session</span>${sess}
               <span class="lab">Context</span><div class="ctx">${ctx.join('')}</div>
               ${t.parent_key ? `<span class="lab">Parent</span><div class="ctx"><button type="button" class="tag" data-open="${esc(t.parent_key)}">${esc(t.parent_key)} ${esc((t.parent_title || '').slice(0, 50))}</button></div>` : ''}
-              <span class="lab">Created</span><span>${esc(when(t.created_at))} · updated ${ago(t.updated_at, now)} ago</span>
+              <span class="lab">Created</span><span>${t.created_by ? who(t.created_by) + ' · ' : ''}${esc(when(t.created_at))} · updated ${ago(t.updated_at, now)} ago</span>
             </div>
+            ${t.kind === 'feedback' && t.status !== 'done' && t.status !== 'cancelled' ? `<div class="resolve"><textarea id="resolution" placeholder="Resolution: what was done, or why not (kept in the history)"></textarea><div class="acts"><button type="button" class="btn" data-act="fbCancel">Won't do</button><button type="button" class="btn primary" data-act="fbDone">Mark handled</button></div></div>` : ''}
             <div class="formActs" id="saveBar" hidden><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="revert">Discard</button><button type="submit" class="btn primary">Save</button></div>
             <div class="sect">Description <button type="button" class="clear" data-act="editBody">Edit</button></div>
             <div class="md${t.body ? '' : ' empty-body'}" id="bodyView">${t.body ? md(t.body) : 'No description.'}</div>
             <textarea name="body" id="bodyEdit" hidden>${esc(t.body || '')}</textarea>
             ${links ? `<div class="sect">Links</div><div class="links">${links}</div>` : ''}
             ${kids ? `<div class="sect">Sub-tickets</div><div class="kids">${kids}</div>` : ''}
+            ${t.kind === 'feedback' ? '' : `<div class="sect">Dependencies ${t.blocked ? '<span class="tag blocked">⛔ blocked</span>' : ''}</div>
+            <div class="depCols">
+              <div><h4>Blocked by</h4><div class="deps">${depList(t.blocked_by, 'by')}</div><div class="depAdd"><input id="addBlocker" placeholder="SB-12" aria-label="Add a ticket that blocks this one" autocomplete="off"><button type="button" class="btn" data-act="addBlocker">Add</button></div></div>
+              <div><h4>Blocks</h4><div class="deps">${depList(t.blocking, 'blocks')}</div><div class="depAdd"><input id="addBlocked" placeholder="SB-14" aria-label="Add a ticket this one blocks" autocomplete="off"><button type="button" class="btn" data-act="addBlocked">Add</button></div></div>
+            </div>`}
             <div class="sect">History</div>
             <div class="timeline">${(t.events || []).map(eventLine).join('')}</div>
             <div class="compose"><textarea id="comment" placeholder="Add a comment…" aria-label="Comment"></textarea><div class="acts"><button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
@@ -725,7 +1013,7 @@
             <div class="fields">
               <label>Status</label>${sel('status', 'todo', [['todo', 'To do'], ['in_progress', 'In progress'], ['waiting_on_user', 'Waiting on you']])}
               <label>Assignee</label>${sel('assignee', 'user', [['user', 'You'], ['claude', 'Claude']])}
-              <label>Priority</label>${sel('priority', '', [['', 'None'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['urgent', 'Urgent']])}
+              <label>Priority</label>${sel('priority', '', [['', 'None'], ['P0', 'P0 · now'], ['P1', 'P1 · next'], ['P2', 'P2 · normal'], ['P3', 'P3 · later']])}
               <label>Labels</label><input name="labels" value="${esc(f.label || '')}" placeholder="comma, separated">
               <label>Repo</label><input name="repo" value="${esc(prefill.repo || (f.repo && f.repo.includes('/') ? f.repo : ''))}" placeholder="owner/name (optional)">
             </div>
@@ -752,9 +1040,20 @@
 
       // ---- events -------------------------------------------------------------------------------
       document.addEventListener('click', async (e) => {
-        const el = e.target.closest('[data-filter],[data-unfilter],[data-view],[data-act],[data-open],[data-stop]');
+        const el = e.target.closest('[data-undep],[data-filter],[data-unfilter],[data-view],[data-act],[data-open],[data-stop]');
         if (!el) return;
         if (el.dataset.stop) return;
+        if (el.dataset.undep) {
+          e.stopPropagation();
+          const t = $('panel').__ticket;
+          if (!t) return;
+          try {
+            if (el.dataset.rel === 'by') await api(`tickets/${encodeURIComponent(t.key)}`, { blocked_by_remove: [el.dataset.undep] });
+            else await api(`tickets/${encodeURIComponent(el.dataset.undep)}`, { blocked_by_remove: [t.key] });
+            await openPanel(t.key, false);
+          } catch (err) { toast(err.message); }
+          return;
+        }
         if (el.dataset.filter) {
           e.preventDefault();
           e.stopPropagation();
@@ -763,7 +1062,8 @@
         }
         if (el.dataset.unfilter) return setFilter(el.dataset.unfilter, '');
         if (el.dataset.view) {
-          state.view = el.dataset.view;
+          if (state.view === el.dataset.view && el.dataset.view === 'feedback') state.view = 'board';
+          else state.view = el.dataset.view;
           writeUrl(true);
           renderFilters();
           return refresh();
@@ -798,6 +1098,25 @@
           return;
         }
         if (act === 'revert' && t) return renderPanel(t);
+        if ((act === 'addBlocker' || act === 'addBlocked') && t) {
+          const input = $(act);
+          const k = input.value.trim().toUpperCase().replace(/^(\d+)$/, 'SB-$1');
+          if (!/^[A-Z]+-\d+$/.test(k)) return toast('Type a key like SB-12');
+          try {
+            if (act === 'addBlocker') await api(`tickets/${encodeURIComponent(t.key)}`, { blocked_by_add: [k] });
+            else await api(`tickets/${encodeURIComponent(k)}`, { blocked_by_add: [t.key] });
+            await openPanel(t.key, false);
+          } catch (err) { toast(err.message); }
+          return;
+        }
+        if ((act === 'fbDone' || act === 'fbCancel') && t) {
+          const note = $('resolution').value.trim();
+          try {
+            await api(`tickets/${encodeURIComponent(t.key)}`, { status: act === 'fbDone' ? 'done' : 'cancelled', ...(note ? { comment: note } : {}) });
+            await openPanel(t.key, false);
+          } catch (err) { toast(err.message); }
+          return;
+        }
         if (act === 'newChild' && t) return renderCreate({ parent: t.key, repo: t.repo, session: t.session_id });
         if (act === 'comment' && t) {
           const text = $('comment').value.trim();
@@ -810,6 +1129,10 @@
         }
       });
       document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.target.id === 'addBlocker' || e.target.id === 'addBlocked')) {
+          e.preventDefault();
+          return document.querySelector(`[data-act="${e.target.id}"]`).click();
+        }
         if (e.key === 'Escape' && !$('panel').hidden) return closePanel();
         if (e.key === 'Enter' && e.target.dataset?.open && !e.target.closest('aside')) openPanel(e.target.dataset.open);
         if (e.key === '/' && document.activeElement === document.body) { e.preventDefault(); $('q').focus(); }
@@ -820,13 +1143,13 @@
       });
       $('panel').addEventListener('input', (e) => {
         if (e.target.classList.contains('pTitle')) autosize(e.target);
-        if (e.target.id === 'comment' || !$('panel').__ticket || $('panel').querySelector('#cform')) return;
+        if (['comment', 'addBlocker', 'addBlocked', 'resolution'].includes(e.target.id) || !$('panel').__ticket || $('panel').querySelector('#cform')) return;
         panelDirty = true;
         $('saveBar').hidden = false;
       });
       $('panel').addEventListener('change', (e) => {
         if (!$('panel').querySelector('#tform') || e.target.id === 'comment') return;
-        if (e.target.name === 'status' || e.target.name === 'assignee' || e.target.name === 'priority') save($('tform'));
+        if (['status', 'assignee', 'priority', 'subtype'].includes(e.target.name)) save($('tform'));
       });
       $('panel').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -852,6 +1175,7 @@
         const body = {};
         if (v.title && v.title !== t.title) body.title = v.title;
         for (const k of ['status', 'assignee']) if (v[k] !== t[k]) body[k] = v[k];
+        if (v.subtype && v.subtype !== (t.subtype || 'suggestion')) body.subtype = v.subtype;
         if ((v.priority || null) !== (t.priority || null)) body.priority = v.priority || null;
         if (v.labels.join(',') !== (t.labels || []).join(',')) body.labels = v.labels;
         if (!$('bodyEdit').hidden && v.body !== (t.body || '')) body.body = v.body;
@@ -897,13 +1221,140 @@
         const el = $('live');
         el.className = 'live ' + s;
         $('liveText').textContent = text;
-        el.title = s === 'on' ? 'Updated ' + new Date().toLocaleTimeString() : text;
+        el.title = s === 'on' ? 'Live: changes appear as they happen' : s === 'poll' ? 'Live updates unavailable: refreshing every 10 s' : text;
       }
+      let isLocked = false;
       function locked() {
+        isLocked = true;
         $('auth').hidden = false;
         $('main').hidden = true;
         live('', 'Locked');
+        streamCtl?.abort();
       }
+
+      // ---- realtime: Server-Sent Events over fetch (works with a Bearer token and behind a relay) --
+      let streamOn = false;
+      let streamCtl = null;
+      let streamRetry = 1000;
+      let lastRefresh = 0;
+      function setStream(on) {
+        streamOn = on;
+        live(on ? 'on' : 'poll', on ? 'Live' : 'Polling');
+      }
+      async function connectStream() {
+        if (streamCtl || isLocked) return;
+        const ctl = new AbortController();
+        streamCtl = ctl;
+        let lastByte = Date.now();
+        // Heartbeats come every 15 s: 45 s of silence means a dead connection a proxy did not close.
+        const watchdog = setInterval(() => { if (Date.now() - lastByte > 45000) ctl.abort(); }, 5000);
+        try {
+          const res = await fetch('api/stream', { headers: headers(), cache: 'no-store', signal: ctl.signal });
+          if (res.status === 401) { locked(); return; }
+          if (!res.ok || !res.body) throw new Error('HTTP ' + res.status);
+          const reader = res.body.getReader();
+          const dec = new TextDecoder();
+          let buf = '';
+          for (;;) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            lastByte = Date.now();
+            buf += dec.decode(value, { stream: true });
+            let i;
+            while ((i = buf.indexOf('\n\n')) >= 0) {
+              const block = buf.slice(0, i);
+              buf = buf.slice(i + 2);
+              onBlock(block);
+            }
+          }
+        } catch {} finally {
+          clearInterval(watchdog);
+          streamCtl = null;
+        }
+        if (isLocked) return;
+        setStream(false);
+        setTimeout(connectStream, streamRetry);
+        streamRetry = Math.min(streamRetry * 2, 30000);
+      }
+      function onBlock(block) {
+        let ev = 'message';
+        let data = '';
+        for (const line of block.split('\n')) {
+          if (line.startsWith('event:')) ev = line.slice(6).trim();
+          else if (line.startsWith('data:')) data += line.slice(5).trim();
+        }
+        if (ev === 'hello') {
+          streamRetry = 1000;
+          setStream(true);
+          refresh(); // whatever changed while we were not connected
+          return;
+        }
+        if (ev !== 'change') return;
+        try { onChange(JSON.parse(data)); } catch {}
+      }
+      let changeTimer;
+      let facetsTimer;
+      let panelTimer;
+      function onChange(c) {
+        if (c.key) changedKeys.add(c.key);
+        if (c.blocker) changedKeys.add(c.blocker);
+        clearTimeout(changeTimer);
+        // Session heartbeats only move a dot: they can wait a little and batch.
+        changeTimer = setTimeout(() => { if (!document.hidden) refresh(); }, c.type === 'session' ? 2000 : 120);
+        if (c.type !== 'session') {
+          clearTimeout(facetsTimer);
+          facetsTimer = setTimeout(loadFacets, 1500);
+        }
+        if (state.ticket && (c.key === state.ticket || c.blocker === state.ticket || c.type === 'reorder')) {
+          clearTimeout(panelTimer);
+          panelTimer = setTimeout(() => {
+            if (!$('panel').hidden && state.ticket && !panelDirty && !$('panel').contains(document.activeElement)) openPanel(state.ticket, false);
+          }, 200);
+        }
+      }
+
+      // ---- drag and drop: manual order of the To do column and of Next -----------------------
+      let dragKey = null;
+      const dragEl = () => (dragKey ? document.querySelector(`[draggable="true"][data-open="${CSS.escape(dragKey)}"]`) : null);
+      const clearMarks = () => document.querySelectorAll('.drop-before, .drop-after').forEach((x) => x.classList.remove('drop-before', 'drop-after'));
+      document.addEventListener('dragstart', (e) => {
+        const el = e.target.closest?.('[draggable="true"][data-open]');
+        if (!el) return;
+        dragKey = el.dataset.open;
+        el.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragKey);
+      });
+      document.addEventListener('dragend', () => {
+        document.querySelectorAll('.dragging').forEach((x) => x.classList.remove('dragging'));
+        clearMarks();
+        dragKey = null;
+      });
+      document.addEventListener('dragover', (e) => {
+        const src = dragEl();
+        const el = e.target.closest?.('[draggable="true"][data-open]');
+        if (!src || !el || el === src || el.parentElement !== src.parentElement) return;
+        e.preventDefault();
+        const r = el.getBoundingClientRect();
+        clearMarks();
+        el.classList.add(e.clientY < r.top + r.height / 2 ? 'drop-before' : 'drop-after');
+      });
+      document.addEventListener('drop', async (e) => {
+        const src = dragEl();
+        const el = e.target.closest?.('[draggable="true"][data-open]');
+        if (!src || !el || el === src) return;
+        e.preventDefault();
+        const before = el.classList.contains('drop-before');
+        const key = dragKey;
+        clearMarks();
+        if (before) el.before(src);
+        else el.after(src);
+        try {
+          await api(`tickets/${encodeURIComponent(key)}/move`, before ? { before: el.dataset.open } : { after: el.dataset.open });
+          changedKeys.add(key);
+        } catch (err) { toast(err.message); }
+        refresh();
+      });
       let toastTimer;
       function toast(text) {
         let el = document.querySelector('.toast');
@@ -922,6 +1373,11 @@
         try {
           facets = await api('facets');
           facets.hasCloud = facets.sessions.some((s) => s.origin === 'cloud');
+          learnActors(Object.fromEntries((facets.actors || []).map((a) => [a.id, a])));
+          const n = facets.feedback?.open || 0;
+          $('fbCount').textContent = String(n);
+          $('fbCount').classList.toggle('zero', !n);
+          $('fbBtn').setAttribute('aria-pressed', String(state.view === 'feedback'));
           renderFilters();
         } catch {}
       }
@@ -929,15 +1385,18 @@
         $('q').value = state.q;
         renderFilters();
         favicon(0);
-        await Promise.all([refresh(), loadFacets()]);
+        isLocked = false;
+        await Promise.all([loadFacets(), refresh()]);
         if (state.ticket) openPanel(state.ticket, false);
+        connectStream();
       }
       boot();
-      setInterval(() => { if (!document.hidden) refresh(); }, 10000);
+      // Fallback: poll every 10 s while the live stream is down, and once a minute anyway.
+      setInterval(() => { if (!document.hidden && (!streamOn || Date.now() - lastRefresh > 60000)) refresh(); }, 10000);
       setInterval(() => { if (!document.hidden) loadFacets(); }, 60000);
       setInterval(async () => {
-        // Keep an open ticket fresh, unless you are editing it.
-        if (!$('panel').hidden && state.ticket && !panelDirty && !$('panel').contains(document.activeElement)) openPanel(state.ticket, false);
+        // Keep an open ticket fresh, unless you are editing it (live changes reload it at once).
+        if (!streamOn && !$('panel').hidden && state.ticket && !panelDirty && !$('panel').contains(document.activeElement)) openPanel(state.ticket, false);
       }, 15000);
       document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
     })();
