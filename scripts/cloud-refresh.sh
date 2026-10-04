@@ -15,7 +15,7 @@ SB_HOME="${SESSION_BOARD_HOME:-/opt/session-board}"
 RAW="${SESSION_BOARD_RAW_URL:-https://raw.githubusercontent.com/Iskandeur/session-board}/$REF"
 EVERY="${SESSION_BOARD_REFRESH_EVERY:-600}"
 # keep in step with FILES in scripts/cloud-setup.sh (test/cloudsetup.test.mjs checks it)
-FILES="hooks/report.mjs lib/core.mjs lib/runtime.mjs lib/store.mjs mcp/server.mjs scripts/board.mjs scripts/ticket.mjs scripts/install-repo.mjs scripts/cloud-apply.mjs scripts/cloud-refresh.sh skills/tickets/SKILL.md"
+FILES="hooks/report.mjs lib/core.mjs lib/net.mjs lib/runtime.mjs lib/store.mjs mcp/server.mjs scripts/board.mjs scripts/doctor.mjs scripts/ticket.mjs scripts/install-repo.mjs scripts/cloud-apply.mjs scripts/cloud-refresh.sh skills/tickets/SKILL.md"
 
 version_of() { sed -n "s/^export const VERSION = '\([^']*\)';.*/\1/p" "$1" 2>/dev/null | head -n 1; }
 

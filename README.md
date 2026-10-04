@@ -411,13 +411,51 @@ Three steps per repository:
 3. **Check.** Start a new cloud session on the repo and ask Claude to "create a test ticket on the
    board". It should appear on the board with the cloud badge and a link to the session; close it
    afterwards. If Claude answers that session-board is not configured, step 2 is missing (the server
-   has no local fallback in the cloud: a board inside the VM would vanish with it).
+   has no local fallback in the cloud: a board inside the VM would vanish with it). If no ticket
+   appears, see [the doctor](#the-agent-proxy-and-the-doctor-034) below.
 
 Tickets made by Claude in the cloud attach to the session the hooks reported: the hooks record the
 session of the directory, the MCP server reads it (Claude Code's `CLAUDE_CODE_SESSION_ID` is the
 fallback). **Updates**: run `/session-board:install-cloud`
 again after updating the plugin, and commit. At the start of a cloud session, a copy older than
 the server says so once. `/session-board:install-cloud --uninstall` removes the copy.
+
+#### The agent proxy, and the doctor (0.3.4)
+
+Every request out of a cloud session goes through Anthropic's proxy, named in the session's
+`HTTPS_PROXY`; that proxy is also what attaches an API credential (*Add API credentials* in the
+[cloud environments docs](https://code.claude.com/docs/en/cloud-environments)). `curl` follows
+`HTTPS_PROXY`. Node's built-in `fetch` does not, unless the process was started with
+`NODE_USE_ENV_PROXY=1`, which only recent Node versions understand. Up to 0.3.3 the hooks and the
+MCP server used that `fetch`: their requests went straight to the board's host without the
+credential. A board behind a login gateway (Cloudflare Access, an SSO proxy…) redirected them to its
+login page, `fetch` followed the redirect and got a 200 page, and session-board took it for success:
+hooks "sent", `ticket_create` answered `Created undefined [undefined] undefined`, and nothing reached
+the board while `curl $SESSION_BOARD_URL/api/board` worked.
+
+Since 0.3.4, every request of the plugin and of the cloud copy (hooks, MCP tools, `/board`,
+`/ticket`, the import) goes through one client, [`lib/net.mjs`](lib/net.mjs), with no dependency:
+
+- with `HTTPS_PROXY` / `https_proxy` set (and the host not in `NO_PROXY`), it opens a `CONNECT`
+  tunnel through the proxy, with the proxy's user and password if the URL has them, and trusts the
+  system certificate store as well as Node's own (the proxy decrypts the request to add the
+  credential, with its own certificate authority, which `curl` already trusts);
+- it never follows a redirect: the board API does not redirect, so a 3xx comes from a gateway;
+- a reply that is not the board's JSON is an error that says why (redirect to a login page, 401,
+  HTML page, proxy refusal), in the tool's answer and, for hooks, with `SESSION_BOARD_DEBUG=1`.
+
+When nothing shows up, run the doctor and read its last lines:
+
+```bash
+node .claude/session-board/scripts/doctor.mjs                       # in a cloud session (the copy)
+node .claude/session-board/scripts/doctor.mjs --ticket "test cloud" # also creates a ticket, as Claude would
+```
+
+or `/board doctor` in the cloud, `/session-board:board doctor` on a terminal. It prints whether the
+session is a cloud one, the URL, what kind of token (never its value), the proxy variables (without
+their password), the route requests take, then a `GET /api/version` and an authenticated read with
+the plugin's own client, the last failure the hooks recorded, and what to fix. The exit code is 0 when
+the board answers as the board.
 
 ## In the terminal
 

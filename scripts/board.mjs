@@ -2,6 +2,7 @@
 // Print the ticket board as text (used by the /board command).
 // Flags: --json, --repo <owner/name|name>, --session <id>, --here (this repo only), --q <text>
 // `board.mjs sync`: send this machine's local board.db to the server (see lib/sync.mjs).
+// `board.mjs doctor [--ticket <title>] [--json]`: can this session write to the board? (scripts/doctor.mjs)
 import { renderTicketsText, ticketStatusText } from '../lib/core.mjs';
 import { cloudCopyGuard, loadBoard } from '../lib/runtime.mjs';
 import { currentContext } from '../mcp/server.mjs';
@@ -16,7 +17,11 @@ const opt = (name) => {
   return i >= 0 ? argv[i + 1] : undefined;
 };
 
-if (guard) {
+if (argv[0] === 'doctor') {
+  // Before the guard: the doctor is what you run when the copy says it is not configured.
+  const { doctorMain } = await import('./doctor.mjs');
+  await doctorMain(argv.slice(1));
+} else if (guard) {
   console.log(guard);
 } else if (argv[0] === 'sync') {
   // Send this machine's local board.db to the server now (the SessionStart hook does it too).

@@ -42,7 +42,14 @@ try {
   const started = Date.now();
   const out = {};
   const status = await handleHook(event, input, { out });
-  if (process.env.SESSION_BOARD_DEBUG === '1') process.stderr.write(`session-board: ${event} → ${status}\n`);
+  if (process.env.SESSION_BOARD_DEBUG === '1') {
+    const { loadConfig } = await import('../lib/runtime.mjs');
+    const { routeOf } = await import('../lib/net.mjs');
+    const cfg = loadConfig();
+    const where = cfg.remote ? ` · ${cfg.url} via ${routeOf(cfg.url)}` : ' · local board';
+    process.stderr.write(`session-board: ${event} → ${status}${where}${out.error ? `\n  ${out.error}` : ''}\n`);
+    if (status === 'ignored' && !input.session_id) process.stderr.write('  (no session_id on stdin: a hook run by hand needs a payload; use scripts/doctor.mjs to test the connection)\n');
+  }
   // Storage changes (local board left behind, server switched): at most once per start, never in the
   // cloud copy (which has no local board, and no lib/sync.mjs), never when the server is unreachable.
   // The cloud copy, instead: one line when the server is newer than the copy committed in the repo.

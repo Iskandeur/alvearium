@@ -25,10 +25,12 @@ export const COMMAND_TAG = '<!-- session-board cloud copy -->';
 const FILES = [
   'hooks/report.mjs',
   'lib/core.mjs',
+  'lib/net.mjs',
   'lib/runtime.mjs',
   'lib/store.mjs',
   'mcp/server.mjs',
   'scripts/board.mjs',
+  'scripts/doctor.mjs',
   'scripts/ticket.mjs',
 ];
 

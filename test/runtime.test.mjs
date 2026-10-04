@@ -77,7 +77,8 @@ test('remote mode: posts with bearer; failures back off and never throw', async 
   const calls = [];
   const ok = async (url, init) => {
     calls.push({ url, init });
-    return { ok: true, status: 202 };
+    // 0.3.4: a reply must be the board's JSON; a bare 2xx (a login page, a proxy page) is a failure
+    return new Response(JSON.stringify({ ok: true, state: 'working' }), { status: 202 });
   };
   const base = { session_id: 'r1', cwd: ROOT };
   assert.equal(await handleHook('UserPromptSubmit', { ...base, prompt: 'hi' }, { env, now: 0, fetchImpl: ok }), 'sent');

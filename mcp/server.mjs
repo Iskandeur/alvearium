@@ -187,6 +187,16 @@ function describe(t) {
   return out.join('\n');
 }
 
+/** A write that came back without a ticket key did not happen: say so, never "Created undefined". */
+function must(t, tool) {
+  if (t && typeof t === 'object' && typeof t.key === 'string' && t.key) return t;
+  const seen = t && typeof t === 'object' ? JSON.stringify(t).slice(0, 160) : String(t).slice(0, 160);
+  throw new Error(
+    `${tool}: the board answered without a ticket (${seen}). Nothing was saved. ` +
+      'Is the request reaching the board API (proxy, credential)? Run: node .claude/session-board/scripts/doctor.mjs (cloud copy) or /session-board:board doctor.'
+  );
+}
+
 export async function callTool(name, args = {}, { backend, context }) {
   switch (name) {
     case 'ticket_create': {
@@ -199,16 +209,16 @@ export async function callTool(name, args = {}, { backend, context }) {
       else Object.assign(body, { repo: context.repo, branch: context.branch, cwd: context.cwd, machine: context.machine, origin: context.origin });
       if (!body.assignee) body.assignee = 'user';
       if (!body.kind) body.kind = body.assignee === 'user' ? 'action' : 'task';
-      const t = await backend.create(body);
+      const t = must(await backend.create(body), 'ticket_create');
       return `Created ${line(t)}`;
     }
     case 'ticket_update': {
       const { key, ...rest } = args;
-      const t = await backend.update(String(key), rest);
+      const t = must(await backend.update(String(key), rest), 'ticket_update');
       return `Updated ${line(t)}`;
     }
     case 'ticket_comment': {
-      const t = await backend.comment(String(args.key), String(args.text ?? ''), args.to ? String(args.to) : undefined);
+      const t = must(await backend.comment(String(args.key), String(args.text ?? ''), args.to ? String(args.to) : undefined), 'ticket_comment');
       return `Commented on ${t.key} (${t.comments_count} comment${t.comments_count === 1 ? '' : 's'})`;
     }
     case 'ticket_get':
@@ -259,6 +269,7 @@ export async function callTool(name, args = {}, { backend, context }) {
         machine: context.machine,
         origin: context.origin,
       });
+      must(t, 'board_feedback');
       return `Feedback recorded: ${t.key} (${type}). Thank you; it is in the board's feedback inbox.`;
     }
     case 'ticket_list': {
