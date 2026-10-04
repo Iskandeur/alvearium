@@ -308,6 +308,9 @@ drop in *To do* and *Next*, a side panel with the ticket's fields, description, 
 dependencies (*Blocked by* / *Blocks*, add one by key), links and the history (*who → whom*), and a
 comment box. Every filter lives in the URL: share it, bookmark
 it, use the back button. Light and dark follow your system (`?theme=light|dark` forces one).
+**One-click done**: the round ✓ on any open card or row (on hover with a mouse, always on a phone),
+the *Done* button of the panel, or `d` on the focused card or open ticket closes it, with *Undo*
+for 6 seconds ([desktop](docs/screenshots/done-desktop-light.png), [phone](docs/screenshots/done-mobile-dark.png)).
 
 ### Cloud sessions (claude.ai/code)
 

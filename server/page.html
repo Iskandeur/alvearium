@@ -194,7 +194,7 @@
     .group .act[data-a="closed"] i { opacity: 0.4; }
     .group .grow { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; overflow: hidden; }
     .group button.tag { flex: none; }
-    .row { display: grid; grid-template-columns: 74px minmax(0, 1fr) 130px 150px 64px; gap: 12px; align-items: center; padding: 9px 14px; border-top: 1px solid var(--line); cursor: pointer; }
+    .row { display: grid; grid-template-columns: 74px minmax(0, 1fr) 130px 150px 64px 32px; gap: 12px; align-items: center; padding: 9px 14px; border-top: 1px solid var(--line); cursor: pointer; }
     .row:hover { background: var(--accent-soft); }
     .row.sel { background: var(--accent-soft); }
     .row .k { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
@@ -268,7 +268,37 @@
     .compose textarea { min-height: 64px; }
     .compose .acts, .formActs { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
     .formActs .msg { margin-right: auto; color: var(--danger); font-size: 12.5px; }
-    .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 20; }
+    .toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 20; display: flex; align-items: center; gap: 4px 12px; max-width: calc(100vw - 28px); box-shadow: 0 6px 24px rgba(16, 18, 27, 0.18); }
+    .toast .tmsg { overflow-wrap: anywhere; }
+    .toast .tmsg em { font-style: normal; opacity: 0.72; }
+    .toast .undo { flex: none; border: 0; background: color-mix(in srgb, var(--bg) 16%, transparent); color: inherit; font-weight: 600; font-size: 13px; height: 32px; min-width: 32px; padding: 0 12px; margin: -4px -8px -4px 0; border-radius: 6px; }
+    .toast .undo:hover { background: color-mix(in srgb, var(--bg) 26%, transparent); }
+    .toast .undo:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* One-click done: a round ✓ on every open card and row (on hover with a mouse, always on touch) */
+    .doneBtn {
+      flex: none; display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
+      background: none; color: var(--faint); opacity: 0; transition: opacity 0.12s ease, color 0.12s ease;
+    }
+    .doneBtn i { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line-strong); background: var(--card); transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease; }
+    .doneBtn svg { display: block; }
+    .doneBtn:hover, .doneBtn:focus-visible { color: var(--ok); }
+    .doneBtn:hover i, .doneBtn:focus-visible i { border-color: var(--ok); background: var(--ok-soft); }
+    .doneBtn:active i { background: var(--ok); border-color: var(--ok); color: var(--card); }
+    .doneBtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; opacity: 1; }
+    .head .doneBtn { margin: -7px -8px -7px -4px; }
+    .card:hover .doneBtn, .card:focus-visible .doneBtn, .card:has(:focus-visible) .doneBtn, .card.sel .doneBtn,
+    .row:hover .doneBtn, .row:focus-visible .doneBtn, .row:has(:focus-visible) .doneBtn, .row.sel .doneBtn,
+    .nrow:hover .doneBtn, .nrow:focus-visible .doneBtn, .nrow:has(:focus-visible) .doneBtn, .nrow.sel .doneBtn { opacity: 1; }
+    @media (hover: none), (pointer: coarse) { .doneBtn { opacity: 1; } .pDone kbd { display: none; } }
+    @media (prefers-reduced-motion: reduce) { .doneBtn, .doneBtn i { transition: none; } }
+    .row .dn, .nrow .dn { display: flex; justify-content: center; }
+    .pDone { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 8px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--card); color: var(--muted); font-size: 12.5px; font-weight: 500; }
+    .pDone:hover { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
+    .pDone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .pDone kbd { font: inherit; font-size: 11px; color: var(--faint); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 4px; line-height: 16px; }
+    .pHead .pDone + .x { margin-left: 0; }
+    .pHead .pDone { margin-left: auto; }
 
     /* 0.3: actors, priority, dependencies, next, feedback, live updates */
     .av { flex: none; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 10.5px; font-weight: 600; color: #fff; background: hsl(var(--h, 230) 52% 52%); letter-spacing: 0; line-height: 1; }
@@ -306,7 +336,7 @@
     /* Next view */
     .nextHead { display: flex; align-items: baseline; gap: 10px; margin: 2px 2px 10px; color: var(--muted); font-size: 13px; }
     .nextHead h2 { margin: 0; font-size: 15px; color: var(--text); font-weight: 600; }
-    .nrow { display: grid; grid-template-columns: 26px 30px minmax(0, 1fr) auto 64px; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; background: var(--card); }
+    .nrow { display: grid; grid-template-columns: 26px 30px minmax(0, 1fr) auto 64px 32px; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; background: var(--card); }
     .nrow:first-child { border-top: 0; }
     .nrow:hover, .nrow.sel { background: var(--accent-soft); }
     .nrow .pos { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
@@ -347,7 +377,7 @@
     .resolve .acts { display: flex; gap: 8px; justify-content: flex-end; }
 
     @media (max-width: 900px) {
-      .nrow { grid-template-columns: 30px minmax(0, 1fr) auto 30px; gap: 8px; padding: 10px 12px; }
+      .nrow { grid-template-columns: 30px minmax(0, 1fr) auto 30px 32px; gap: 8px; padding: 10px 12px; }
       .nrow .pos { display: none; }
       .depCols { grid-template-columns: 1fr; }
       .fbList .row { grid-template-columns: minmax(0, 1fr) auto; }
@@ -376,7 +406,8 @@
       body { overflow-x: hidden; }
       .filters::-webkit-scrollbar { display: none; }
       .filters > * { flex: none; }
-      .row { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; }
+      .row { grid-template-columns: minmax(0, 1fr) auto 32px; gap: 4px 10px; }
+      .row .dn { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
       .row .k { order: 2; grid-column: 2; grid-row: 1; text-align: right; }
       .row .t { grid-column: 1; grid-row: 1; }
       .row .st { grid-column: 1; grid-row: 2; padding-left: 16px; }
@@ -617,6 +648,11 @@
         return out.join('');
       }
 
+      const isOpen = (t) => t.status !== 'done' && t.status !== 'cancelled';
+      const CHECK = '<svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="m2.4 6.3 2.4 2.4 4.8-5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      /** The one-click ✓ of an open ticket; `data-from` keeps the status Undo goes back to. */
+      const doneBtn = (t) => (isOpen(t) ? `<button type="button" class="doneBtn" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)"><i>${CHECK}</i></button>` : '');
+
       function card(t, now) {
         const r = t.column === 'waiting' ? reason(t) : '';
         let note = '';
@@ -626,7 +662,7 @@
         const live = t.status === 'in_progress' && t.kind === 'session' && t.session?.activity === 'working' ? '1' : '0';
         const drag = t.column === 'todo' ? ' draggable="true"' : '';
         return `<article class="card${t.stale || t.status === 'cancelled' ? ' dim' : ''}${t.blocked ? ' blocked' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" data-live="${live}" tabindex="0"${drag}>
-          <div class="head"><span class="dot"></span><h3 class="title">${esc(t.title)}</h3>${prio(t.priority)}<span class="key">${esc(t.key)}</span></div>
+          <div class="head"><span class="dot"></span><h3 class="title">${esc(t.title)}</h3>${prio(t.priority)}<span class="key">${esc(t.key)}</span>${doneBtn(t)}</div>
           ${r ? `<div class="reason">${r}</div>` : ''}${note ? `<div class="note">${note}</div>` : ''}
           <div class="tags">${tags(t, now)}</div>
         </article>`;
@@ -800,12 +836,13 @@
         if (t.blocking?.length) sub.push(`<span title="Blocks ${esc(t.blocking.map((b) => b.key).join(', '))}">unblocks ${t.blocking.length}</span>`);
         for (const l of (t.labels || []).slice(0, 3)) sub.push(`<span>#${esc(l)}</span>`);
         sub.push(`<span>${esc(t.key)}</span>`);
-        return `<div class="nrow${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" draggable="true" tabindex="0">
+        return `<div class="nrow${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-s="${esc(t.status)}" draggable="true" tabindex="0">
           <span class="pos">${i + 1}</span>
           <span>${prio(t.priority) || '<span class="prio">–</span>'}</span>
           <span class="t"><span class="tt" title="${esc(t.title)}">${esc(t.title)}</span><span class="sub">${sub.join('<span>·</span>')}</span></span>
           <span>${avatar(t.assignee)}</span>
           <span class="when" title="Created ${esc(when(t.created_at))}">${ago(t.created_at, now)}</span>
+          <span class="dn">${doneBtn(t)}</span>
         </div>`;
       }
       function renderNext(r, now) {
@@ -876,6 +913,7 @@
               <span class="st"><span class="pill" data-s="${esc(t.status)}">${esc(STATUS[t.status] || t.status)}</span></span>
               <span class="lb">${(t.labels || []).slice(0, 3).map((l) => `<span class="tag lbl">#${esc(l)}</span>`).join('')}${t.assignee === 'claude' && t.kind !== 'session' ? '<span class="tag">Claude</span>' : ''}</span>
               <span class="when" title="Updated ${esc(when(t.updated_at))}">${ago(t.updated_at, now)}</span>
+              <span class="dn">${doneBtn(t)}</span>
             </div>`);
           }
         }
@@ -966,7 +1004,7 @@
         const links = (t.links || []).map((l) => (httpsUrl(l.url) ? `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title || (l.type === 'pr' ? 'Pull request ' + l.url.replace(/^https:\/\/[^/]+\//, '') : l.type === 'session' ? 'Cloud session' : l.url))} ↗</a>` : `<span class="mono">${esc(l.url)}</span>`)).join('');
         const kids = (t.children || []).map((c) => `<div class="kid" data-open="${esc(c.key)}"><span class="dot" data-s="${esc(c.status)}"></span><span class="k">${esc(c.key)}</span><span class="tt">${esc(c.title)}</span><span class="pill" data-s="${esc(c.status)}">${esc(STATUS[c.status])}</span></div>`).join('');
         $('panel').innerHTML = `
-          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><button type="button" class="x" data-act="close" aria-label="Close">×</button></div>
+          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span>${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)">${CHECK}<span>Done</span><kbd>d</kbd></button>` : ''}<button type="button" class="x" data-act="close" aria-label="Close">×</button></div>
           <form class="pBody" id="tform" autocomplete="off">
             <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
             <div class="fields">
@@ -1040,9 +1078,15 @@
 
       // ---- events -------------------------------------------------------------------------------
       document.addEventListener('click', async (e) => {
-        const el = e.target.closest('[data-undep],[data-filter],[data-unfilter],[data-view],[data-act],[data-open],[data-stop]');
+        const el = e.target.closest('[data-done],[data-undep],[data-filter],[data-unfilter],[data-view],[data-act],[data-open],[data-stop]');
         if (!el) return;
         if (el.dataset.stop) return;
+        if (el.dataset.done) {
+          // The ✓ sits inside a card: closing must not also open it.
+          e.preventDefault();
+          e.stopPropagation();
+          return markDone(el.dataset.done, el.dataset.from);
+        }
         if (el.dataset.undep) {
           e.stopPropagation();
           const t = $('panel').__ticket;
@@ -1134,6 +1178,16 @@
           return document.querySelector(`[data-act="${e.target.id}"]`).click();
         }
         if (e.key === 'Escape' && !$('panel').hidden) return closePanel();
+        // `d`: mark done the focused card or row, else the open ticket. Never while typing.
+        if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest?.('input, textarea, select, [contenteditable]')) {
+          const host = e.target.closest?.('[data-open]');
+          let btn = host && !host.closest('aside') ? host.querySelector('[data-done]') : null;
+          if (!btn && !$('panel').hidden) btn = $('panel').querySelector('.pHead [data-done]');
+          if (btn) {
+            e.preventDefault();
+            return btn.click();
+          }
+        }
         if (e.key === 'Enter' && e.target.dataset?.open && !e.target.closest('aside')) openPanel(e.target.dataset.open);
         if (e.key === '/' && document.activeElement === document.body) { e.preventDefault(); $('q').focus(); }
       });
@@ -1300,7 +1354,12 @@
         if (c.blocker) changedKeys.add(c.blocker);
         clearTimeout(changeTimer);
         // Session heartbeats only move a dot: they can wait a little and batch.
-        changeTimer = setTimeout(() => { if (!document.hidden) refresh(); }, c.type === 'session' ? 2000 : 120);
+        // A card folding away after a ✓ redraws when it is done folding, not halfway.
+        const later = () => {
+          if (closing.size) changeTimer = setTimeout(later, 80);
+          else if (!document.hidden) refresh();
+        };
+        changeTimer = setTimeout(later, c.type === 'session' ? 2000 : 120);
         if (c.type !== 'session') {
           clearTimeout(facetsTimer);
           facetsTimer = setTimeout(loadFacets, 1500);
@@ -1356,12 +1415,102 @@
         refresh();
       });
       let toastTimer;
-      function toast(text) {
+      /** A short message at the bottom; `action` adds one button (Undo). Hovering or focusing it holds it. */
+      function toast(text, { html = false, action = null, ms = 2600 } = {}) {
         let el = document.querySelector('.toast');
-        if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.append(el); }
-        el.textContent = text;
+        if (!el) {
+          el = document.createElement('div');
+          el.className = 'toast';
+          el.setAttribute('role', 'status');
+          el.setAttribute('aria-live', 'polite');
+          const hold = () => clearTimeout(toastTimer);
+          const release = () => { if (!el.contains(document.activeElement)) armToast(el, 2000); };
+          el.addEventListener('mouseenter', hold);
+          el.addEventListener('focusin', hold);
+          el.addEventListener('mouseleave', release);
+          el.addEventListener('focusout', () => setTimeout(release, 0));
+          document.body.append(el);
+        }
+        el.innerHTML = `<span class="tmsg">${html ? text : esc(text)}</span>${action ? `<button type="button" class="undo">${esc(action.label)}</button>` : ''}`;
+        if (action) {
+          el.querySelector('.undo').addEventListener('click', (e) => {
+            e.stopPropagation();
+            clearTimeout(toastTimer);
+            el.remove();
+            action.run();
+          });
+        }
+        armToast(el, ms);
+      }
+      function armToast(el, ms) {
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => el.remove(), 2600);
+        toastTimer = setTimeout(() => el.remove(), ms);
+      }
+
+      // ---- one-click done, with Undo -------------------------------------------------------------
+      const closing = new Set();
+      const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      /** The card (or row) folds away toward Done before the board redraws without it: no blink. */
+      function foldAway(el) {
+        if (reducedMotion() || !el.animate) return Promise.resolve();
+        const h = el.getBoundingClientRect().height;
+        el.style.overflow = 'hidden';
+        el.style.pointerEvents = 'none';
+        el.__fold = el.animate(
+          [
+            { opacity: 1, transform: 'none', height: h + 'px' },
+            { opacity: 0, transform: 'translateX(18px) scale(0.98)', height: h + 'px', offset: 0.55 },
+            { opacity: 0, transform: 'translateX(18px) scale(0.98)', height: '0px', paddingTop: '0px', paddingBottom: '0px', borderTopWidth: '0px', borderBottomWidth: '0px', marginTop: el.matches('.card') ? '-6px' : '0px' },
+          ],
+          { duration: 260, easing: 'cubic-bezier(.4, 0, .2, 1)', fill: 'forwards' },
+        );
+        return el.__fold.finished.catch(() => {});
+      }
+      function unfold(el) {
+        el.__fold?.cancel();
+        el.__fold = null;
+        el.style.overflow = '';
+        el.style.pointerEvents = '';
+      }
+      async function markDone(key, from) {
+        if (!key || closing.has(key)) return;
+        closing.add(key);
+        const nodes = [...document.querySelectorAll(`#main [data-open="${CSS.escape(key)}"]`)].filter((n) => n.matches('.card, .row, .nrow'));
+        // Keyboard users keep their place: focus moves to the next card of the same column.
+        const focused = nodes.find((n) => n.contains(document.activeElement));
+        const sib = focused && (focused.nextElementSibling?.dataset?.open ? focused.nextElementSibling : focused.previousElementSibling?.dataset?.open ? focused.previousElementSibling : null);
+        const nextFocus = sib?.dataset.open || null;
+        const folded = Promise.all(nodes.map(foldAway));
+        let t;
+        try {
+          [t] = await Promise.all([api(`tickets/${encodeURIComponent(key)}`, { status: 'done' }), folded]);
+        } catch (err) {
+          nodes.forEach(unfold);
+          closing.delete(key);
+          if (err.message !== 'locked') toast(`${key}: ${err.message}`);
+          return;
+        }
+        closing.delete(key);
+        changedKeys.add(key);
+        await refresh();
+        if (nextFocus) document.querySelector(`#main [data-open="${CSS.escape(nextFocus)}"]`)?.focus();
+        if (state.ticket === key && !$('panel').hidden) openPanel(key, false);
+        const n = t.children_open || 0;
+        const kids = n ? ` · <em>${n} sub-ticket${n === 1 ? '' : 's'} still open</em>` : '';
+        const prev = from && from !== 'done' ? from : null;
+        toast(`<b>${esc(key)}</b> done${kids}`, { html: true, ms: 6000, action: prev ? { label: 'Undo', run: () => undoDone(key, prev) } : null });
+      }
+      async function undoDone(key, prev) {
+        try {
+          await api(`tickets/${encodeURIComponent(key)}`, { status: prev });
+        } catch (err) {
+          if (err.message !== 'locked') toast(`${key}: ${err.message}`);
+          return;
+        }
+        changedKeys.add(key);
+        await refresh();
+        if (state.ticket === key && !$('panel').hidden) openPanel(key, false);
+        toast(`${key} back to ${STATUS[prev] || prev}`);
       }
       $('authForm').addEventListener('submit', (e) => {
         e.preventDefault();
