@@ -19,7 +19,7 @@ const opt = (name) => {
 
 if (argv[0] === 'doctor') {
   // Before the guard: the doctor is what you run when the copy says it is not configured.
-  const { doctorMain } = await import('./doctor.mjs');
+  const { doctorMain } = await import('../lib/runtime.mjs');
   await doctorMain(argv.slice(1));
 } else if (guard) {
   console.log(guard);

@@ -367,7 +367,10 @@ on raw.githubusercontent.com, 5-second timeout); when it differs from `/opt/sess
 fetches the new files into a fresh directory and swaps it in, then the copy is written as usual. Any
 failure (offline, timeout, a missing file) keeps the copy it had. Since the refresh script refreshes
 itself, later changes to it need no new setup script either. The scripts never fail a session: if
-nothing can be fetched, the session starts without the board.
+nothing can be fetched, the session starts without the board. A refresh script fetches the file list
+of its own version, so a file added later would be missing after the first update: the code a copy
+needs stays in files that every published list has (0.3.5 corrects 0.3.4 there, whose new
+`lib/net.mjs` an older list did not fetch), and since 0.3.5 a missing file also triggers a fetch.
 
 Limits: a repository that commits its own copy keeps it (the environment does not touch it). While
 the copy is applied, an edit of your own to a tracked `.claude/settings.json` or `.mcp.json` is
@@ -434,7 +437,7 @@ hooks "sent", `ticket_create` answered `Created undefined [undefined] undefined`
 the board while `curl $SESSION_BOARD_URL/api/board` worked.
 
 Since 0.3.4, every request of the plugin and of the cloud copy (hooks, MCP tools, `/board`,
-`/ticket`, the import) goes through one client, [`lib/net.mjs`](lib/net.mjs), with no dependency:
+`/ticket`, the import) goes through one client (`boardFetch` in [`lib/runtime.mjs`](lib/runtime.mjs)), with no dependency:
 
 - with `HTTPS_PROXY` / `https_proxy` set (and the host not in `NO_PROXY`), it opens a `CONNECT`
   tunnel through the proxy, with the proxy's user and password if the URL has them, and trusts the

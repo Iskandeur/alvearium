@@ -43,8 +43,7 @@ try {
   const out = {};
   const status = await handleHook(event, input, { out });
   if (process.env.SESSION_BOARD_DEBUG === '1') {
-    const { loadConfig } = await import('../lib/runtime.mjs');
-    const { routeOf } = await import('../lib/net.mjs');
+    const { loadConfig, routeOf } = await import('../lib/runtime.mjs');
     const cfg = loadConfig();
     const where = cfg.remote ? ` · ${cfg.url} via ${routeOf(cfg.url)}` : ' · local board';
     process.stderr.write(`session-board: ${event} → ${status}${where}${out.error ? `\n  ${out.error}` : ''}\n`);

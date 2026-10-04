@@ -15,7 +15,7 @@ SB_HOME="${SESSION_BOARD_HOME:-/opt/session-board}"
 RAW="${SESSION_BOARD_RAW_URL:-https://raw.githubusercontent.com/Iskandeur/session-board}/$REF"
 EVERY="${SESSION_BOARD_REFRESH_EVERY:-600}"
 # keep in step with FILES in scripts/cloud-setup.sh (test/cloudsetup.test.mjs checks it)
-FILES="hooks/report.mjs lib/core.mjs lib/net.mjs lib/runtime.mjs lib/store.mjs mcp/server.mjs scripts/board.mjs scripts/doctor.mjs scripts/ticket.mjs scripts/install-repo.mjs scripts/cloud-apply.mjs scripts/cloud-refresh.sh skills/tickets/SKILL.md"
+FILES="hooks/report.mjs lib/core.mjs lib/runtime.mjs lib/store.mjs mcp/server.mjs scripts/board.mjs scripts/doctor.mjs scripts/ticket.mjs scripts/install-repo.mjs scripts/cloud-apply.mjs scripts/cloud-refresh.sh skills/tickets/SKILL.md"
 
 version_of() { sed -n "s/^export const VERSION = '\([^']*\)';.*/\1/p" "$1" 2>/dev/null | head -n 1; }
 
@@ -35,7 +35,10 @@ main() {
   mkdir -p "$tmp/lib" || return 0
   curl -fsSL --max-time 5 "$RAW/lib/core.mjs" -o "$tmp/lib/core.mjs" 2>/dev/null || { rm -rf "$tmp"; return 0; }
   want=$(version_of "$tmp/lib/core.mjs")
-  if [ -z "$want" ] || [ "$want" = "$have" ]; then rm -rf "$tmp"; return 0; fi
+  # same version: done, unless an older refresh script (its own fixed list) left a file of ours out
+  local missing=0
+  for f in $FILES; do [ -s "$SB_HOME/$f" ] || missing=1; done
+  if [ -z "$want" ] || { [ "$want" = "$have" ] && [ "$missing" = 0 ]; }; then rm -rf "$tmp"; return 0; fi
 
   local f pids=""
   for f in $FILES; do

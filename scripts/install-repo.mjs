@@ -25,7 +25,6 @@ export const COMMAND_TAG = '<!-- session-board cloud copy -->';
 const FILES = [
   'hooks/report.mjs',
   'lib/core.mjs',
-  'lib/net.mjs',
   'lib/runtime.mjs',
   'lib/store.mjs',
   'mcp/server.mjs',
@@ -33,6 +32,8 @@ const FILES = [
   'scripts/doctor.mjs',
   'scripts/ticket.mjs',
 ];
+/** Added after 0.3.3 (whose refresh script does not fetch them): never required. Keep new files here. */
+const OPTIONAL_FILES = new Set(['scripts/doctor.mjs']);
 
 // event → async? (same choices as the plugin's hooks/hooks.json)
 export const EVENTS = {
@@ -242,6 +243,9 @@ export function install(repo, { remove = false, local = true } = {}) {
   rmSync(target, { recursive: true, force: true }); // an update must not keep files a newer version dropped
   if (!remove) {
     for (const f of FILES) {
+      // A copy refreshed by an older cloud-refresh.sh lacks the files added since (its list is fixed):
+      // an optional one is skipped rather than failing the whole copy.
+      if (OPTIONAL_FILES.has(f) && !existsSync(join(ROOT, f))) continue;
       mkdirSync(dirname(join(target, f)), { recursive: true });
       copyFileSync(join(ROOT, f), join(target, f));
     }

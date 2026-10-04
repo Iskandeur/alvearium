@@ -11,11 +11,10 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { createServer as createTlsHttpServer } from 'node:https';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { boardFetch, bypassProxy, explainReply, proxyFor } from '../lib/net.mjs';
-import { HttpBackend, handleHook, loadConfig } from '../lib/runtime.mjs';
+import { HttpBackend, boardFetch, bypassProxy, explainReply, handleHook, loadConfig, proxyFor } from '../lib/runtime.mjs';
 import { callTool, handleMessage } from '../mcp/server.mjs';
 import { openStore } from '../lib/store.mjs';
 import { createApp } from '../server/server.mjs';
@@ -282,6 +281,33 @@ test('direct path (no proxy variables): plain http and https with the real token
   } finally {
     srv.close();
   }
+});
+
+test('a cloud copy refreshed by the 0.3.3 refresh script (its fixed file list) still installs and runs', async () => {
+  // A cached environment runs the cloud-refresh.sh it was cached with: 0.3.3's list, verbatim.
+  const OLD = 'hooks/report.mjs lib/core.mjs lib/runtime.mjs lib/store.mjs mcp/server.mjs scripts/board.mjs scripts/ticket.mjs scripts/install-repo.mjs scripts/cloud-apply.mjs scripts/cloud-refresh.sh skills/tickets/SKILL.md'.split(' ');
+  // every file a published refresh script fetches must still exist, or its next update fails
+  for (const f of [...OLD, 'lib/net.mjs', 'scripts/doctor.mjs']) assert.ok(existsSync(join(ROOT, f)), `${f} is still published`);
+  const home = tmp();
+  for (const f of OLD) {
+    mkdirSync(join(home, f, '..'), { recursive: true });
+    copyFileSync(join(ROOT, f), join(home, f));
+  }
+  const repo = tmp();
+  const git = await run(['-e', `require('node:child_process').execFileSync('git', ['-C', ${JSON.stringify(repo)}, 'init', '-q'])`]);
+  assert.equal(git.status, 0, git.stderr);
+  const inst = await run([join(home, 'scripts', 'install-repo.mjs'), repo, '--no-local'], { env: { GIT_CONFIG_GLOBAL: '/dev/null' } });
+  assert.equal(inst.status, 0, inst.stdout + inst.stderr);
+  await gateway(async (base) => {
+    const env = { ...CLEAN, CLAUDE_CODE_REMOTE: 'true', SESSION_BOARD_URL: base, SESSION_BOARD_TOKEN: 'proxy', SESSION_BOARD_DIR: tmp() };
+    const r = await run([join(repo, '.claude', 'session-board', 'scripts', 'board.mjs'), '--cloud-only', 'doctor'], { env });
+    assert.match(r.stdout, /session-board doctor — problem found/, r.stderr);
+    const hook = await run([join(repo, '.claude', 'session-board', 'hooks', 'report.mjs'), 'SessionStart', '--cloud-only'], {
+      input: JSON.stringify({ session_id: 'old-list', cwd: repo, source: 'startup' }),
+      env: { ...env, SESSION_BOARD_DEBUG: '1' },
+    });
+    assert.match(hook.stderr, /SessionStart → send-failed/, 'the copy loads and reports the failure');
+  });
 });
 
 test('timeouts abort the request', async () => {

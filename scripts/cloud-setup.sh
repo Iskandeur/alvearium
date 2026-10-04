@@ -18,7 +18,7 @@ REF="${1:-${SESSION_BOARD_REF:-main}}"
 SB_HOME="${SESSION_BOARD_HOME:-/opt/session-board}"
 REPO_URL="${SESSION_BOARD_REPO_URL:-https://github.com/Iskandeur/session-board}"
 RAW="https://raw.githubusercontent.com/Iskandeur/session-board/$REF"
-FILES="hooks/report.mjs lib/core.mjs lib/net.mjs lib/runtime.mjs lib/store.mjs mcp/server.mjs scripts/board.mjs scripts/doctor.mjs scripts/ticket.mjs scripts/install-repo.mjs scripts/cloud-apply.mjs scripts/cloud-refresh.sh skills/tickets/SKILL.md"
+FILES="hooks/report.mjs lib/core.mjs lib/runtime.mjs lib/store.mjs mcp/server.mjs scripts/board.mjs scripts/doctor.mjs scripts/ticket.mjs scripts/install-repo.mjs scripts/cloud-apply.mjs scripts/cloud-refresh.sh skills/tickets/SKILL.md"
 
 log() { echo "session-board setup: $*"; }
 
