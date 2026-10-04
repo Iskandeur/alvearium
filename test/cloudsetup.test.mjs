@@ -136,6 +136,59 @@ test('cloud-setup.sh raw fallback lists every file the copy needs', () => {
   for (const f of [...vendored, 'scripts/install-repo.mjs', 'scripts/cloud-apply.mjs', 'skills/tickets/SKILL.md']) assert.ok(listed.includes(f), f);
 });
 
+const REFRESH = join(ROOT, 'scripts', 'cloud-refresh.sh');
+
+test('cloud-refresh.sh and cloud-setup.sh fetch the same files', () => {
+  const files = (path) => /^FILES="([^"]+)"/m.exec(readFileSync(path, 'utf8'))[1].split(/\s+/).sort();
+  assert.deepEqual(files(REFRESH), files(SETUP));
+  assert.ok(files(SETUP).includes('scripts/cloud-refresh.sh'), 'the refresh script refreshes itself');
+});
+
+test('cloud-refresh.sh: a cached copy older than the published version is replaced, at most once per interval; failures keep it', () => {
+  const home = tmp();
+  const sbHome = join(home, 'sb');
+  // the cached copy: this tree, but an older VERSION, and the git template the setup script wrote
+  cpSync(ROOT, sbHome, { recursive: true, filter: (p) => !p.includes(`${ROOT}/.git`) && !p.includes('node_modules') });
+  const core = join(sbHome, 'lib', 'core.mjs');
+  writeFileSync(core, readFileSync(core, 'utf8').replace(/^export const VERSION = '[^']+';/m, "export const VERSION = '0.0.1';"));
+  mkdirSync(join(sbHome, 'git-template', 'hooks'), { recursive: true });
+  writeFileSync(join(sbHome, 'git-template', 'hooks', 'post-checkout'), '#!/bin/sh\n');
+  // "raw.githubusercontent.com": this tree under <raw>/<ref>/
+  const raw = tmp();
+  cpSync(ROOT, join(raw, 'main'), { recursive: true, filter: (p) => !p.includes(`${ROOT}/.git`) && !p.includes('node_modules') });
+  const env = { ...ENV, SESSION_BOARD_HOME: sbHome, SESSION_BOARD_RAW_URL: `file://${raw}` };
+  const run = (extra = {}) => execFileSync('bash', [REFRESH, 'main'], { encoding: 'utf8', env: { ...env, ...extra } });
+
+  assert.match(run(), new RegExp(`0\\.0\\.1 → ${VERSION.replace(/\./g, '\\.')}`));
+  assert.ok(readFileSync(core, 'utf8').includes(`VERSION = '${VERSION}'`));
+  assert.ok(existsSync(join(sbHome, 'git-template', 'hooks', 'post-checkout')), 'template carried over');
+  assert.ok(existsSync(`${sbHome}.checked`));
+
+  // within the interval: no request at all (even a broken source changes nothing)
+  writeFileSync(core, readFileSync(core, 'utf8').replace(/^export const VERSION = '[^']+';/m, "export const VERSION = '0.0.2';"));
+  assert.equal(run({ SESSION_BOARD_RAW_URL: 'file:///nowhere' }), '');
+  // interval over, source unreachable: the copy is kept as it is
+  assert.equal(run({ SESSION_BOARD_RAW_URL: 'file:///nowhere', SESSION_BOARD_REFRESH_EVERY: '0' }), '');
+  assert.ok(readFileSync(core, 'utf8').includes("VERSION = '0.0.2'"));
+  // a file missing upstream: no half copy
+  const broken = tmp();
+  cpSync(join(raw, 'main'), join(broken, 'main'), { recursive: true });
+  execFileSync('rm', [join(broken, 'main', 'mcp', 'server.mjs')]);
+  assert.equal(run({ SESSION_BOARD_RAW_URL: `file://${broken}`, SESSION_BOARD_REFRESH_EVERY: '0' }), '');
+  assert.ok(readFileSync(core, 'utf8').includes("VERSION = '0.0.2'"));
+  assert.ok(existsSync(join(sbHome, 'mcp', 'server.mjs')));
+  // same version upstream: nothing moves
+  assert.match(run({ SESSION_BOARD_REFRESH_EVERY: '0' }), /0\.0\.2 →/);
+  assert.equal(run({ SESSION_BOARD_REFRESH_EVERY: '0' }), '');
+});
+
+test('cloud-setup.sh: the clone-time hook refreshes the copy before applying it', () => {
+  const tpl = readFileSync(SETUP, 'utf8');
+  const hook = /cat >"\$tpl\/hooks\/post-checkout" <<EOF\n([\s\S]*?)\nEOF/.exec(tpl)[1];
+  assert.ok(hook.indexOf('cloud-refresh.sh') > 0 && hook.indexOf('cloud-refresh.sh') < hook.indexOf('cloud-apply.mjs'));
+  assert.match(hook, /timeout 30/);
+});
+
 test('cloud-setup.sh never fails the session, even when nothing can be fetched', () => {
   const home = tmp();
   const env = { ...ENV, HOME: home, GIT_CONFIG_GLOBAL: join(home, 'g'), GIT_CONFIG_SYSTEM: join(home, 's'), SESSION_BOARD_HOME: join(home, 'sb'), SESSION_BOARD_REPO_URL: join(home, 'nothing-here') };

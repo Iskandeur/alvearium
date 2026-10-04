@@ -13,7 +13,7 @@ const SERVER = join(ROOT, 'mcp', 'server.mjs');
 
 /** Talk to the MCP server over stdio, the way Claude Code does: one JSON-RPC message per line. */
 function client(env, cwd = ROOT) {
-  const child = spawn(process.execPath, [SERVER], { env: { ...process.env, SESSION_BOARD_URL: '', SESSION_BOARD_TOKEN: '', CLAUDE_CODE_SESSION_ID: '', CLAUDE_SESSION_ID: '', ...env }, cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, [SERVER], { env: { ...process.env, SESSION_BOARD_URL: '', SESSION_BOARD_TOKEN: '', SESSION_BOARD_ACTOR: '', SESSION_BOARD_ACTOR_NAME: '', SESSION_BOARD_THREAD: '', SESSION_BOARD_SESSION_TICKETS: '', SESSION_BOARD_STOP_STATUS: '', CLAUDE_CODE_SESSION_ID: '', CLAUDE_SESSION_ID: '', ...env }, cwd, stdio: ['pipe', 'pipe', 'pipe'] });
   let buf = '';
   let stderr = '';
   const waiting = new Map();

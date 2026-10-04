@@ -154,6 +154,37 @@ Then restart the sessions that are already open: a plugin loads when a session s
 **local mode**: tickets live in `~/.claude/session-board/board.db` (on Windows
 `%USERPROFILE%\.claude\session-board\board.db`) and cover every session on this machine.
 
+### Updates
+
+Each release bumps `version` (Claude Code caches a plugin by its version: "a manifest that pins
+`version` keeps every user on the cached copy until its author changes the string", [plugin
+loading](https://code.claude.com/docs/en/plugins/loading)). Where each kind of session gets it:
+
+- **Terminal sessions (the plugin from this marketplace): turn auto-update on once.** Claude Code
+  updates a plugin by itself only "when the marketplace they came from has auto-update turned on",
+  and that is "off by default" for every marketplace that is not an official one; `marketplace.json`
+  "has no field to turn it on" ([install and manage
+  plugins](https://code.claude.com/docs/en/discover-plugins), [host a
+  marketplace](https://code.claude.com/docs/en/plugins/host-marketplace)). So, once per machine:
+  `/plugin` → **Marketplaces** → `session-board` → **Enable auto-update**. Or in
+  `~/.claude/settings.json`:
+  ```json
+  { "extraKnownMarketplaces": { "session-board": { "source": { "source": "github", "repo": "Iskandeur/session-board" }, "autoUpdate": true } } }
+  ```
+  From then on, a few minutes after the first message of a session, Claude Code fetches the new
+  version; it loads at the next start (or `/reload-plugins` in the open session). With a server, a
+  session whose plugin is older than the server says so once, with the command to update now.
+  `DISABLE_AUTOUPDATER=1` also turns plugin updates off unless `FORCE_AUTOUPDATE_PLUGINS=1` is set.
+- **Cloud sessions, per environment**: automatic since 0.3.3, with the setup script on `main` (see
+  *Cloud sessions*): the clone-time hook checks the published version (one 5-second request at most
+  every 10 minutes) and replaces the environment's copy when it is newer, even when the environment
+  is cached and the setup script is skipped.
+- **Cloud sessions, per repository** (committed copy): run `/session-board:install-cloud` again and
+  commit; a stale copy says so at session start.
+- **`claude --plugin-dir <clone>`** (agents, scripts): keep the clone on `main` (`git pull --ff-only`
+  on a timer); the next session started loads it.
+- **The server**: `git pull && docker compose up -d --build`. Update it first when a release says so.
+
 ### Terminal sessions: updating from 0.2.x
 
 ```bash
@@ -288,7 +319,8 @@ Cloud sessions never install plugins. They do load what a repository commits: th
 copy of itself into the repository's working tree, two ways:
 
 - **Per environment** (recommended, since 0.3.2): one setup script on the cloud environment, every
-  repository of every session gets the copy at clone time, nothing is committed.
+  repository of every session gets the copy at clone time, nothing is committed, and since 0.3.3 it
+  follows the latest version by itself.
 - **Per repository**: `/session-board:install-cloud`, committed. For an environment you do not
   control, or a repository whose sessions should report wherever they run.
 
@@ -308,9 +340,11 @@ In claude.ai/code → your environment → edit (or *Add cloud environment*):
 
 - **Setup script**:
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/Iskandeur/session-board/v0.3.2/scripts/cloud-setup.sh | bash -s -- v0.3.2
+  curl -fsSL https://raw.githubusercontent.com/Iskandeur/session-board/main/scripts/cloud-setup.sh | bash
   ```
-  Both `v0.3.2` pin the version (use `main` twice to follow the latest).
+  This follows the latest version: nothing to edit at the next release. To pin one instead, name
+  the tag twice (`…/session-board/v0.3.3/scripts/cloud-setup.sh | bash -s -- v0.3.3`). An
+  environment set up with `v0.3.2` stays on 0.3.2: replace its line with the one above, once.
 - **Environment variables**: `SESSION_BOARD_URL=https://board.example.com` and
   `SESSION_BOARD_TOKEN=proxy`.
 - **API credentials** (Pro and Max): a Bearer credential, host `board.example.com`, value your
@@ -325,8 +359,15 @@ as below) **hidden from git**: new files go to `.git/info/exclude`, and a tracke
 `.claude/settings.json` or `.mcp.json` it merges into gets `git update-index --skip-worktree`.
 `git status` stays clean and `git add -A` picks none of it up. Repositories already cloned when the
 script runs get the copy at once. The environment cache keeps `/opt/session-board` and the git
-config, so sessions that skip the setup script (cached environment) still get it at clone time. The
-script never fails a session: if it cannot fetch anything, the session starts without the board.
+config, so sessions that skip the setup script (cached environment) still get it at clone time.
+
+**Staying current** (0.3.3): before writing the copy, the hook runs `scripts/cloud-refresh.sh`. At
+most once every 10 minutes it reads the version published on the setup script's ref (`lib/core.mjs`
+on raw.githubusercontent.com, 5-second timeout); when it differs from `/opt/session-board`, it
+fetches the new files into a fresh directory and swaps it in, then the copy is written as usual. Any
+failure (offline, timeout, a missing file) keeps the copy it had. Since the refresh script refreshes
+itself, later changes to it need no new setup script either. The scripts never fail a session: if
+nothing can be fetched, the session starts without the board.
 
 Limits: a repository that commits its own copy keeps it (the environment does not touch it). While
 the copy is applied, an edit of your own to a tracked `.claude/settings.json` or `.mcp.json` is

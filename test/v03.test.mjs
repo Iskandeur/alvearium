@@ -275,6 +275,51 @@ test('SESSION_BOARD_SESSION_TICKETS=0: no automatic tickets, explicit tickets st
   s.close();
 });
 
+test('SESSION_BOARD_STOP_STATUS=done: a finished turn closes the session ticket, the next turn reopens it, explicit tickets stay', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb-stopdone-'));
+  const env = { SESSION_BOARD_DIR: dir, SESSION_BOARD_ACTOR: 'bot', SESSION_BOARD_THREAD: 'chat-bot', SESSION_BOARD_STOP_STATUS: 'done' };
+  await handleHook('UserPromptSubmit', { session_id: 'd1', cwd: dir, prompt: 'hello' }, { env });
+  await handleHook('Stop', { session_id: 'd1', cwd: dir, last_assistant_message: 'answered in the chat' }, { env });
+  const s = await openStore(localDbPath(env));
+  const find = () => s.listTickets(parseFilters({ kind: 'session', archived: '1' })).tickets.find((t) => t.title === 'Thread chat-bot');
+  let t = find();
+  assert.equal(t.status, 'done');
+  assert.equal(t.assignee, 'bot', 'not handed to the user');
+  assert.equal(t.body, 'answered in the chat');
+  assert.equal(s.ticketBoard(parseFilters({})).counts.waiting, 0, 'nothing waits on the user');
+  assert.equal(s.listTickets(parseFilters({ assignee: 'bot', archived: '1' })).tickets.length, 1, 'still found by actor');
+  // an explicit action item for the user still waits on them
+  s.createTicket({ title: 'Approve the payment', assignee: 'user', status: 'waiting_on_user', session_id: 'd1' }, { actor: 'bot' });
+  assert.equal(s.ticketBoard(parseFilters({})).counts.waiting, 1);
+  s.close();
+  // next turn: reopened, then closed again
+  await handleHook('UserPromptSubmit', { session_id: 'd2', cwd: dir, prompt: 'again' }, { env });
+  const s2 = await openStore(localDbPath(env));
+  t = s2.listTickets(parseFilters({ kind: 'session', archived: '1' })).tickets.find((x) => x.title === 'Thread chat-bot');
+  assert.equal(t.status, 'in_progress');
+  s2.close();
+  await handleHook('Stop', { session_id: 'd2', cwd: dir, last_assistant_message: 'done again' }, { env });
+  const s3 = await openStore(localDbPath(env));
+  assert.equal(s3.listTickets(parseFilters({ kind: 'session', archived: '1' })).tickets.find((x) => x.title === 'Thread chat-bot').status, 'done');
+  s3.close();
+  // the setting reaches the server; anything but `done` keeps the default
+  const evt = (stopStatus) => sanitizeEvent({ session: { sessionId: 'x', stopStatus }, transition: { state: 'review' } }).identity.stopStatus;
+  assert.equal(evt('done'), 'done');
+  assert.equal(evt('review'), undefined);
+  assert.equal(evt('rm -rf'), undefined);
+});
+
+test('SESSION_BOARD_STOP_STATUS unset: a finished turn still goes to review, for the user', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb-stopreview-'));
+  const env = { SESSION_BOARD_DIR: dir };
+  await handleHook('UserPromptSubmit', { session_id: 'r1', cwd: dir, prompt: 'hello' }, { env });
+  await handleHook('Stop', { session_id: 'r1', cwd: dir, last_assistant_message: 'look at this' }, { env });
+  const s = await openStore(localDbPath(env));
+  const t = s.listTickets(parseFilters({ kind: 'session' })).tickets[0];
+  assert.deepEqual([t.status, t.assignee], ['review', 'user']);
+  s.close();
+});
+
 /** MCP stdio client (same as mcp.test.mjs). */
 function mcp(env, cwd) {
   const child = spawn(process.execPath, [resolve(import.meta.dirname, '..', 'mcp', 'server.mjs')], {

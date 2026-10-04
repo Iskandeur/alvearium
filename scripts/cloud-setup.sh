@@ -8,14 +8,17 @@
 #      (hooks, MCP server, skill, /board and /ticket) hidden from git (scripts/cloud-apply.mjs);
 #   3. applies the copy at once to the repositories already cloned.
 # The environment cache keeps /opt/session-board and the git config, so sessions that skip the setup
-# script still get the hook at clone time. Never fails the session: every error is swallowed.
-# Usage: bash cloud-setup.sh [ref]     (or: curl -fsSL <raw url> | bash -s -- v0.3.2)
+# script still get the hook at clone time. The hook also runs scripts/cloud-refresh.sh first: when the
+# ref has a newer version than the cached copy, the copy is replaced before it is applied, so a cached
+# environment follows the published version without editing the setup script (since 0.3.3).
+# Never fails the session: every error is swallowed.
+# Usage: bash cloud-setup.sh [ref]     (or: curl -fsSL <raw url> | bash; default ref: main)
 
 REF="${1:-${SESSION_BOARD_REF:-main}}"
 SB_HOME="${SESSION_BOARD_HOME:-/opt/session-board}"
 REPO_URL="${SESSION_BOARD_REPO_URL:-https://github.com/Iskandeur/session-board}"
 RAW="https://raw.githubusercontent.com/Iskandeur/session-board/$REF"
-FILES="hooks/report.mjs lib/core.mjs lib/runtime.mjs lib/store.mjs mcp/server.mjs scripts/board.mjs scripts/ticket.mjs scripts/install-repo.mjs scripts/cloud-apply.mjs skills/tickets/SKILL.md"
+FILES="hooks/report.mjs lib/core.mjs lib/runtime.mjs lib/store.mjs mcp/server.mjs scripts/board.mjs scripts/ticket.mjs scripts/install-repo.mjs scripts/cloud-apply.mjs scripts/cloud-refresh.sh skills/tickets/SKILL.md"
 
 log() { echo "session-board setup: $*"; }
 
@@ -35,13 +38,19 @@ main() {
   rm -rf "$tmp"
   if ! fetch "$tmp"; then rm -rf "$tmp"; log "could not fetch $REF, skipped"; return 0; fi
   rm -rf "$SB_HOME" && mv "$tmp" "$SB_HOME" || return 0
+  date +%s >"$SB_HOME.checked" 2>/dev/null
 
   local tpl="$SB_HOME/git-template"
   mkdir -p "$tpl/hooks" "$tpl/info"
   [ -f /usr/share/git-core/templates/info/exclude ] && cp /usr/share/git-core/templates/info/exclude "$tpl/info/exclude"
   cat >"$tpl/hooks/post-checkout" <<EOF
 #!/bin/sh
-# session-board cloud setup: (re)write the hidden cloud copy after a clone or a checkout.
+# session-board cloud setup: after a clone or a checkout, take the newer published version if there is
+# one (scripts/cloud-refresh.sh: one 5 s check at most every 10 min), then (re)write the hidden copy.
+if [ -f "$SB_HOME/scripts/cloud-refresh.sh" ]; then
+  if command -v timeout >/dev/null; then SESSION_BOARD_HOME="$SB_HOME" timeout 30 bash "$SB_HOME/scripts/cloud-refresh.sh" "$REF" >/dev/null 2>&1
+  else SESSION_BOARD_HOME="$SB_HOME" bash "$SB_HOME/scripts/cloud-refresh.sh" "$REF" >/dev/null 2>&1; fi
+fi
 node "$SB_HOME/scripts/cloud-apply.mjs" "\$(pwd)" --quiet >/dev/null 2>&1
 exit 0
 EOF

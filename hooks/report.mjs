@@ -3,7 +3,7 @@
 // Contract: never block the session, never fail. Always exit 0, swallow every error.
 import { existsSync } from 'node:fs';
 import { VERSION } from '../lib/core.mjs';
-import { handleHook, staleCopyNotice } from '../lib/runtime.mjs';
+import { handleHook, pluginUpdateNotice, staleCopyNotice } from '../lib/runtime.mjs';
 
 const MAX_STDIN = 2 * 1024 * 1024;
 const HARD_DEADLINE_MS = 4000;
@@ -55,7 +55,8 @@ try {
   if (event === 'SessionStart' && !process.argv.includes('--cloud-only') && !['send-failed', 'backoff'].includes(status)) {
     try {
       const { sessionStartNotice } = await import('../lib/sync.mjs');
-      const text = await sessionStartNotice({ deadlineMs: Math.max(800, 3500 - (Date.now() - started)) });
+      const lines = [await sessionStartNotice({ deadlineMs: Math.max(800, 3500 - (Date.now() - started)) }), pluginUpdateNotice(VERSION, out.serverVersion)];
+      const text = lines.filter(Boolean).join('\n');
       if (text) process.stdout.write(JSON.stringify({ systemMessage: text }) + '\n');
     } catch (err) {
       if (process.env.SESSION_BOARD_DEBUG === '1') process.stderr.write(`session-board sync: ${err?.message || err}\n`);
