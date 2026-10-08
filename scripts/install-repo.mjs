@@ -189,7 +189,7 @@ the plugin keep using the plugin. It reports to the server named by \`SESSION_BO
 \`SESSION_BOARD_TOKEN\`, or \`SESSION_BOARD_TOKEN=proxy\` and an API credential for that host).
 \`VERSION\` is the version of this copy: run \`/session-board:install-cloud\` again to update it, or
 \`/session-board:install-cloud --uninstall\` to remove it.
-Source: https://github.com/Iskandeur/session-board
+Source: https://github.com/Iskandeur/alvearium
 `;
 
 function readJsonFile(path) {

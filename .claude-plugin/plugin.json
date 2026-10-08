@@ -1,17 +1,17 @@
 {
   "name": "alvearium",
   "displayName": "Alvearium",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Alvearium (formerly session-board): one ticket board for all your Claude Code sessions and agents, terminal and claude.ai/code cloud: what waits on you, what is in progress, what to do next. Live updates, dependencies, priorities, who-talks-to-whom history and a feedback inbox.",
   "author": {
     "name": "Iskandeur",
     "url": "https://github.com/Iskandeur"
   },
-  "homepage": "https://github.com/Iskandeur/session-board",
-  "repository": "https://github.com/Iskandeur/session-board",
-  "documentationUrl": "https://github.com/Iskandeur/session-board#readme",
-  "supportUrl": "https://github.com/Iskandeur/session-board/issues",
-  "privacyPolicyUrl": "https://github.com/Iskandeur/session-board/blob/main/PRIVACY.md",
+  "homepage": "https://github.com/Iskandeur/alvearium",
+  "repository": "https://github.com/Iskandeur/alvearium",
+  "documentationUrl": "https://github.com/Iskandeur/alvearium#readme",
+  "supportUrl": "https://github.com/Iskandeur/alvearium/issues",
+  "privacyPolicyUrl": "https://github.com/Iskandeur/alvearium/blob/main/PRIVACY.md",
   "icon": "./.claude-plugin/icon.png",
   "license": "MIT",
   "keywords": [

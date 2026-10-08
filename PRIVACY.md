@@ -46,4 +46,4 @@ other than to the server URL you configure.
 
 ## Contact
 
-Open an issue at https://github.com/Iskandeur/session-board/issues.
+Open an issue at https://github.com/Iskandeur/alvearium/issues.

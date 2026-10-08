@@ -201,7 +201,7 @@ Bash): `node --version`.
 ### Terminal sessions: a fresh install
 
 ```bash
-claude plugin marketplace add Iskandeur/session-board
+claude plugin marketplace add Iskandeur/alvearium
 claude plugin install alvearium@session-board
 ```
 
@@ -224,7 +224,7 @@ loading](https://code.claude.com/docs/en/plugins/loading)). Where each kind of s
   `/plugin` → **Marketplaces** → `session-board` → **Enable auto-update**. Or in
   `~/.claude/settings.json`:
   ```json
-  { "extraKnownMarketplaces": { "session-board": { "source": { "source": "github", "repo": "Iskandeur/session-board" }, "autoUpdate": true } } }
+  { "extraKnownMarketplaces": { "session-board": { "source": { "source": "github", "repo": "Iskandeur/alvearium" }, "autoUpdate": true } } }
   ```
   From then on, a few minutes after the first message of a session, Claude Code fetches the new
   version; it loads at the next start (or `/reload-plugins` in the open session). With a server, a
@@ -260,7 +260,7 @@ kept as `board.json.migrated`).
 Run the server once, anywhere reachable over HTTPS:
 
 ```bash
-git clone https://github.com/Iskandeur/session-board && cd session-board
+git clone https://github.com/Iskandeur/alvearium && cd alvearium
 openssl rand -hex 32 > token && chmod 600 token
 docker compose up -d --build        # or: SESSION_BOARD_TOKEN=… node server/server.mjs
 ```
@@ -400,7 +400,7 @@ In claude.ai/code → your environment → edit (or *Add cloud environment*):
 
 - **Setup script**:
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/Iskandeur/session-board/main/scripts/cloud-setup.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/Iskandeur/alvearium/main/scripts/cloud-setup.sh | bash
   ```
   This follows the latest version: nothing to edit at the next release. To pin one instead, name
   the tag twice (`…/session-board/v0.3.3/scripts/cloud-setup.sh | bash -s -- v0.3.3`). An
