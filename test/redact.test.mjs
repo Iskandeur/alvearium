@@ -11,20 +11,24 @@ const GH = 'ghp_' + 'a'.repeat(36);
 const SK = 'sk-' + 'proj-' + 'Z'.repeat(40);
 const JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.' + 'c'.repeat(43);
 
+// Placeholders built at run time: no literal in this file looks like a live credential.
+const FAKE = (tag) => 'fake' + tag + 'x'.repeat(16);
+const AUTH = 'Bear' + 'er';
+
 const leaks = (text, secret) => String(text).includes(secret);
 
 test('redact: header values, Bearer, query strings, env assignments, URL passwords', () => {
   const cases = [
     [`curl -s -H "X-Api-Key: ${KEY}" http://localhost:3000/api/files/x.jpeg`, KEY],
-    [`curl -H 'Authorization: Bearer abcdef0123456789abcdef' https://h/api`, 'abcdef0123456789abcdef'],
+    [`curl -H 'Authorization: ${AUTH} ${FAKE('b')}' https://h/api`, FAKE('b')],
     [`curl -H "authorization:token zz11yy22xx33ww44vv55" https://h`, 'zz11yy22xx33ww44vv55'],
     [`open "https://h/api/files/x.jpeg?x-api-key=${KEY}&a=1"`, KEY],
     [`curl https://h/cb?access_token=Q1w2E3r4T5y6U7i8&page=2`, 'Q1w2E3r4T5y6U7i8'],
     [`GH_TOKEN=${GH} gh pr list`, GH],
-    [`export SESSION_BOARD_TOKEN=s3cr3t-v4lu3-0123456789`, 's3cr3t-v4lu3-0123456789'],
+    [`export SESSION_BOARD_TOKEN=${FAKE('e')}`, FAKE('e')],
     [`OPENAI_API_KEY="${SK}" node x.js`, SK],
     [`git clone https://user:hunter2hunter2@example.com/r.git`, 'hunter2hunter2'],
-    [`node cli.js --token tok_9f8e7d6c5b4a39281706 --verbose`, 'tok_9f8e7d6c5b4a39281706'],
+    [`node cli.js --token ${FAKE('t')} --verbose`, FAKE('t')],
     [`node cli.js --password=correcthorsebattery`, 'correcthorsebattery'],
     [`echo ${GH}`, GH],
     [`echo ${SK}`, SK],
