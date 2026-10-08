@@ -12,6 +12,9 @@ let lastStatus
 
 export function register(on, options) {
   on('session.start', async ($, e, next) => {
+    // Cloud session with the agent proxy's credential: this mod's fetch would not carry it (see
+    // notJson). Stay out of the way, so /board is the plugin's Node command, which goes through the proxy.
+    if ((await remote($, options).catch(() => ({}))).token === 'proxy') return next(e)
     $.clock.every(REFRESH_MS, async () => {
       await refreshStatus($, options)
     })
@@ -75,7 +78,21 @@ async function get($, cfg, path) {
   const headers = cfg.token === 'proxy' ? {} : { authorization: 'Bearer ' + cfg.token }
   const res = await $.http.fetch(cfg.url + path, { headers })
   if (!res.ok) throw new Error('HTTP ' + res.status)
-  return JSON.parse(res.text)
+  try {
+    return JSON.parse(res.text)
+  } catch {
+    throw new Error(notJson(cfg, res.text))
+  }
+}
+
+// A login gateway in front of the board answers with its login page. In a claude.ai/code cloud
+// session (token "proxy"), this fetch is Claude Code's own and does not carry the API credential
+// that the agent proxy adds; the /alvearium:board command runs in Node and goes through the proxy.
+function notJson(cfg, text) {
+  const page = /^\s*</.test(text || '') ? 'the server answered with a login page instead of the board' : 'the server did not answer with the board'
+  return cfg.token === 'proxy'
+    ? page + ' (this request does not carry the cloud API credential). The plugin\'s board command goes through the proxy: /alvearium:board.'
+    : page + ' (is the token right?). /alvearium:board doctor says more.'
 }
 
 /** Status line: tickets waiting on you first. Old servers (no ticket counts) fall back to sessions. */

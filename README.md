@@ -54,6 +54,7 @@ Alvearium is a Claude Code plugin plus an optional self-hosted server.
 - Nothing leaves the machine in local mode.
 - In server mode, it sends HTTPS requests **only** to the host of `SESSION_BOARD_URL` (or the `server_url` option). It never follows redirects (a redirect is treated as a gateway/login page, and is reported as an error).
 - Authentication is a Bearer token (`SESSION_BOARD_TOKEN` or the `token` option). In claude.ai/code, `SESSION_BOARD_TOKEN=proxy` means: do not send an Authorization header; the cloud agent proxy injects the configured API credential.
+- Credentials in a command or a prompt are replaced by `[redacted]` before they leave (header values, `Bearer …`, `?token=`/`?key=` query values, `*_TOKEN=`/`*_KEY=` assignments, `--token`/`--password` flags, URL passwords, and well-known token shapes). The server applies the same filter to what older clients send (0.4.2).
 
 ## Tickets, sessions, and where tickets come from
 
@@ -525,7 +526,9 @@ the board answers as the board.
 
 - **`/board`**: prints the board (`--here` for this repo, `--repo <name>`, `--q <text>`). With Claude
   Code 2.1.287 or later the plugin's *mod* answers it at once, with no Claude turn, even while
-  Claude is working; on older versions `/alvearium:board` prints it through Claude.
+  Claude is working; on older versions `/alvearium:board` prints it through Claude. In a cloud
+  session with `SESSION_BOARD_TOKEN=proxy` the mod stays out of the way (its requests would not
+  carry the proxy's credential): `/board` is then the plugin command, which goes through the proxy.
 - **`/ticket`**: `new <title> [--label a,b] [--priority P1] [--parent SB-3] [--blocked-by SB-2]`,
   `next [--all]`, `done <KEY> [note]`, `status <KEY> <status>`, `priority <KEY> <P0-P3|none>`,
   `block <KEY> --by <KEY>` / `unblock`, `list [--all] [words]` (default: open tickets of this repo),
@@ -550,7 +553,7 @@ the board answers as the board.
 
 ## Privacy
 
-Prompts, commands and messages are trimmed to short excerpts; `SESSION_BOARD_SEND_TEXT=0` sends
+Prompts, commands and messages are trimmed to short excerpts, with credentials redacted; `SESSION_BOARD_SEND_TEXT=0` sends
 states only. Data goes nowhere but your machine or **your** server. See [PRIVACY.md](PRIVACY.md).
 
 ## Development

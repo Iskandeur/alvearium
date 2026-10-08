@@ -15,7 +15,9 @@ For each Claude Code session, the plugin's hooks record:
 - short text excerpts that make a ticket readable: the first prompt of the session (200 characters
   at most), the tool and its main argument when Claude asks for a permission (for example the shell
   command), the question Claude is asking, and the end of Claude's last message (400 characters at
-  most), including a pull-request link if there is one.
+  most), including a pull-request link if there is one. Credentials found in these excerpts (an API
+  key in a `curl` header, a `*_TOKEN=` assignment, a password in a URL…) are replaced by `[redacted]`
+  before they are sent, and again by the server.
 
 Set `SESSION_BOARD_SEND_TEXT=0` to record states only, with no prompt, command or message text.
 
