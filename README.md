@@ -273,9 +273,10 @@ Then give each machine the URL and the token, in any of these ways (first match 
    ```json
    { "env": { "SESSION_BOARD_URL": "https://board.example.com", "SESSION_BOARD_TOKEN": "…" } }
    ```
-2. the plugin's own settings, asked at install time and editable in `/config` (the token is kept in
-   secure storage). The hooks and the MCP server read them; the status line does not, so prefer 1 or
-   3 if you want it;
+2. the plugin's own settings, asked at install time (the token is kept in secure storage). To change
+   them later: `/plugin` → **Installed** tab → select the plugin → **Configure options**. The URL also
+   shows in `/config`, the token does not (Claude Code leaves sensitive options out of `/config`).
+   The hooks and the MCP server read them; the status line does not, so prefer 1 or 3 if you want it;
 3. `~/.claude/session-board/config.json`: `{ "url": "…", "token": "…" }`.
 
 The hooks, `/board`, `/ticket` and the MCP server all use the same setting. Agents and scripts that
