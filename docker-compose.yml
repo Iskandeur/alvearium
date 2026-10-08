@@ -5,6 +5,8 @@
 #   SB_TOKEN_FILE  path of the token file on the host        (default ./token)
 #   SB_DATA_DIR    where board.json is kept                    (default ./data)
 #   SB_UID/SB_GID  user the container runs as (must read the token, write the data dir)
+# Agent tokens (optional, README "Agent tokens"): one `<actor> <token>` per line in
+#   $SB_DATA_DIR/agent-tokens, then `docker compose restart`.
 #   SB_BIND/SB_PORT published address                          (default 127.0.0.1:8793)
 # Put it behind HTTPS (reverse proxy or tunnel) before pointing cloud sessions at it.
 services:

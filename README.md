@@ -123,6 +123,34 @@ the hooks and the MCP server of a session:
 | `SESSION_BOARD_THREAD` | one stable name for a conversation that lives across several short sessions (a bot, a tmux loop, CI): all those sessions share **one** session ticket, which follows the latest session and is not closed at `SessionEnd` |
 | `SESSION_BOARD_SESSION_TICKETS=0` | no automatic tickets at all for this session (session, questions, task mirror, subagent lines): for routine or scripted sessions. Tickets created explicitly through MCP still attach to the session |
 
+### Agent tokens (0.3.7)
+
+`SESSION_BOARD_ACTOR` is a name an agent gives itself, so with the main token anything an agent
+sends without it (the `/ticket` CLI, a bare `curl`) counts as **you**. An agent or a bot that runs
+sessions unattended (a daemon, CI) should get its own token instead: the actor then comes from the
+token, not from a header.
+
+On the server, put one line per agent in `agent-tokens` in the data directory (or the file named by
+`SESSION_BOARD_AGENT_TOKENS_FILE`), and restart it:
+
+```text
+# <actor> <token>      generate a token with: openssl rand -hex 32
+ci-bot  3f9c…
+```
+
+Give that agent its token as `SESSION_BOARD_TOKEN` instead of the main one. A request made with it:
+
+- is always attributed to its actor (`ci-bot`), or to a sub-actor under it named by
+  `SESSION_BOARD_ACTOR` / the header (`ci-bot/job-42`, and its subagents `ci-bot/job-42/Explore`).
+  `user`, `claude`, `hook` or another agent's id in the header fall back to `ci-bot`; a display name
+  `You` or `user` is dropped;
+- may read everything, create, update, comment, reorder and report hook events (the sessions it
+  reports belong to it);
+- may not `POST /api/import` or `DELETE /api/sessions/<id>`: both replay or erase history (`403`).
+
+`user` and `hook` cannot be agent actors, every token must be at least 24 characters and differ from
+the main token, and the server refuses to start on a line it cannot read.
+
 ## Feedback inbox
 
 A board-wide inbox for what does not work or could work better, written by the sessions themselves.
@@ -270,8 +298,10 @@ The import needs the server to be 0.2.3 or later: update it (`git pull && docker
 
 ### API
 
-Every `/api/*` route needs `Authorization: Bearer <token>`. A client may say who it is with
-`x-session-board-actor: <id>` (and `x-session-board-actor-name`); the plugin's MCP server does. `GET /` serves the web page (open it once
+Every `/api/*` route needs `Authorization: Bearer <token>`, the main token or an agent token (see
+*Agent tokens*). A client may say who it is with `x-session-board-actor: <id>` (and
+`x-session-board-actor-name`); the plugin's MCP server does. With an agent token the header can only
+name the agent or a sub-actor under it. `GET /` serves the web page (open it once
 as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without a token.
 
 | Route | |
