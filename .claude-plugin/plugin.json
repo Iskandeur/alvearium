@@ -9,6 +9,9 @@
   },
   "homepage": "https://github.com/Iskandeur/session-board",
   "repository": "https://github.com/Iskandeur/session-board",
+  "documentationUrl": "https://github.com/Iskandeur/session-board#readme",
+  "supportUrl": "https://github.com/Iskandeur/session-board/issues",
+  "privacyPolicyUrl": "https://github.com/Iskandeur/session-board/blob/main/PRIVACY.md",
   "license": "MIT",
   "keywords": [
     "agents",
