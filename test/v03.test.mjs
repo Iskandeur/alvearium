@@ -365,7 +365,7 @@ test('feedback via MCP stdio: board_feedback files a feedback ticket with its co
     const shown = (await c.call('ticket_get', { key })).result.content[0].text;
     assert.match(shown, /reported by: job-42/);
     assert.match(shown, /session: fb-sess/);
-    assert.match(shown, /session-board plugin \d+\.\d+\.\d+/);
+    assert.match(shown, /Alvearium plugin \d+\.\d+\.\d+/);
     assert.match(shown, /about: ticket_list/);
     const created = await c.call('ticket_create', { title: 'Ship it', priority: 'P1' });
     const k2 = created.result.content[0].text.match(/SB-\d+/)[0];

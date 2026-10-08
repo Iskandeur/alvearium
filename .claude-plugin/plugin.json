@@ -1,8 +1,8 @@
 {
-  "name": "session-board",
-  "displayName": "Session Board",
-  "version": "0.3.7",
-  "description": "A ticket board for all your Claude Code sessions and agents, terminal and claude.ai/code cloud: what waits on you, what is in progress, what to do next. Live updates, dependencies, priorities, who-talks-to-whom history and a feedback inbox. Tickets come from hooks, from Claude (MCP tools) and from you.",
+  "name": "alvearium",
+  "displayName": "Alvearium",
+  "version": "0.4.0",
+  "description": "Alvearium (formerly session-board): one ticket board for all your Claude Code sessions and agents, terminal and claude.ai/code cloud: what waits on you, what is in progress, what to do next. Live updates, dependencies, priorities, who-talks-to-whom history and a feedback inbox.",
   "author": {
     "name": "Iskandeur",
     "url": "https://github.com/Iskandeur"
@@ -12,6 +12,7 @@
   "documentationUrl": "https://github.com/Iskandeur/session-board#readme",
   "supportUrl": "https://github.com/Iskandeur/session-board/issues",
   "privacyPolicyUrl": "https://github.com/Iskandeur/session-board/blob/main/PRIVACY.md",
+  "icon": "./.claude-plugin/icon.png",
   "license": "MIT",
   "keywords": [
     "agents",
@@ -46,13 +47,13 @@
     "server_url": {
       "type": "string",
       "title": "Board server URL (optional)",
-      "description": "Base URL of your session-board server, e.g. https://board.example.com. Leave empty for local mode (this machine only).",
+      "description": "Base URL of your Alvearium server, e.g. https://board.example.com. Leave empty for local mode (this machine only).",
       "default": ""
     },
     "token": {
       "type": "string",
       "title": "Board server token (optional)",
-      "description": "Bearer token of your session-board server. Leave empty for local mode.",
+      "description": "Bearer token of your Alvearium server. Leave empty for local mode.",
       "sensitive": true,
       "default": ""
     }

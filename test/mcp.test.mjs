@@ -57,7 +57,7 @@ test('mcp over stdio: initialize, tools/list, ticket_create attached to the curr
   const c = client({ SESSION_BOARD_DIR: dir });
   try {
     const init = await c.request('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '0' } });
-    assert.equal(init.result.serverInfo.name, 'session-board');
+    assert.equal(init.result.serverInfo.name, 'alvearium');
     assert.equal(init.result.protocolVersion, '2025-06-18');
     assert.ok(init.result.capabilities.tools);
     c.notify('notifications/initialized');

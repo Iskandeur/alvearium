@@ -1,10 +1,11 @@
-// session-board mod (Claude Code v2.1.287+): draws the board inside the terminal.
+// Alvearium mod (Claude Code v2.1.287+): draws the board inside the terminal.
 //  · a status line under the prompt — "2 for you · 3 in progress · 5 to do", refreshed every 20 s
 //  · /board — prints the whole ticket board at once, with no Claude turn (runs even while Claude works)
-// Older Claude Code versions ignore this file; the settings hooks in hooks.json still report,
-// and /session-board:board still prints the board through Claude.
+// Older Claude Code versions ignore this file; the settings hooks in hooks.json still report.
 // Mods cannot open SQLite: in local mode the hooks keep ~/.claude/session-board/summary.json fresh.
-import { renderText, renderTicketsText, statusText, ticketStatusText } from '../lib/core.mjs'
+//
+// Self-contained on purpose (no imports): the directory reviewer wants to know exactly what runs.
+// Rendering logic is a subset of lib/core.mjs, duplicated here.
 
 const REFRESH_MS = 20_000
 let lastStatus
@@ -65,8 +66,8 @@ async function remote($, options) {
   const dir = await localDir($)
   const file = (await readJson($, dir + '/config.json')) || {}
   const opts = options || {}
-  const url = ((await $.env.get('SESSION_BOARD_URL')) || opts.server_url || file.url || '').trim().replace(/\/+$/, '')
-  const token = ((await $.env.get('SESSION_BOARD_TOKEN')) || opts.token || file.token || '').trim()
+  const url = (opts.server_url || (await $.env.get('SESSION_BOARD_URL')) || file.url || '').trim().replace(/\/+$/, '')
+  const token = (opts.token || (await $.env.get('SESSION_BOARD_TOKEN')) || file.token || '').trim()
   return { dir, url, token, on: Boolean(url && token) }
 }
 
@@ -99,4 +100,93 @@ async function boardText($, options) {
   }
   const s = await readJson($, cfg.dir + '/summary.json')
   return s ? s.text : 'No tickets yet on this machine.'
+}
+
+// ---- rendering helpers (subset of lib/core.mjs)
+
+function truncate(text, max) {
+  if (typeof text !== 'string') return ''
+  const flat = text.replace(/\s+/g, ' ').trim()
+  return flat.length > max ? flat.slice(0, max - 1) + '…' : flat
+}
+
+function ago(ms, now = Date.now()) {
+  const s = Math.max(0, Math.round((now - ms) / 1000))
+  if (s < 60) return `${s}s`
+  if (s < 3600) return `${Math.round(s / 60)}m`
+  if (s < 86400) return `${Math.round(s / 3600)}h`
+  return `${Math.round(s / 86400)}d`
+}
+
+function statusText(counts) {
+  const parts = []
+  if (counts.waiting) parts.push(`${counts.waiting} waiting`)
+  if (counts.working) parts.push(`${counts.working} working`)
+  if (counts.review) parts.push(`${counts.review} review`)
+  return parts.join(' · ')
+}
+
+function ticketStatusText(counts) {
+  const parts = []
+  if (counts.waiting) parts.push(`${counts.waiting} for you`)
+  if (counts.inProgress) parts.push(`${counts.inProgress} in progress`)
+  if (counts.todo) parts.push(`${counts.todo} to do`)
+  return parts.join(' · ')
+}
+
+function renderText(board) {
+  const lines = []
+  const now = board.now
+  const label = (rec) => {
+    const where = rec.repo || (rec.cwd ? rec.cwd.split(/[\\/]/).filter(Boolean).pop() : '') || 'session'
+    const branch = rec.branch && rec.branch !== 'HEAD' ? `@${rec.branch}` : ''
+    return rec.name ? `${rec.name} (${where}${branch})` : `${where}${branch}`
+  }
+  const line = (r) => {
+    const where = r.surface === 'cloud' ? '☁' : '⌨'
+    const badge = r.display === 'failed' ? ' [FAILED]' : r.display === 'stale' ? ' [stale]' : ''
+    const out = [`  ${where} ${label(r)}${badge} · ${ago(r.since ?? r.lastSeen, now)}`]
+    if (r.title) out.push(`      task: ${truncate(r.title, 100)}`)
+    if (r.detail) out.push(`      ${truncate(r.detail, 160)}`)
+    if (r.pr) out.push(`      PR: ${r.pr}`)
+    if (r.url) out.push(`      open: ${r.url}`)
+    return out.join('\n')
+  }
+  const section = (title, list) => {
+    lines.push(`${title} (${list.length})`)
+    lines.push(list.length ? list.map(line).join('\n') : '  —')
+    lines.push('')
+  }
+  section('WAITING ON YOU', board.waiting || [])
+  section('IN PROGRESS', board.inProgress || [])
+  section('READY FOR REVIEW', board.review || [])
+  if (board.idle?.length) lines.push(`(${board.idle.length} idle session${board.idle.length > 1 ? 's' : ''} not shown)`)
+  return lines.join('\n').trimEnd()
+}
+
+function renderTicketsText(board, { now = board.now ?? Date.now() } = {}) {
+  const out = []
+  const line = (t) => {
+    const where = [t.repo ? t.repo.split('/').pop() : '', t.branch && t.branch !== 'HEAD' ? t.branch : ''].filter(Boolean).join('@')
+    const flag = (t.status === 'failed' ? ' [FAILED]' : t.status === 'review' ? ' [review]' : t.stale ? ' [stale]' : '') + (t.blocked ? ' [blocked]' : '')
+    const rows = [`  ${t.origin === 'cloud' ? '☁' : '⌨'} ${t.key}${t.priority ? ' ' + t.priority : ''} ${truncate(t.title, 90)}${flag} · ${ago(t.status_at ?? t.updated_at, now)}${where ? ' · ' + where : ''}`]
+    const pr = (t.links || []).find((l) => l.type === 'pr')
+    if (pr) rows.push(`      PR: ${pr.url}`)
+    const sess = (t.links || []).find((l) => l.type === 'session')
+    if (sess) rows.push(`      open: ${sess.url}`)
+    return rows.join('\n')
+  }
+  const section = (title, col) => {
+    const list = board.columns?.[col] || []
+    const total = board.counts?.[col] ?? list.length
+    out.push(`${title} (${total})`)
+    out.push(list.length ? list.map(line).join('\n') : '  —')
+    if (total > list.length) out.push(`  … ${total - list.length} more`)
+    out.push('')
+  }
+  section('WAITING ON YOU', 'waiting')
+  section('IN PROGRESS', 'inProgress')
+  section('TO DO', 'todo')
+  if (board.counts?.done) out.push(`(${board.counts.done} done, not shown)`)
+  return out.join('\n').trimEnd()
 }

@@ -18,7 +18,7 @@ import { FEEDBACK_TYPES, PRIORITIES, STATUSES, VERSION, repoFromRemote, truncate
 import { CLOUD_SETUP_HINT, dataDir, loadConfig, openBackend, sessionForCwd } from '../lib/runtime.mjs';
 
 export { VERSION };
-const SERVER_INFO = { name: 'session-board', version: VERSION };
+const SERVER_INFO = { name: 'alvearium', version: VERSION };
 const ASSIGNEE = { type: 'string', description: 'user = the human (default); claude = Claude; or any actor id (an agent, e.g. "ci-bot")' };
 const PRIORITY = { type: 'string', enum: PRIORITIES, description: 'P0 = drop everything, P1 = next up, P2 = normal, P3 = some day' };
 const PROTOCOL = '2025-06-18';
@@ -193,7 +193,7 @@ function must(t, tool) {
   const seen = t && typeof t === 'object' ? JSON.stringify(t).slice(0, 160) : String(t).slice(0, 160);
   throw new Error(
     `${tool}: the board answered without a ticket (${seen}). Nothing was saved. ` +
-      'Is the request reaching the board API (proxy, credential)? Run: node .claude/session-board/scripts/doctor.mjs (cloud copy) or /session-board:board doctor.'
+      'Is the request reaching the board API (proxy, credential)? Run: node .claude/session-board/scripts/doctor.mjs (cloud copy) or /alvearium:board doctor.'
   );
 }
 
@@ -251,7 +251,7 @@ export async function callTool(name, args = {}, { backend, context }) {
         context.repo ? `- repo: ${context.repo}${context.branch && context.branch !== 'HEAD' ? '@' + context.branch : ''}` : null,
         `- machine: ${context.machine}`,
         args.about ? `- about: ${truncate(String(args.about), 120)}` : null,
-        `- session-board plugin ${VERSION}`,
+        `- Alvearium plugin ${VERSION}`,
       ].filter(Boolean);
       const body = [String(args.detail || '').trim(), '', '---', ...ctx].join('\n').trim();
       const t = await backend.create({

@@ -1,5 +1,5 @@
 {
-  "description": "session-board: turn each session's state into tickets (waiting on you / in progress / review / failed), mirror Claude's task list, record who hands work to which subagent, and draw the board in the terminal",
+  "description": "Alvearium: turn each session's state into tickets (waiting on you / in progress / review / failed), mirror Claude's task list, record who hands work to which subagent, and draw the board in the terminal",
   "modules": [
     "./mod.mjs"
   ],

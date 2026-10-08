@@ -141,7 +141,7 @@ test('SessionStart notice: once per failure, a success line, and warnings when t
   };
   const env = envFor(dir, 'http://board.test');
   const m1 = await sessionStartNotice({ env, fetchImpl: down });
-  assert.match(m1, /2 tickets of this machine's local board .* not on the board on board\.test yet .*\/session-board:board sync/);
+  assert.match(m1, /2 tickets of this machine's local board .* not on the board on board\.test yet .*\/alvearium:board sync/);
   assert.equal(await sessionStartNotice({ env, fetchImpl: down }), null, 'the same failure is not repeated');
 
   const server = await openStore(':memory:');

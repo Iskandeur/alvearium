@@ -223,13 +223,13 @@ test('vendored MCP server in the cloud: tickets reach the server, through an API
 });
 
 test('cloud copy guard for /board and /ticket, and the once-only stale-copy notice', () => {
-  assert.match(cloudCopyGuard('board', {}), /use \/session-board:board/);
+  assert.match(cloudCopyGuard('board', {}), /use \/alvearium:board/);
   assert.match(cloudCopyGuard('ticket', { CLAUDE_CODE_REMOTE: 'true', SESSION_BOARD_DIR: tmp() }), /SESSION_BOARD_URL/);
   assert.equal(cloudCopyGuard('board', { CLAUDE_CODE_REMOTE: 'true', SESSION_BOARD_URL: 'https://b', SESSION_BOARD_TOKEN: 'proxy', SESSION_BOARD_DIR: tmp() }), '');
   const repo = gitRepo();
   install(repo);
   const out = spawnSync(process.execPath, [join(repo, '.claude/session-board/scripts/board.mjs'), '--cloud-only'], { encoding: 'utf8', env: { ...process.env, ...CLEAN } });
-  assert.match(out.stdout, /on this machine use \/session-board:board/);
+  assert.match(out.stdout, /on this machine use \/alvearium:board/);
 
   const env = { SESSION_BOARD_DIR: tmp() };
   assert.equal(staleCopyNotice('0.3.1', '0.3.1', env), '');

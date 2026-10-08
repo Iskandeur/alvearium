@@ -1,6 +1,6 @@
 ---
 name: tickets
-description: Track action items and work steps as tickets on the session board (session-board MCP tools ticket_create, ticket_update, ticket_next, ticket_list, ticket_comment, ticket_get, board_feedback). Use when the user must do something outside this conversation, when a task is long enough to split into steps (with priorities and dependencies), to pick what to do next, when asked what is left, and to report anything that wastes your time.
+description: Track action items and work steps as tickets on the session board (Alvearium MCP tools ticket_create, ticket_update, ticket_next, ticket_list, ticket_comment, ticket_get, board_feedback). Use when the user must do something outside this conversation, when a task is long enough to split into steps (with priorities and dependencies), to pick what to do next, when asked what is left, and to report anything that wastes your time.
 ---
 
 # Tickets on the session board

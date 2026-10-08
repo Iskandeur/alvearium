@@ -1,6 +1,5 @@
 ---
 description: Show the ticket board of every Claude Code session - waiting on you, in progress, to do
-allowed-tools: Bash(node:*)
 argument-hint: "[--here] [--repo <name>] [--q <text>] | sync | doctor [--ticket <title>]"
 ---
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/board.mjs" $ARGUMENTS`

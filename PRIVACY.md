@@ -1,4 +1,4 @@
-# Privacy policy: session-board
+# Privacy policy: Alvearium (formerly session-board)
 
 *Last updated: 3 October 2026*
 

@@ -1,4 +1,8 @@
-# session-board
+# Alvearium (formerly session-board)
+
+> Plugin id: `alvearium` (marketplace: `session-board`).
+>
+> This repository kept its name so existing setups (cloud scripts, clones, server deploys) keep working.
 
 One ticket board for **all** your Claude Code work, terminal and claude.ai/code cloud alike, and for
 every agent and subagent that works with you: what is **waiting on you**, what is **in progress**,
@@ -123,7 +127,7 @@ the hooks and the MCP server of a session:
 | `SESSION_BOARD_THREAD` | one stable name for a conversation that lives across several short sessions (a bot, a tmux loop, CI): all those sessions share **one** session ticket, which follows the latest session and is not closed at `SessionEnd` |
 | `SESSION_BOARD_SESSION_TICKETS=0` | no automatic tickets at all for this session (session, questions, task mirror, subagent lines): for routine or scripted sessions. Tickets created explicitly through MCP still attach to the session |
 
-### Agent tokens (0.3.7)
+### Agent tokens (0.4.0)
 
 `SESSION_BOARD_ACTOR` is a name an agent gives itself, so with the main token anything an agent
 sends without it (the `/ticket` CLI, a bare `curl`) counts as **you**. An agent or a bot that runs
@@ -175,7 +179,7 @@ Bash): `node --version`.
 
 ```bash
 claude plugin marketplace add Iskandeur/session-board
-claude plugin install session-board@session-board
+claude plugin install alvearium@session-board
 ```
 
 Then restart the sessions that are already open: a plugin loads when a session starts. That's it for
@@ -207,7 +211,7 @@ loading](https://code.claude.com/docs/en/plugins/loading)). Where each kind of s
   *Cloud sessions*): the clone-time hook checks the published version (one 5-second request at most
   every 10 minutes) and replaces the environment's copy when it is newer, even when the environment
   is cached and the setup script is skipped.
-- **Cloud sessions, per repository** (committed copy): run `/session-board:install-cloud` again and
+- **Cloud sessions, per repository** (committed copy): run `/alvearium:install-cloud` again and
   commit; a stale copy says so at session start.
 - **`claude --plugin-dir <clone>`** (agents, scripts): keep the clone on `main` (`git pull --ff-only`
   on a timer); the next session started loads it.
@@ -217,7 +221,7 @@ loading](https://code.claude.com/docs/en/plugins/loading)). Where each kind of s
 
 ```bash
 claude plugin marketplace update session-board
-claude plugin update session-board@session-board
+claude plugin update alvearium@session-board
 ```
 
 Then restart every open session (`/exit`, then `claude --continue` to pick the conversation back
@@ -257,7 +261,7 @@ start `claude` themselves can load the plugin without installing it (`claude --p
 
 ### Checking that it works
 
-1. `/session-board:board` (or `/board`) prints the board. Its first line ends with `source: server`
+1. `/alvearium:board` (or `/board`) prints the board. Its first line ends with `source: server`
    when the URL and token are picked up (`source: this machine (local mode)` otherwise); an
    unreachable server prints
    `could not load the board`.
@@ -289,7 +293,7 @@ Tickets live in one place at a time: the server when a URL and token are set, el
   `session-board: 4 tickets from this machine's local board moved to the board on board.example.com`.
 - **If it cannot finish** (server down, out of time, server older than 0.2.3): nothing is renamed,
   the start shows how many tickets are still local, once, and it retries at every start. To retry
-  now: `/session-board:board sync`.
+  now: `/alvearium:board sync`.
 - **Server → local, or one server → another**: nothing is moved. The next start says where the
   tickets stayed.
 
@@ -354,7 +358,7 @@ copy of itself into the repository's working tree, two ways:
 - **Per environment** (recommended, since 0.3.2): one setup script on the cloud environment, every
   repository of every session gets the copy at clone time, nothing is committed, and since 0.3.3 it
   follows the latest version by itself.
-- **Per repository**: `/session-board:install-cloud`, committed. For an environment you do not
+- **Per repository**: `/alvearium:install-cloud`, committed. For an environment you do not
   control, or a repository whose sessions should report wherever they run.
 
 Either way, in the session it works like the plugin:
@@ -418,7 +422,7 @@ if no ticket shows up, the per-repository copy below always works.
 Three steps per repository:
 
 1. **Copy.** In a local session inside the repo (the plugin installed), run
-   `/session-board:install-cloud`, then commit and push `.claude/` and `.mcp.json`. It writes:
+   `/alvearium:install-cloud`, then commit and push `.claude/` and `.mcp.json`. It writes:
    - `.claude/session-board/`: the hook script, the MCP server, the `/board` and `/ticket` scripts,
      their `lib/`, and `VERSION`;
    - `.claude/settings.json`: the hooks, in `--cloud-only` mode;
@@ -452,9 +456,9 @@ Three steps per repository:
 
 Tickets made by Claude in the cloud attach to the session the hooks reported: the hooks record the
 session of the directory, the MCP server reads it (Claude Code's `CLAUDE_CODE_SESSION_ID` is the
-fallback). **Updates**: run `/session-board:install-cloud`
+fallback). **Updates**: run `/alvearium:install-cloud`
 again after updating the plugin, and commit. At the start of a cloud session, a copy older than
-the server says so once. `/session-board:install-cloud --uninstall` removes the copy.
+the server says so once. `/alvearium:install-cloud --uninstall` removes the copy.
 
 #### The agent proxy, and the doctor (0.3.4)
 
@@ -487,7 +491,7 @@ node .claude/session-board/scripts/doctor.mjs                       # in a cloud
 node .claude/session-board/scripts/doctor.mjs --ticket "test cloud" # also creates a ticket, as Claude would
 ```
 
-or `/board doctor` in the cloud, `/session-board:board doctor` on a terminal. It prints whether the
+or `/board doctor` in the cloud, `/alvearium:board doctor` on a terminal. It prints whether the
 session is a cloud one, the URL, what kind of token (never its value), the proxy variables (without
 their password), the route requests take, then a `GET /api/version` and an authenticated read with
 the plugin's own client, the last failure the hooks recorded, and what to fix. The exit code is 0 when
@@ -497,7 +501,7 @@ the board answers as the board.
 
 - **`/board`**: prints the board (`--here` for this repo, `--repo <name>`, `--q <text>`). With Claude
   Code 2.1.287 or later the plugin's *mod* answers it at once, with no Claude turn, even while
-  Claude is working; on older versions `/session-board:board` prints it through Claude.
+  Claude is working; on older versions `/alvearium:board` prints it through Claude.
 - **`/ticket`**: `new <title> [--label a,b] [--priority P1] [--parent SB-3] [--blocked-by SB-2]`,
   `next [--all]`, `done <KEY> [note]`, `status <KEY> <status>`, `priority <KEY> <P0-P3|none>`,
   `block <KEY> --by <KEY>` / `unblock`, `list [--all] [words]` (default: open tickets of this repo),
@@ -513,12 +517,12 @@ the board answers as the board.
 
 - **Machine-wide** (default): `claude plugin install` uses user scope, so every session on that
   machine, in every repo, shows up.
-- **One repo off**: `claude plugin disable session-board@session-board --scope local` inside the repo.
+- **One repo off**: `claude plugin disable alvearium@session-board --scope local` inside the repo.
 - **One repo only**: install with `--scope project` (or `local`) instead of the default user scope.
 - **One session off**: start it with `SESSION_BOARD=off claude`.
 - **One session without automatic tickets** (it can still create tickets): `SESSION_BOARD_SESSION_TICKETS=0`.
 - **Cloud sessions**: every session of an environment whose setup script installs session-board, or
-  per repo where `/session-board:install-cloud` was committed (sessions on one repository only).
+  per repo where `/alvearium:install-cloud` was committed (sessions on one repository only).
 
 ## Privacy
 

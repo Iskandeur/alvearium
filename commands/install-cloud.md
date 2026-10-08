@@ -1,6 +1,5 @@
 ---
 description: Copy session-board into this repository so claude.ai/code cloud sessions get the board - hooks, ticket tools, skill, /board and /ticket
-allowed-tools: Bash(node:*), Bash(git status:*), Bash(git diff:*)
 argument-hint: "[--uninstall] [--no-local]"
 ---
 Cloud sessions on claude.ai/code never install plugins, but they load what a repository commits:
