@@ -32,6 +32,29 @@ More in [`docs/screenshots`](docs/screenshots): the *Next* view, a ticket with i
 its *who → whom* history, the feedback inbox, light and dark, desktop and phone, and a change made in
 one tab showing up in another without a reload.
 
+## What Alvearium runs, reads and sends
+
+Alvearium is a Claude Code plugin plus an optional self-hosted server.
+
+**What runs**
+
+- **Hooks** (`hooks/hooks.json` → `hooks/report.mjs`): one zero-dependency Node script run by Claude Code on hook events (SessionStart, PreToolUse, Stop…). It turns the session state into tickets.
+- **MCP server** (`mcp/server.mjs`, stdio): lets Claude create/update/list tickets through MCP tools (`ticket_create`, `ticket_next`, …).
+- **Mod** (`hooks/hooks.json` → `modules: ["./mod.mjs"]`): draws the status line and implements an instant `/board` in the terminal (Claude Code v2.1.287+).
+- **Slash commands** (`commands/*.md`): `/board`, `/ticket`, `/install-cloud` just run the Node scripts in `scripts/`.
+
+**What it reads**
+
+- From the environment: `SESSION_BOARD_URL`, `SESSION_BOARD_TOKEN`, and optional knobs like `SESSION_BOARD_SEND_TEXT`, `SESSION_BOARD_MIRROR_TASKS`.
+- From disk (local mode): `~/.claude/session-board/board.db` and small helper files under the same directory.
+- From plugin config: `server_url` and `token` (stored by Claude Code; `token` is `sensitive`).
+
+**What it sends**
+
+- Nothing leaves the machine in local mode.
+- In server mode, it sends HTTPS requests **only** to the host of `SESSION_BOARD_URL` (or the `server_url` option). It never follows redirects (a redirect is treated as a gateway/login page, and is reported as an error).
+- Authentication is a Bearer token (`SESSION_BOARD_TOKEN` or the `token` option). In claude.ai/code, `SESSION_BOARD_TOKEN=proxy` means: do not send an Authorization header; the cloud agent proxy injects the configured API credential.
+
 ## Tickets, sessions, and where tickets come from
 
 A **ticket** is the unit of the board: key (`SB-12`), title, markdown body, status, kind, assignee

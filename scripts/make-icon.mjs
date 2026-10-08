@@ -18,7 +18,7 @@ const H = size;
 // Palette: keep it sober.
 const BG = [0xf6, 0xf6, 0xf7, 0xff];
 const FG = [0x4b, 0x5b, 0xdc, 0xff];
-const FG_SOFT = [0x4b, 0x5b, 0xdc, 0x24];
+const FG_DEEP = [0x2b, 0x36, 0x9c, 0xff];
 
 function clamp01(x) {
   return x < 0 ? 0 : x > 1 ? 1 : x;
@@ -59,11 +59,14 @@ function draw() {
   const raw = Buffer.alloc(rowLen * H);
 
   const centers = [];
-  const ringR = 0.38;
-  const d = 0.34;
+  // Flat-topped cells: edge neighbours sit at 30° + k·60°, two apothems away,
+  // plus a small gap. sdHex's `r` is apothem·√3, hence the conversion.
+  const apothem = 0.15;
+  const cell = apothem * Math.sqrt(3);
+  const d = 2 * apothem + 0.035;
   centers.push([0, 0]);
   for (let i = 0; i < 6; i++) {
-    const a = (Math.PI * 2 * i) / 6;
+    const a = Math.PI / 6 + (Math.PI * 2 * i) / 6;
     centers.push([Math.cos(a) * d, Math.sin(a) * d]);
   }
 
@@ -79,25 +82,14 @@ function draw() {
       let col = BG;
       col = mix(col, [0xee, 0xee, 0xf2, 0xff], clamp01((v - 0.6) / 0.6));
 
-      // Honeycomb outlines.
-      let best = 1e9;
-      for (const [cx, cy] of centers) {
-        const dx = nx - cx;
-        const dy = ny - cy;
-        const dist = Math.abs(sdHex(dx, dy, ringR));
-        if (dist < best) best = dist;
+      // Solid honeycomb cells, fully opaque so the mark reads at 64 px.
+      // The centre cell is darker: the one session waiting on you.
+      for (let k = 0; k < centers.length; k++) {
+        const [cx, cy] = centers[k];
+        const d0 = -sdHex(nx - cx, ny - cy, cell);
+        const fill = clamp01(d0 / 0.006);
+        if (fill > 0) col = mix(col, k === 0 ? FG_DEEP : FG, fill);
       }
-      const t = 0.012;
-      const outline = clamp01(1 - best / t);
-      if (outline > 0) col = mix(col, FG, outline);
-
-      // A faint filled core to keep it readable at 64 px.
-      let fill = 0;
-      for (const [cx, cy] of centers) {
-        const d0 = -sdHex(nx - cx, ny - cy, ringR * 0.62);
-        fill = Math.max(fill, clamp01(d0 / 0.02));
-      }
-      if (fill > 0) col = mix(col, mix(BG, FG_SOFT, 1), fill);
 
       const i = off + 1 + x * 4;
       raw[i + 0] = col[0];
