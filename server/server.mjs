@@ -4,11 +4,14 @@
 //
 // Env:
 //   SESSION_BOARD_TOKEN       bearer token (or SESSION_BOARD_TOKEN_FILE: path to a file holding it)
+//   SESSION_BOARD_AGENT_TOKENS_FILE  agent tokens, one `<actor> <token>` per line
+//                                    (default <SESSION_BOARD_DATA>/agent-tokens; absent = none)
 //   SESSION_BOARD_DATA        directory for board.db                (default ./data)
 //   PORT                      listen port                           (default 8793)
 //   HOST                      listen address                        (default 0.0.0.0)
 //
-// Routes (all /api/* need `Authorization: Bearer <token>`):
+// Routes (all /api/* need `Authorization: Bearer <token>`, the main token or an agent token; a
+// request made with an agent token acts as that agent and never as the user, see `authOf`):
 //   POST /api/event                 hook event (v0.1 payload, still the only thing hooks send);
 //                                   the reply carries `server_version` (vendored copies compare it)
 //   GET  /api/version               { version } of this server
@@ -55,6 +58,67 @@ export function bearerOk(header, token) {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+/** Actor ids an agent token can never be bound to: they mean the person, or the hooks. */
+const RESERVED_AGENT_ACTORS = ['user', 'hook'];
+
+/**
+ * Agent tokens, for agents and bots that run sessions unattended (a daemon, CI). One per line:
+ * `<actor> <token>`; blank lines and `#` comments are skipped. The actor is the agent's root id:
+ * what it writes is attributed to it, or to one of its sub-actors (`lupi` → `lupi/job-42`), never
+ * to `user`. Throws on a line it cannot read: a typo must not leave an agent with the main token.
+ */
+export function parseAgentTokens(text) {
+  const out = [];
+  for (const [i, raw] of String(text ?? '').split(/\r?\n/).entries()) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const [actorRaw, token, extra] = line.split(/\s+/);
+    const actor = normalizeActorId(actorRaw);
+    if (!actor || !token || extra !== undefined) throw new Error(`agent tokens, line ${i + 1}: expected "<actor> <token>"`);
+    if (RESERVED_AGENT_ACTORS.includes(actor)) throw new Error(`agent tokens, line ${i + 1}: "${actor}" cannot be an agent`);
+    if (token.length < 24) throw new Error(`agent tokens, line ${i + 1}: the token must be at least 24 characters`);
+    if (out.some((a) => a.token === token)) throw new Error(`agent tokens, line ${i + 1}: this token is already listed`);
+    out.push({ actor, token });
+  }
+  return out;
+}
+
+/** The agent tokens file: SESSION_BOARD_AGENT_TOKENS_FILE, else `agent-tokens` in the data directory. */
+export function readAgentTokens(env = process.env, dataDir = env.SESSION_BOARD_DATA || join(process.cwd(), 'data')) {
+  const explicit = env.SESSION_BOARD_AGENT_TOKENS_FILE?.trim();
+  const path = explicit || join(dataDir, 'agent-tokens');
+  let text;
+  try {
+    text = readFileSync(path, 'utf8');
+  } catch (e) {
+    if (!explicit && e?.code === 'ENOENT') return [];
+    throw new Error(`cannot read the agent tokens (${path}): ${e?.code || e?.message || e}`);
+  }
+  return parseAgentTokens(text);
+}
+
+/**
+ * Who is calling: `{ kind: 'agent', actor }` for an agent token, `{ kind: 'user' }` for the main
+ * token, null otherwise. Agent tokens are checked first: whatever the configuration, a request that
+ * carries one is never the user.
+ */
+export function authOf(header, { token, agents = [] }) {
+  for (const a of agents) if (bearerOk(header, a.token)) return { kind: 'agent', actor: a.actor };
+  return bearerOk(header, token) ? { kind: 'user' } : null;
+}
+
+/** An actor id an agent may use: its root, or a sub-actor under it (`lupi/job-42`); else the root. */
+export function scopeActor(requested, root) {
+  const id = normalizeActorId(requested);
+  return id && (id === root || id.startsWith(root + '/')) ? id : root;
+}
+
+/** A display name that reads as the person (`You`, `user`) is dropped: names never impersonate. */
+export function agentDisplayName(name) {
+  const n = String(name ?? '').trim();
+  return n && !/^(you|user)$/i.test(n) ? n : null;
+}
+
 function send(res, status, body, type = 'application/json; charset=utf-8') {
   res.writeHead(status, {
     'content-type': type,
@@ -92,21 +156,38 @@ async function jsonBody(req, max) {
 }
 
 /**
- * Who made a change: the `x-session-board-actor` header (the MCP server sends `claude`, or the
- * SESSION_BOARD_ACTOR of its session), optionally named by `x-session-board-actor-name`. The page,
- * the CLI and anything without the header is the user.
+ * Who made a change. With the main token: the `x-session-board-actor` header (the MCP server sends
+ * `claude`, or the SESSION_BOARD_ACTOR of its session), optionally named by
+ * `x-session-board-actor-name`; the page, the CLI and anything without the header is the user.
+ * With an agent token: the token's actor, or a sub-actor under it named by the header; never `user`,
+ * `claude` or `hook`, whatever the header says.
  */
-function actorOf(req, store) {
-  const id = normalizeActorId(req.headers['x-session-board-actor']);
-  if (!id || id === 'user') return 'user';
-  if (id === 'claude' || id === 'hook') return id;
+export function actorOfAuth(req, store, auth = { kind: 'user' }) {
+  const header = req.headers['x-session-board-actor'];
+  let id;
+  if (auth.kind === 'agent') id = scopeActor(header, auth.actor);
+  else {
+    id = normalizeActorId(header);
+    if (!id || id === 'user') return 'user';
+    if (id === 'claude' || id === 'hook') return id;
+  }
+  if (id === 'claude') return id;
   let name = null;
   try {
-    name = decodeURIComponent(String(req.headers['x-session-board-actor-name'] || '')).trim() || null;
+    name = agentDisplayName(decodeURIComponent(String(req.headers['x-session-board-actor-name'] || '')));
   } catch {}
   store.touchActor({ id, type: 'agent', name });
   return id;
 }
+
+/** An event sent with an agent token: its session belongs to that agent (or a sub-actor). */
+function scopeEvent(evt, auth) {
+  if (auth.kind !== 'agent') return evt;
+  const actor = scopeActor(evt.identity.actor, auth.actor);
+  return { ...evt, identity: { ...evt.identity, actor, actorName: agentDisplayName(evt.identity.actorName) ?? undefined } };
+}
+
+const forbidden = (res, what) => send(res, 403, { error: `an agent token cannot ${what}` });
 
 export const HEARTBEAT_MS = 15000;
 
@@ -136,7 +217,7 @@ function stream(req, res, store, heartbeatMs) {
   res.on('error', stop);
 }
 
-export function createApp({ token, store, page, heartbeatMs = HEARTBEAT_MS }) {
+export function createApp({ token, agents = [], store, page, heartbeatMs = HEARTBEAT_MS }) {
   return async (req, res) => {
     try {
       const url = new URL(req.url, 'http://local');
@@ -144,7 +225,9 @@ export function createApp({ token, store, page, heartbeatMs = HEARTBEAT_MS }) {
       if (path === '/healthz') return send(res, 200, { ok: true });
       if (path === '/' && req.method === 'GET') return send(res, 200, page, 'text/html; charset=utf-8');
       if (!path.startsWith('/api/')) return send(res, 404, { error: 'not found' });
-      if (!bearerOk(req.headers.authorization, token)) return send(res, 401, { error: 'unauthorized' });
+      const auth = authOf(req.headers.authorization, { token, agents });
+      if (!auth) return send(res, 401, { error: 'unauthorized' });
+      const actorOf = (r, s) => actorOfAuth(r, s, auth);
       const m = req.method;
 
       if (path === '/api/event' && m === 'POST') {
@@ -156,11 +239,13 @@ export function createApp({ token, store, page, heartbeatMs = HEARTBEAT_MS }) {
         }
         const evt = sanitizeEvent(body);
         if (!evt) return send(res, 400, { error: 'invalid event' });
-        const rec = store.ingest(evt);
+        const rec = store.ingest(scopeEvent(evt, auth));
         return send(res, 202, { ok: true, state: rec.state, server_version: VERSION });
       }
       if (path === '/api/version' && m === 'GET') return send(res, 200, { version: VERSION });
       if (path === '/api/import' && m === 'POST') {
+        // An import replays a history with its own authors: only the main token may write one.
+        if (auth.kind === 'agent') return forbidden(res, 'import a board');
         const body = await jsonBody(req, MAX_IMPORT_BODY);
         const out = store.importTickets(body);
         if (out.imported || out.sessions) console.log(`session-board: imported ${out.imported} ticket(s), ${out.sessions} session(s) from ${String(body.machine || 'a local board').slice(0, 80)}`);
@@ -169,7 +254,7 @@ export function createApp({ token, store, page, heartbeatMs = HEARTBEAT_MS }) {
       if (path === '/api/board' && m === 'GET') return send(res, 200, store.legacyBoard());
       if (path === '/api/dismiss' && m === 'POST') {
         const body = await jsonBody(req);
-        return send(res, store.dismissSession(String(body?.sessionId ?? '')) ? 200 : 404, { ok: true });
+        return send(res, store.dismissSession(String(body?.sessionId ?? ''), undefined, actorOf(req, store)) ? 200 : 404, { ok: true });
       }
       if (path === '/api/tickets' && m === 'GET') return send(res, 200, store.listTickets(parseFilters(url.searchParams)));
       if (path === '/api/stream' && m === 'GET') return stream(req, res, store, heartbeatMs);
@@ -188,6 +273,7 @@ export function createApp({ token, store, page, heartbeatMs = HEARTBEAT_MS }) {
       }
       const sm = path.match(/^\/api\/sessions\/([\w.:-]{1,128})$/);
       if (sm && m === 'DELETE') {
+        if (auth.kind === 'agent') return forbidden(res, 'delete a session');
         const out = store.deleteSession(sm[1]);
         return send(res, out.session || out.tickets ? 200 : 404, out);
       }
@@ -227,11 +313,23 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     process.exit(1);
   }
   const dataDir = process.env.SESSION_BOARD_DATA || join(process.cwd(), 'data');
+  let agents;
+  try {
+    agents = readAgentTokens(process.env, dataDir);
+  } catch (e) {
+    console.error(`session-board: ${e.message}`);
+    process.exit(1);
+  }
+  if (agents.some((a) => a.token === token)) {
+    console.error('session-board: an agent token must differ from SESSION_BOARD_TOKEN.');
+    process.exit(1);
+  }
+  if (agents.length) console.log(`session-board: ${agents.length} agent token(s): ${agents.map((a) => a.actor).join(', ')}`);
   const store = await openStore(join(dataDir, 'board.db'));
   const migrated = store.migrateBoardJson(join(dataDir, 'board.json'));
   if (migrated) console.log(`session-board: imported ${migrated} session(s) from board.json (kept as board.json.migrated)`);
   const page = readFileSync(join(HERE, 'page.html'), 'utf8');
-  const server = createServer(createApp({ token, store, page }));
+  const server = createServer(createApp({ token, agents, store, page }));
   const port = Number(process.env.PORT || 8793);
   server.listen(port, process.env.HOST || '0.0.0.0', () => console.log(`session-board listening on :${port}`));
   const stop = () => {
