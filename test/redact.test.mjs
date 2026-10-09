@@ -6,10 +6,10 @@ import { classify, redactSecrets, sanitizeEvent } from '../lib/core.mjs';
 import { waitTitle } from '../lib/store.mjs';
 
 // Fake values, shaped like the real ones.
-const KEY = 'key_' + 'Ab3dE5fG7hJ9kL1mN3pQ5rS7tU9v';
+const KEY = 'key_' + 'Ab'.repeat(14);
 const GH = 'ghp_' + 'a'.repeat(36);
 const SK = 'sk-' + 'proj-' + 'Z'.repeat(40);
-const JWT = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4In0.' + 'c'.repeat(43);
+const JWT = ['ey', 'J'].join('') + 'a'.repeat(20) + '.' + ['ey', 'J'].join('') + 'b'.repeat(20) + '.' + 'c'.repeat(43);
 
 // Placeholders built at run time: no literal in this file looks like a live credential.
 const FAKE = (tag) => 'fake' + tag + 'x'.repeat(16);
@@ -21,15 +21,15 @@ test('redact: header values, Bearer, query strings, env assignments, URL passwor
   const cases = [
     [`curl -s -H "X-Api-Key: ${KEY}" http://localhost:3000/api/files/x.jpeg`, KEY],
     [`curl -H 'Authorization: ${AUTH} ${FAKE('b')}' https://h/api`, FAKE('b')],
-    [`curl -H "authorization:token zz11yy22xx33ww44vv55" https://h`, 'zz11yy22xx33ww44vv55'],
+    [`curl -H "authorization:token ${FAKE('h')}" https://h`, FAKE('h')],
     [`open "https://h/api/files/x.jpeg?x-api-key=${KEY}&a=1"`, KEY],
-    [`curl https://h/cb?access_token=Q1w2E3r4T5y6U7i8&page=2`, 'Q1w2E3r4T5y6U7i8'],
+    [`curl https://h/cb?access_token=${FAKE('q')}&page=2`, FAKE('q')],
     [`GH_TOKEN=${GH} gh pr list`, GH],
     [`export SESSION_BOARD_TOKEN=${FAKE('e')}`, FAKE('e')],
     [`OPENAI_API_KEY="${SK}" node x.js`, SK],
-    [`git clone https://user:hunter2hunter2@example.com/r.git`, 'hunter2hunter2'],
+    [`git clone https://user:${FAKE('u')}@example.com/r.git`, FAKE('u')],
     [`node cli.js --token ${FAKE('t')} --verbose`, FAKE('t')],
-    [`node cli.js --password=correcthorsebattery`, 'correcthorsebattery'],
+    [`node cli.js --password=${FAKE('p')}`, FAKE('p')],
     [`echo ${GH}`, GH],
     [`echo ${SK}`, SK],
     [`echo ${JWT}`, JWT],

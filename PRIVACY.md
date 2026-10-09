@@ -1,8 +1,8 @@
 # Privacy policy: Alvearium (formerly session-board)
 
-*Last updated: 3 October 2026*
+*Last updated: 9 October 2026*
 
-session-board is a Claude Code plugin plus an optional self-hosted server. It has no central
+Alvearium is a Claude Code plugin plus an optional self-hosted server. It has no central
 service, no analytics, and no telemetry. Nobody but you receives anything it collects.
 
 ## What it records
@@ -43,7 +43,7 @@ plugin version).
   machine (delete it yourself if you want). The plugin remembers the last server URL (not the
   token) in `~/.claude/session-board/storage.json` to tell you when the storage changes.
 
-The authors of session-board never receive any of this data. The plugin makes no network request
+The authors of Alvearium never receive any of this data. The plugin makes no network request
 other than to the server URL you configure.
 
 ## Contact
