@@ -8,6 +8,7 @@ import {
   displayState,
   findPrUrl,
   isExpired,
+  promptTitle,
   label,
   renderText,
   repoFromRemote,
@@ -151,4 +152,22 @@ test('sanitizeEvent: rejects junk, clamps strings, keeps only https links', () =
   assert.equal(e.identity.url, undefined);
   assert.equal(e.identity.repo.length, 200);
   assert.equal(e.transition.pr, 'https://github.com/a/b/pull/3');
+});
+
+test('promptTitle: an attached upload becomes a short « 📎 name » at the end, not a path at the start', () => {
+  assert.equal(
+    promptTitle('@"/root/.claude/uploads/71689423-d907-5604-b583-8c8bc30f43c6/9a09b386-AgenticSOCGuideFRpdf.pdf" capitalise, lis et dis-moi ce que tu en penses'),
+    'Capitalise, lis et dis-moi ce que tu en penses · 📎 AgenticSOCGuideFRpdf.pdf',
+  );
+  assert.equal(promptTitle('@"/root/.claude/uploads/a/b/1234abcd-photo.png"'), '📎 photo.png');
+  assert.equal(promptTitle('compare @./a/x.md et @./b/y.md'), 'compare et · 📎 x.md +1');
+  assert.equal(promptTitle('plain prompt, no file'), 'plain prompt, no file');
+  assert.ok(promptTitle('x '.repeat(200) + '@"/u/12345678-long-name.pdf"').length <= 120);
+  assert.equal(promptTitle('send to me@example.com please'), 'send to me@example.com please');
+});
+
+test('the session title comes from the cleaned prompt', () => {
+  const t = classify('UserPromptSubmit', { prompt: '@"/root/.claude/uploads/u/9a09b386-Guide.pdf" lis' });
+  const rec = applyTransition(null, t, { sessionId: 's' });
+  assert.equal(rec.title, 'Lis · 📎 Guide.pdf');
 });
