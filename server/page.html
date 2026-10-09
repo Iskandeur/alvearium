@@ -253,10 +253,13 @@
     .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { margin: 10px 0 6px; white-space: normal; }
     .md h1 { font-size: 1.35em; }
     .md h2 { font-size: 1.2em; }
+    .md h1, .md h2, .md h3, .md h4 { font-weight: 650; }
+    .md h3 { font-size: 1.08em; }
     .md h3 { font-size: 1.1em; }
     .md ul, .md ol { padding-left: 1.2em; margin: 6px 0; white-space: normal; }
     .md li { margin: 2px 0; }
     .md blockquote { margin: 8px 0; padding-left: 10px; border-left: 2px solid var(--line-strong); color: var(--muted); white-space: normal; }
+    .md pre code { background: none; padding: 0; border-radius: 0; }
     .md pre { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,0.03); overflow: auto; white-space: pre; }
     :root[data-theme="dark"] .md pre { background: rgba(255,255,255,0.04); }
     @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .md pre { background: rgba(255,255,255,0.04); } }
@@ -689,16 +692,23 @@
           // Headings, blockquotes, list markers.
           l = l.replace(/^\s*#{1,6}\s+/, '');
           l = l.replace(/^\s*>\s?/, '');
-          l = l.replace(/^\s*(?:[-*+]\s+|\d+\.\s+)/, '');
+          l = l.replace(/^\s*[-*+]\s+/, '· ');
+          l = l.replace(/^\s*\d+\.\s+/, '');
+          if (/^\s*\|?\s*:?-{3,}/.test(l) && /^[\s|:-]+$/.test(l)) continue; // table separator
           // Links: [label](url) -> label
           l = l.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
-          // Inline markers.
-          l = l.replace(/[*_~`]/g, '');
+          // Paired markers only: snake_case and a lone * survive.
+          l = l.replace(/(\*\*|__|~~)(\S(?:.*?\S)?)\1/g, '$2');
+          l = l.replace(/(^|[\s(])[*_](\S(?:[^*_]*?\S)?)[*_](?=[\s).,!?;:]|$)/g, '$1$2');
+          l = l.replace(/`/g, '');
           l = l.replace(/\s+/g, ' ').trim();
           if (l) out.push(l);
         }
         return out.join(' ').trim();
       };
+
+      /** A title as shown (cards, rows, links): markers stripped, escaped. Editing keeps the raw text. */
+      const ttl = (s) => esc(plain(s) || s);
 
       const safeUrl = (u) => {
         const s = String(u || '').trim();
@@ -707,32 +717,27 @@
       };
 
       function inlineHtml(raw) {
-        // Markdown links first, on the raw string: [label](url)
-        const links = [];
-        let s = String(raw || '').replace(/\[([^\]]{1,200})\]\(([^)\s]{1,400})\)/g, (_, label, url) => {
+        // Every finished fragment (code, links) is set aside as a placeholder on the RAW string,
+        // so nothing later (escaping, emphasis, autolinks) can touch its inside.
+        const kept = [];
+        const keep = (html) => `\u0000${kept.push(html) - 1}\u0000`;
+        const link = (url, label) => {
           const ok = safeUrl(url);
-          const html = ok ? `<a href="${esc(ok)}" target="_blank" rel="noopener">${esc(label)}</a>` : esc(label);
-          links.push(html);
-          return `\u0000L${links.length - 1}\u0000`;
+          return ok ? keep(`<a href="${esc(ok)}" target="_blank" rel="noopener">${esc(label)}</a>`) : label;
+        };
+        let s = String(raw || '').replace(/\u0000/g, '');
+        s = s.replace(/`([^`\n]{1,200})`/g, (_, c) => keep(`<code>${esc(c)}</code>`));
+        s = s.replace(/\[([^\]]{1,200})\]\(([^)\s]{1,400})\)/g, (_, label, url) => link(url, label));
+        s = s.replace(/\bhttps?:\/\/[^\s<>"'\u0000]{3,300}/gi, (m) => {
+          const url = m.replace(/[.,;:!?)\]]+$/, '');
+          return link(url, url) + m.slice(url.length);
         });
-        // Escape everything else.
+        s = s.replace(/\b[A-Z0-9._%+-]{1,64}@[A-Z0-9.-]{1,120}\.[A-Z]{2,20}\b/gi, (m) => link('mailto:' + m, m));
         s = esc(s);
-        // Restore links.
-        s = s.replace(/\u0000L(\d+)\u0000/g, (_, i) => links[Number(i)] || '');
-        // Inline code.
-        s = s.replace(/`([^`\n]{1,200})`/g, '<code>$1</code>');
-        // Bold + italic.
         s = s.replace(/\*\*([^*\n]{1,200})\*\*/g, '<strong>$1</strong>');
-        s = s.replace(/(^|[\s(])_([^_\n]{1,200})_([\s).,!?;:]|$)/g, '$1<em>$2</em>$3');
-        s = s.replace(/(^|[\s(])\*([^*\n]{1,200})\*([\s).,!?;:]|$)/g, '$1<em>$2</em>$3');
-        // Autolink http(s) URLs.
-        s = s.replace(/\b(https?:\/\/[^\s<]{3,300})/g, (m) => {
-          const ok = safeUrl(m);
-          return ok ? `<a href="${esc(ok)}" target="_blank" rel="noopener">${esc(ok)}</a>` : esc(m);
-        });
-        // Autolink plain emails.
-        s = s.replace(/\b([A-Z0-9._%+-]{1,64}@[A-Z0-9.-]{1,120}\.[A-Z]{2,20})\b/gi, (m) => `<a href="mailto:${esc(m)}">${esc(m)}</a>`);
-        return s;
+        s = s.replace(/(^|[\s(])_([^_\n]{1,200})_(?=[\s).,!?;:]|$)/g, '$1<em>$2</em>');
+        s = s.replace(/(^|[\s(])\*([^*\n]{1,200})\*(?=[\s).,!?;:]|$)/g, '$1<em>$2</em>');
+        return s.replace(/\u0000(\d+)\u0000/g, (_, i) => kept[Number(i)] ?? '');
       }
 
       /** Safe markdown subset: headings, lists, blockquotes, code blocks, tables, links, bold/italic/code. */
@@ -831,6 +836,8 @@
             para.push(lines[i]);
             i++;
           }
+          // A line no block takes (e.g. "```js title") is plain text: never leave i where it was.
+          if (!para.length) para.push(lines[i++]);
           flushPara(para);
         }
 
@@ -857,7 +864,7 @@
         if (t.session_id && !state.f.session && !opts.noSession && t.kind !== 'session') out.push(`<button type="button" class="tag sess" data-filter="session" data-value="${esc(t.session_id)}" title="Session: ${esc(sessionName(t))}">${t.origin === 'cloud' ? '☁ ' : '› '}${esc(sessionName(t))}</button>`);
         if (t.blocked) {
           const open = (t.blocked_by || []).filter((b) => b.status !== 'done' && b.status !== 'cancelled');
-          out.push(`<span class="tag blocked" title="Blocked by ${esc(open.map((b) => b.key + ' ' + b.title).join(', '))}">⛔ ${esc(open.map((b) => b.key).join(', ') || 'blocked')}</span>`);
+          out.push(`<span class="tag blocked" title="Blocked by ${esc(open.map((b) => b.key + ' ' + plain(b.title)).join(', '))}">⛔ ${esc(open.map((b) => b.key).join(', ') || 'blocked')}</span>`);
         }
         if (!t.blocked && t.blocking?.some((b) => b.status !== 'done' && b.status !== 'cancelled')) out.push(`<span class="tag" title="Blocks ${esc(t.blocking.map((b) => b.key).join(', '))}">blocks ${t.blocking.filter((b) => b.status !== 'done' && b.status !== 'cancelled').length}</span>`);
         for (const l of t.labels || []) out.push(`<button type="button" class="tag lbl" data-filter="label" data-value="${esc(l)}">#${esc(l)}</button>`);
@@ -884,7 +891,7 @@
         const live = t.status === 'in_progress' && t.kind === 'session' && t.session?.activity === 'working' ? '1' : '0';
         const drag = t.column === 'todo' ? ' draggable="true"' : '';
         return `<article class="card${t.stale || t.status === 'cancelled' ? ' dim' : ''}${t.blocked ? ' blocked' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" data-live="${live}" tabindex="0"${drag}>
-          <div class="head"><span class="dot"></span><h3 class="title">${esc(t.title)}</h3>${prio(t.priority)}<span class="key">${esc(t.key)}</span>${doneBtn(t)}</div>
+          <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${prio(t.priority)}<span class="key">${esc(t.key)}</span>${doneBtn(t)}</div>
           ${r ? `<div class="reason">${r}</div>` : ''}${note ? `<div class="note">${note}</div>` : ''}
           <div class="tags">${tags(t, now)}</div>
         </article>`;
@@ -1061,7 +1068,7 @@
         return `<div class="nrow${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-s="${esc(t.status)}" draggable="true" tabindex="0">
           <span class="pos">${i + 1}</span>
           <span>${prio(t.priority) || '<span class="prio">–</span>'}</span>
-          <span class="t"><span class="tt" title="${esc(t.title)}">${esc(t.title)}</span><span class="sub">${sub.join('<span>·</span>')}</span></span>
+          <span class="t"><span class="tt" title="${ttl(t.title)}">${ttl(t.title)}</span><span class="sub">${sub.join('<span>·</span>')}</span></span>
           <span>${avatar(t.assignee)}</span>
           <span class="when" title="Created ${esc(when(t.created_at))}">${ago(t.created_at, now)}</span>
           <span class="dn">${doneBtn(t)}</span>
@@ -1087,7 +1094,7 @@
         const row = (t) => `<div class="row${t.status === 'done' || t.status === 'cancelled' ? ' closed' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-s="${esc(t.status)}" tabindex="0">
               <span class="k">${esc(t.key)}</span>
               <span class="ft"><span class="ftype ${esc(t.subtype || 'suggestion')}">${esc(FTYPE[t.subtype] || 'Suggestion')}</span></span>
-              <span class="t"><span class="dot" data-s="${esc(t.status)}"></span><span class="tt" title="${esc(t.title)}">${esc(t.title)}</span></span>
+              <span class="t"><span class="dot" data-s="${esc(t.status)}"></span><span class="tt" title="${ttl(t.title)}">${ttl(t.title)}</span></span>
               <span class="lb">${avatar(t.created_by || 'claude')}<span class="tag">${esc(actorName(t.created_by || 'claude'))}</span>${t.repo ? `<span class="tag">${esc(repoName(t.repo))}</span>` : ''}</span>
               <span class="when" title="${esc(when(t.created_at))}">${ago(t.created_at, now)}</span>
             </div>`;
@@ -1131,7 +1138,7 @@
             const closed = t.status === 'done' || t.status === 'cancelled';
             html.push(`<div class="row${closed ? ' closed' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-s="${esc(t.status)}" tabindex="0">
               <span class="k">${esc(t.key)}</span>
-              <span class="t"><span class="dot" data-s="${esc(t.status)}"></span><span class="tt" title="${esc(t.title)}">${esc(t.title)}</span></span>
+              <span class="t"><span class="dot" data-s="${esc(t.status)}"></span><span class="tt" title="${ttl(t.title)}">${ttl(t.title)}</span></span>
               <span class="st"><span class="pill" data-s="${esc(t.status)}">${esc(STATUS[t.status] || t.status)}</span></span>
               <span class="lb">${(t.labels || []).slice(0, 3).map((l) => `<span class="tag lbl">#${esc(l)}</span>`).join('')}${t.assignee === 'claude' && t.kind !== 'session' ? '<span class="tag">Claude</span>' : ''}</span>
               <span class="when" title="Updated ${esc(when(t.updated_at))}">${ago(t.updated_at, now)}</span>
@@ -1205,7 +1212,7 @@
       function depList(list, rel) {
         if (!list?.length) return '<div class="empty" style="padding:6px 8px;text-align:left">None</div>';
         return list
-          .map((d) => `<div class="dep${d.status === 'done' || d.status === 'cancelled' ? ' closed' : ''}" data-open="${esc(d.key)}"><span class="dot" data-s="${esc(d.status)}"></span><span class="k">${esc(d.key)}</span><span class="tt" title="${esc(d.title)}">${esc(d.title)}</span><button type="button" class="rm" data-undep="${esc(d.key)}" data-rel="${rel}" title="Remove this dependency" aria-label="Remove">×</button></div>`)
+          .map((d) => `<div class="dep${d.status === 'done' || d.status === 'cancelled' ? ' closed' : ''}" data-open="${esc(d.key)}"><span class="dot" data-s="${esc(d.status)}"></span><span class="k">${esc(d.key)}</span><span class="tt" title="${ttl(d.title)}">${ttl(d.title)}</span><button type="button" class="rm" data-undep="${esc(d.key)}" data-rel="${rel}" title="Remove this dependency" aria-label="Remove">×</button></div>`)
           .join('');
       }
       const assigneeOpts = (cur) => {
@@ -1224,7 +1231,7 @@
         ctx.push(`<span class="tag">from ${esc(t.source === 'hook' ? 'hooks' : t.source)}</span>`);
         const sess = t.session_id ? `<div class="ctx"><button type="button" class="tag" data-filter="session" data-value="${esc(t.session_id)}">${t.origin === 'cloud' ? '☁ ' : ''}${esc(sessionName(t))}</button><span class="tag">${esc(ACT[t.session?.activity] || t.session?.activity || '')}</span>${t.session?.url ? `<a class="tag" href="${esc(t.session.url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}</div>` : '<span class="lab">—</span>';
         const links = (t.links || []).map((l) => (httpsUrl(l.url) ? `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title || (l.type === 'pr' ? 'Pull request ' + l.url.replace(/^https:\/\/[^/]+\//, '') : l.type === 'session' ? 'Cloud session' : l.url))} ↗</a>` : `<span class="mono">${esc(l.url)}</span>`)).join('');
-        const kids = (t.children || []).map((c) => `<div class="kid" data-open="${esc(c.key)}"><span class="dot" data-s="${esc(c.status)}"></span><span class="k">${esc(c.key)}</span><span class="tt">${esc(c.title)}</span><span class="pill" data-s="${esc(c.status)}">${esc(STATUS[c.status])}</span></div>`).join('');
+        const kids = (t.children || []).map((c) => `<div class="kid" data-open="${esc(c.key)}"><span class="dot" data-s="${esc(c.status)}"></span><span class="k">${esc(c.key)}</span><span class="tt">${ttl(c.title)}</span><span class="pill" data-s="${esc(c.status)}">${esc(STATUS[c.status])}</span></div>`).join('');
         $('panel').innerHTML = `
           <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span>${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)">${CHECK}<span>Done</span><kbd>d</kbd></button>` : ''}<button type="button" class="x" data-act="close" aria-label="Close">×</button></div>
           <form class="pBody" id="tform" autocomplete="off">
