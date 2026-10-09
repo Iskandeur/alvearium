@@ -4,6 +4,7 @@ import {
   applyTransition,
   buildBoard,
   classify,
+  finalQuestion,
   describeTool,
   displayState,
   findPrUrl,
@@ -39,6 +40,16 @@ test('mapping: everything that needs the human means waiting', () => {
     assert.equal(t.detail, 'Claude needs your input');
   }
   assert.equal(classify('Elicitation', { message: 'Pick a region' }).detail, 'Pick a region');
+});
+
+test('finalQuestion: the question a reply ends on, nothing for a report', () => {
+  assert.equal(finalQuestion('Fixed the race.\n\nShould I also bump the version?'), 'Should I also bump the version?');
+  assert.equal(finalQuestion('Done. Opened https://github.com/a/b/pull/1?x=1 for you.'), '');
+  assert.equal(finalQuestion('Is it fixed? Yes.\n\nAll tests pass.'), '', 'a question earlier in the reply does not count');
+  assert.equal(finalQuestion('Three things.\n\n3. La page cite encore « X ». Je la nettoie ?'), 'Je la nettoie ?');
+  assert.equal(finalQuestion('```js\nif (a?.b) x();\n```'), '', 'code is not prose');
+  assert.equal(classify('Stop', { last_assistant_message: 'Done.\n\nShip it?' }).asks, 'Ship it?');
+  assert.equal(classify('Stop', { last_assistant_message: 'Ship it?' }, { sendText: false }).asks, '');
 });
 
 test('mapping: stop is review with PR link, failure and end', () => {
