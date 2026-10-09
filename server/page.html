@@ -606,13 +606,168 @@
       const prio = (p) => (p ? `<span class="prio ${esc(p)}" title="Priority ${esc(PRIO[p] || p)}">${esc(p)}</span>` : '');
       const FTYPE = { bug: 'Bug', suggestion: 'Suggestion', friction: 'Friction' };
 
-      const plain = (s) => String(s || '').replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim();
-      /** Tiny, safe markdown: escape first, then `code`, **bold**, links. */
+      // ---- markdown ---------------------------------------------------------------------------
+      // Two modes:
+      //  - plain() for previews (cards, rows, titles): strips markdown markers so you never see "###".
+      //  - md() for the detail panel + history: renders a safe subset of Markdown (no HTML allowed).
+      const plain = (s) => {
+        const lines = String(s || '').replace(/\r\n/g, '\n').split('\n');
+        const out = [];
+        let inFence = false;
+        for (let l of lines) {
+          const t = l.trimEnd();
+          if (/^```/.test(t)) { inFence = !inFence; continue; }
+          if (inFence) continue;
+          l = t;
+          // Headings, blockquotes, list markers.
+          l = l.replace(/^\s*#{1,6}\s+/, '');
+          l = l.replace(/^\s*>\s?/, '');
+          l = l.replace(/^\s*(?:[-*+]\s+|\d+\.\s+)/, '');
+          // Links: [label](url) -> label
+          l = l.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+          // Inline markers.
+          l = l.replace(/[*_~`]/g, '');
+          l = l.replace(/\s+/g, ' ').trim();
+          if (l) out.push(l);
+        }
+        return out.join(' ').trim();
+      };
+
+      const safeUrl = (u) => {
+        const s = String(u || '').trim();
+        if (/^https?:\/\//i.test(s) || /^mailto:/i.test(s)) return s;
+        return null;
+      };
+
+      function inlineHtml(raw) {
+        // Markdown links first, on the raw string: [label](url)
+        const links = [];
+        let s = String(raw || '').replace(/\[([^\]]{1,200})\]\(([^)\s]{1,400})\)/g, (_, label, url) => {
+          const ok = safeUrl(url);
+          const html = ok ? `<a href="${esc(ok)}" target="_blank" rel="noopener">${esc(label)}</a>` : esc(label);
+          links.push(html);
+          return `\u0000L${links.length - 1}\u0000`;
+        });
+        // Escape everything else.
+        s = esc(s);
+        // Restore links.
+        s = s.replace(/\u0000L(\d+)\u0000/g, (_, i) => links[Number(i)] || '');
+        // Inline code.
+        s = s.replace(/`([^`\n]{1,200})`/g, '<code>$1</code>');
+        // Bold + italic.
+        s = s.replace(/\*\*([^*\n]{1,200})\*\*/g, '<strong>$1</strong>');
+        s = s.replace(/(^|[\s(])_([^_\n]{1,200})_([\s).,!?;:]|$)/g, '$1<em>$2</em>$3');
+        s = s.replace(/(^|[\s(])\*([^*\n]{1,200})\*([\s).,!?;:]|$)/g, '$1<em>$2</em>$3');
+        // Autolink http(s) URLs.
+        s = s.replace(/\b(https?:\/\/[^\s<]{3,300})/g, (m) => {
+          const ok = safeUrl(m);
+          return ok ? `<a href="${esc(ok)}" target="_blank" rel="noopener">${esc(ok)}</a>` : esc(m);
+        });
+        // Autolink plain emails.
+        s = s.replace(/\b([A-Z0-9._%+-]{1,64}@[A-Z0-9.-]{1,120}\.[A-Z]{2,20})\b/gi, (m) => `<a href="mailto:${esc(m)}">${esc(m)}</a>`);
+        return s;
+      }
+
+      /** Safe markdown subset: headings, lists, blockquotes, code blocks, tables, links, bold/italic/code. */
       function md(s) {
-        return esc(s)
-          .replace(/`([^`\n]{1,200})`/g, '<code>$1</code>')
-          .replace(/\*\*([^*\n]{1,200})\*\*/g, '<b>$1</b>')
-          .replace(/(https:\/\/[^\s<]{3,300})/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+        const lines = String(s || '').replace(/\r\n/g, '\n').split('\n');
+        const out = [];
+        let i = 0;
+
+        const flushPara = (buf) => {
+          const text = buf.map((x) => inlineHtml(x)).join('<br>');
+          out.push(text ? `<p>${text}</p>` : '');
+        };
+
+        while (i < lines.length) {
+          let l = lines[i];
+
+          // Fenced code block.
+          const fence = l.match(/^```([A-Za-z0-9_-]{0,20})\s*$/);
+          if (fence) {
+            const code = [];
+            i++;
+            while (i < lines.length && !/^```/.test(lines[i])) { code.push(lines[i]); i++; }
+            if (i < lines.length) i++;
+            out.push(`<pre><code>${esc(code.join('\n'))}</code></pre>`);
+            continue;
+          }
+
+          // Blank.
+          if (!l.trim()) { i++; continue; }
+
+          // Table: header line with |, then --- separator.
+          if (l.includes('|') && i + 1 < lines.length && /^\s*\|?\s*:?[-]{3,}\s*:?\s*(\|\s*:?[-]{3,}\s*:?\s*)+\|?\s*$/.test(lines[i + 1])) {
+            const head = l.trim().replace(/^\||\|$/g, '');
+            const cols = head.split('|').map((c) => c.trim());
+            i += 2;
+            const rows = [];
+            while (i < lines.length && lines[i].includes('|') && lines[i].trim()) {
+              const cells = lines[i].trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+              rows.push(cells);
+              i++;
+            }
+            out.push(
+              `<table><thead><tr>${cols.map((c) => `<th>${inlineHtml(c)}</th>`).join('')}</tr></thead>` +
+              `<tbody>${rows.map((r) => `<tr>${cols.map((_, j) => `<td>${inlineHtml(r[j] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table>`,
+            );
+            continue;
+          }
+
+          // Heading.
+          const h = l.match(/^(#{1,6})\s+(.*)$/);
+          if (h) {
+            const n = h[1].length;
+            out.push(`<h${n}>${inlineHtml(h[2])}</h${n}>`);
+            i++;
+            continue;
+          }
+
+          // Blockquote.
+          if (/^\s*>\s?/.test(l)) {
+            const q = [];
+            while (i < lines.length && /^\s*>\s?/.test(lines[i])) {
+              q.push(lines[i].replace(/^\s*>\s?/, ''));
+              i++;
+            }
+            out.push(`<blockquote>${q.map((x) => inlineHtml(x)).join('<br>')}</blockquote>`);
+            continue;
+          }
+
+          // Lists.
+          const bullet = l.match(/^\s*([-*+])\s+(.*)$/);
+          const ordered = l.match(/^\s*(\d+)\.\s+(.*)$/);
+          if (bullet || ordered) {
+            const tag = ordered ? 'ol' : 'ul';
+            const items = [];
+            while (i < lines.length) {
+              const b = lines[i].match(/^\s*([-*+])\s+(.*)$/);
+              const o = lines[i].match(/^\s*(\d+)\.\s+(.*)$/);
+              if (tag === 'ul' && !b) break;
+              if (tag === 'ol' && !o) break;
+              items.push(inlineHtml((b ? b[2] : o[2]) || ''));
+              i++;
+            }
+            out.push(`<${tag}>${items.map((x) => `<li>${x}</li>`).join('')}</${tag}>`);
+            continue;
+          }
+
+          // Paragraph: gather until blank or next block.
+          const para = [];
+          while (i < lines.length && lines[i].trim() &&
+            !/^```/.test(lines[i]) &&
+            !/^(#{1,6})\s+/.test(lines[i]) &&
+            !/^\s*>\s?/.test(lines[i]) &&
+            !/^\s*([-*+])\s+/.test(lines[i]) &&
+            !/^\s*(\d+)\.\s+/.test(lines[i])
+          ) {
+            para.push(lines[i]);
+            i++;
+          }
+          flushPara(para);
+        }
+
+        return out.join('');
       }
 
       /** One line that says what a ticket needs from you. */
