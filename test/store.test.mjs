@@ -59,6 +59,15 @@ test('hooks: one session ticket follows the session; permission tickets open and
   fire('Notification', { notification_type: 'idle_prompt', message: 'Claude is waiting for your input' });
   assert.equal(sessionTicket(store).status, 'review', 'idle_prompt does not demote review');
 
+  // A turn that ends on a question waits on its human; the question leads the body.
+  fire('UserPromptSubmit', { prompt: 'and the docs' });
+  fire('Stop', { last_assistant_message: 'Docs drafted.\n\nDo you want them in the README or in docs/?' });
+  s = sessionTicket(store);
+  assert.deepEqual([s.status, s.assignee], ['waiting_on_user', 'user']);
+  assert.match(s.body, /^❓ Do you want them in the README or in docs\/\?/);
+  fire('UserPromptSubmit', { prompt: 'docs/' });
+  assert.equal(sessionTicket(store).status, 'in_progress', 'answered: back to work');
+
   fire('Elicitation', { message: 'Which environment?' });
   assert.equal(waits(store).filter((t) => t.status === 'waiting_on_user')[0].title, 'Which environment?');
   fire('SessionEnd', { reason: 'exit' });
