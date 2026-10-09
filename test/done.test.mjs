@@ -116,7 +116,8 @@ test('page: a round ✓ on open cards, rows and the panel, a toast with Undo, th
   assert.match(page, /\.doneBtn \{[^}]*width: 32px; height: 32px;[^}]*opacity: 0;/);
   assert.match(page, /@media \(hover: none\), \(pointer: coarse\) \{ \.doneBtn \{ opacity: 1; \}/);
   assert.match(page, /\.doneBtn:focus-visible \{ outline: 2px solid var\(--accent\)/);
-  // Keyboard: d, never while typing.
-  assert.match(page, /e\.key === 'd' \|\| e\.key === 'D'\) && !e\.ctrlKey && !e\.metaKey && !e\.altKey && !e\.target\.closest\?\.\('input, textarea, select, \[contenteditable\]'\)/);
+  // Keyboard: d, never while typing (behaviour tested in keys.test.mjs).
+  assert.match(page, /d: 'done'/);
+  assert.match(page, /if \(ctx\.typing \|\| mod \|\| e\.altKey\) return null;/);
   assert.match(page, /role', 'status'/, 'the toast is announced');
 });

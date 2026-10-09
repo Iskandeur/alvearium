@@ -142,6 +142,7 @@
       transition: box-shadow 0.15s ease, border-color 0.15s ease; min-width: 0; cursor: pointer;
     }
     .card:hover { box-shadow: var(--shadow-hover); border-color: var(--line-strong); }
+    .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .card.sel { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
     .card.dim { opacity: 0.62; }
     .head { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
@@ -196,6 +197,7 @@
     .group button.tag { flex: none; }
     .row { display: grid; grid-template-columns: 74px minmax(0, 1fr) 130px 150px 64px 32px; gap: 12px; align-items: center; padding: 9px 14px; border-top: 1px solid var(--line); cursor: pointer; }
     .row:hover { background: var(--accent-soft); }
+    .row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .row.sel { background: var(--accent-soft); }
     .row .k { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
     .row .t { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -266,8 +268,33 @@
     .ev .said { margin-top: 4px; padding: 8px 10px; background: var(--lane); border-radius: 8px; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
     .compose { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
     .compose textarea { min-height: 64px; }
+    .compose .hint { font-size: 12px; color: var(--faint); text-align: right; margin-top: -4px; }
     .compose .acts, .formActs { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
     .formActs .msg { margin-right: auto; color: var(--danger); font-size: 12.5px; }
+
+    /* Keyboard shortcut help */
+    .kbd { font: inherit; font-size: 11.5px; color: var(--faint); border: 1px solid var(--line-strong); border-radius: 5px; padding: 0 5px; line-height: 18px; background: color-mix(in srgb, var(--card) 60%, transparent); }
+    .helpScrim { position: fixed; inset: 0; background: rgba(10, 10, 14, 0.22); z-index: 29; }
+    .help {
+      position: fixed; left: 50%; top: 12vh; transform: translateX(-50%);
+      width: min(680px, calc(100vw - 28px)); max-height: calc(100vh - 24vh);
+      overflow: auto; z-index: 30;
+      border: 1px solid var(--line); border-radius: var(--radius);
+      background: var(--card); box-shadow: 0 18px 70px rgba(16, 18, 27, 0.25);
+      padding: 14px 16px;
+    }
+    .help h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+    .help .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
+    .help .rowH { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); }
+    .help .rowH:first-child { border-top: 0; }
+    .help .keys { display: flex; flex-wrap: wrap; gap: 6px; }
+    .help .desc { color: var(--muted); font-size: 13px; }
+    .help .x { margin-left: auto; border: 0; background: none; width: 30px; height: 30px; border-radius: 8px; color: var(--muted); font-size: 18px; }
+    .help .x:hover { background: var(--chip); }
+    .helpHead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .helpNote { color: var(--faint); font-size: 12.5px; margin: 8px 0 0; }
+    @media (max-width: 900px) { .help .cols { grid-template-columns: 1fr; } .help .rowH { grid-template-columns: 72px minmax(0, 1fr); } }
+
     .toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 20; display: flex; align-items: center; gap: 4px 12px; max-width: calc(100vw - 28px); box-shadow: 0 6px 24px rgba(16, 18, 27, 0.18); }
     .toast .tmsg { overflow-wrap: anywhere; }
     .toast .tmsg em { font-style: normal; opacity: 0.72; }
@@ -339,6 +366,7 @@
     .nrow { display: grid; grid-template-columns: 26px 30px minmax(0, 1fr) auto 64px 32px; gap: 10px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); cursor: pointer; background: var(--card); }
     .nrow:first-child { border-top: 0; }
     .nrow:hover, .nrow.sel { background: var(--accent-soft); }
+    .nrow:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .nrow .pos { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; }
     .nrow .t { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
     .nrow .tt { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -483,6 +511,9 @@
 
   <div class="scrim" id="scrim" hidden></div>
   <aside class="panel" id="panel" hidden aria-label="Ticket"></aside>
+
+  <div class="helpScrim" id="helpScrim" hidden></div>
+  <div class="help" id="help" hidden role="dialog" aria-modal="true" aria-label="Keyboard shortcuts"></div>
 
   <script>
     (() => {
@@ -1174,7 +1205,7 @@
               <span class="lab">Created</span><span>${t.created_by ? who(t.created_by) + ' · ' : ''}${esc(when(t.created_at))} · updated ${ago(t.updated_at, now)} ago</span>
             </div>
             ${t.kind === 'feedback' && t.status !== 'done' && t.status !== 'cancelled' ? `<div class="resolve"><textarea id="resolution" placeholder="Resolution: what was done, or why not (kept in the history)"></textarea><div class="acts"><button type="button" class="btn" data-act="fbCancel">Won't do</button><button type="button" class="btn primary" data-act="fbDone">Mark handled</button></div></div>` : ''}
-            <div class="formActs" id="saveBar" hidden><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="revert">Discard</button><button type="submit" class="btn primary">Save</button></div>
+            <div class="formActs" id="saveBar" hidden><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="revert">Discard</button><button type="submit" class="btn primary" title="${esc(sendHint('save'))}">Save</button></div>
             <div class="sect">Description <button type="button" class="clear" data-act="editBody">Edit</button></div>
             <div class="md${t.body ? '' : ' empty-body'}" id="bodyView">${t.body ? md(t.body) : 'No description.'}</div>
             <textarea name="body" id="bodyEdit" hidden>${esc(t.body || '')}</textarea>
@@ -1187,7 +1218,7 @@
             </div>`}
             <div class="sect">History</div>
             <div class="timeline">${(t.events || []).map(eventLine).join('')}</div>
-            <div class="compose"><textarea id="comment" placeholder="Add a comment…" aria-label="Comment"></textarea><div class="acts"><button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
+            <div class="compose"><textarea id="comment" placeholder="Add a comment…" aria-label="Comment"></textarea><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts"><button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
           </form>`;
         $('panel').hidden = false;
         $('scrim').hidden = false;
@@ -1211,7 +1242,7 @@
               <label>Repo</label><input name="repo" value="${esc(prefill.repo || (f.repo && f.repo.includes('/') ? f.repo : ''))}" placeholder="owner/name (optional)">
             </div>
             <textarea name="body" placeholder="Details (markdown)"></textarea>
-            <div class="formActs" style="margin-top:12px"><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="close">Cancel</button><button type="submit" class="btn primary">Create</button></div>
+            <div class="formActs" style="margin-top:12px"><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="close">Cancel</button><button type="submit" class="btn primary" title="${esc(sendHint('create'))}">Create</button></div>
           </form>`;
         $('panel').dataset.parent = prefill.parent || '';
         $('panel').dataset.session = prefill.session || f.session || '';
@@ -1269,6 +1300,7 @@
         }
         if (el.dataset.open) return openPanel(el.dataset.open);
         const act = el.dataset.act;
+        if (act === 'helpClose') return closeHelp();
         if (act === 'close') return closePanel();
         if (act === 'new') return renderCreate();
         if (act === 'clear') {
@@ -1327,24 +1359,153 @@
           } catch (err) { toast(err.message); }
         }
       });
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && (e.target.id === 'addBlocker' || e.target.id === 'addBlocked')) {
-          e.preventDefault();
-          return document.querySelector(`[data-act="${e.target.id}"]`).click();
+      const IS_MAC = /Mac|iPhone|iPad|iPod/i.test(navigator.platform) || /Mac OS X/i.test(navigator.userAgent);
+      const isTyping = (el) => !!el?.closest?.('input, textarea, select, [contenteditable]');
+      const modLabel = () => (IS_MAC ? '⌘' : 'Ctrl');
+      const sendHint = (verb) => `${modLabel()}+↵ to ${verb}`;
+
+      let helpPrevFocus = null;
+      function openHelp() {
+        if (!$('help').hidden) return;
+        helpPrevFocus = document.activeElement;
+        renderHelp();
+        $('helpScrim').hidden = false;
+        $('help').hidden = false;
+        $('helpClose')?.focus?.();
+      }
+      function closeHelp() {
+        if ($('help').hidden) return;
+        $('helpScrim').hidden = true;
+        $('help').hidden = true;
+        const prev = helpPrevFocus;
+        helpPrevFocus = null;
+        prev?.focus?.();
+      }
+      function kbd(keys) {
+        return String(keys)
+          .split(' ')
+          .filter(Boolean)
+          .map((k) => `<span class="kbd">${esc(k)}</span>`)
+          .join('');
+      }
+      function renderHelp() {
+        const g = [
+          { keys: '/', desc: 'Focus search' },
+          { keys: 'n', desc: 'New ticket' },
+          { keys: 'j', desc: 'Next ticket' },
+          { keys: 'k', desc: 'Previous ticket' },
+          { keys: 'Enter', desc: 'Open focused ticket' },
+          { keys: 'o', desc: 'Open focused ticket' },
+          { keys: 'd', desc: 'Mark done (focused or open)' },
+          { keys: 'c', desc: 'Focus comment (when a ticket is open)' },
+          { keys: 'b', desc: 'Board view' },
+          { keys: 'l', desc: 'List view' },
+          { keys: '?', desc: 'Show this help' },
+          { keys: 'Esc', desc: 'Close panel / help' },
+        ];
+        const inForm = [
+          { keys: `${modLabel()}+↵`, desc: 'Send the comment (in the comment box)' },
+          { keys: `${modLabel()}+↵`, desc: 'Save edits, or create the ticket (in title or description)' },
+          { keys: '↵', desc: 'New line (in a text box)' },
+        ];
+        const row = (x) => `<div class="rowH"><div class="keys">${kbd(x.keys)}</div><div class="desc">${esc(x.desc)}</div></div>`;
+        $('help').innerHTML = `
+          <div class="helpHead"><h3>Keyboard shortcuts</h3><button type="button" class="x" id="helpClose" data-act="helpClose" aria-label="Close">×</button></div>
+          <div class="cols">
+            <div>
+              ${g.map(row).join('')}
+            </div>
+            <div>
+              ${inForm.map(row).join('')}
+              <p class="helpNote">Global shortcuts are disabled while you type in a text field.</p>
+            </div>
+          </div>`;
+      }
+      $('helpScrim').addEventListener('click', () => closeHelp());
+
+      function activeOpenNodes() {
+        return [...document.querySelectorAll('#main > :not([hidden]) [data-open]')]
+          .filter((el) => !el.closest('aside') && el.offsetParent !== null);
+      }
+      function focusDelta(delta) {
+        const nodes = activeOpenNodes();
+        if (!nodes.length) return;
+        const cur = document.activeElement?.closest?.('[data-open]');
+        let i = cur && nodes.includes(cur) ? nodes.indexOf(cur) : -1;
+        if (i < 0 && state.ticket) {
+          const sel = nodes.find((n) => n.dataset.open === state.ticket);
+          if (sel) i = nodes.indexOf(sel);
         }
-        if (e.key === 'Escape' && !$('panel').hidden) return closePanel();
-        // `d`: mark done the focused card or row, else the open ticket. Never while typing.
-        if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !e.altKey && !e.target.closest?.('input, textarea, select, [contenteditable]')) {
-          const host = e.target.closest?.('[data-open]');
+        const next = nodes[Math.max(0, Math.min(nodes.length - 1, i + delta))] || nodes[0];
+        next.focus();
+        next.scrollIntoView?.({ block: 'nearest' });
+      }
+
+      // Which shortcut a key press means, from the key and where the focus is. Pure, so it is tested.
+      // ctx: { helpOpen, panelOpen, typing, targetId, formId, onTicket }
+      function shortcut(e, ctx) {
+        const mod = e.ctrlKey || e.metaKey;
+        if (e.key === 'Enter' && !mod && (ctx.targetId === 'addBlocker' || ctx.targetId === 'addBlocked')) return 'addDep';
+        if (e.key === 'Escape') return ctx.helpOpen ? 'closeHelp' : ctx.panelOpen ? 'closePanel' : null;
+        // Ctrl/Cmd+Enter works while typing: send the comment, or save / create the ticket.
+        if (e.key === 'Enter' && mod && !e.shiftKey && !e.altKey && ctx.panelOpen) {
+          if (ctx.targetId === 'comment') return 'sendComment';
+          if (ctx.formId === 'tform' || ctx.formId === 'cform') return 'submitForm';
+          return null;
+        }
+        if (ctx.helpOpen) return e.key === '?' ? 'closeHelp' : null;
+        // Single keys: never while typing, never with a modifier (browser and screen-reader keys stay theirs).
+        if (ctx.typing || mod || e.altKey) return null;
+        if (e.key === 'Enter' && !e.shiftKey) return ctx.onTicket ? 'open' : null;
+        const map = { '/': 'search', '?': 'help', n: 'new', j: 'next', k: 'prev', o: 'open', d: 'done', c: 'comment', b: 'board', l: 'list' };
+        const a = map[e.key] || map[e.key.toLowerCase()] || null;
+        if (a === 'open' && !ctx.onTicket) return null;
+        if (a === 'comment' && !ctx.panelOpen) return null;
+        return a;
+      }
+      function setView(v) {
+        if (state.view === v) return;
+        state.view = v;
+        writeUrl(true);
+        renderFilters();
+        refresh();
+      }
+      document.addEventListener('keydown', (e) => {
+        const t = e.target;
+        const card = t?.dataset?.open && !t.closest('aside') ? t : null;
+        const a = shortcut(e, {
+          helpOpen: !$('help').hidden,
+          panelOpen: !$('panel').hidden,
+          typing: isTyping(t),
+          targetId: t?.id || '',
+          formId: t?.closest?.('form')?.id || '',
+          onTicket: !!card,
+        });
+        if (!a) return;
+        if (a === 'done') {
+          // The focused card or row, else the open ticket; nothing to close = the key stays free.
+          const host = t.closest?.('[data-open]');
           let btn = host && !host.closest('aside') ? host.querySelector('[data-done]') : null;
           if (!btn && !$('panel').hidden) btn = $('panel').querySelector('.pHead [data-done]');
-          if (btn) {
-            e.preventDefault();
-            return btn.click();
-          }
+          if (!btn) return;
+          e.preventDefault();
+          return btn.click();
         }
-        if (e.key === 'Enter' && e.target.dataset?.open && !e.target.closest('aside')) openPanel(e.target.dataset.open);
-        if (e.key === '/' && document.activeElement === document.body) { e.preventDefault(); $('q').focus(); }
+        e.preventDefault();
+        if (a === 'addDep') return document.querySelector(`[data-act="${t.id}"]`).click();
+        if (a === 'closeHelp') return closeHelp();
+        if (a === 'closePanel') return closePanel();
+        if (a === 'sendComment') return document.querySelector('[data-act="comment"]')?.click();
+        if (a === 'submitForm') return t.closest('form').requestSubmit();
+        if (a === 'search') return $('q').focus();
+        if (a === 'help') return openHelp();
+        if (a === 'new') return renderCreate();
+        if (a === 'board') return setView('board');
+        if (a === 'list') return setView('list');
+        if (a === 'comment') return $('comment')?.focus();
+        if (a === 'next') return focusDelta(+1);
+        if (a === 'prev') return focusDelta(-1);
+        if (a === 'open') return openPanel(card.dataset.open);
       });
       document.addEventListener('change', (e) => {
         const k = e.target.dataset?.pick;
