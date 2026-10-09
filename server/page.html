@@ -250,6 +250,21 @@
     .md { font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
     .md a { color: var(--accent); }
     .md.empty-body { color: var(--faint); }
+    .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 { margin: 10px 0 6px; white-space: normal; }
+    .md h1 { font-size: 1.35em; }
+    .md h2 { font-size: 1.2em; }
+    .md h3 { font-size: 1.1em; }
+    .md ul, .md ol { padding-left: 1.2em; margin: 6px 0; white-space: normal; }
+    .md li { margin: 2px 0; }
+    .md blockquote { margin: 8px 0; padding-left: 10px; border-left: 2px solid var(--line-strong); color: var(--muted); white-space: normal; }
+    .md pre { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: rgba(0,0,0,0.03); overflow: auto; white-space: pre; }
+    :root[data-theme="dark"] .md pre { background: rgba(255,255,255,0.04); }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .md pre { background: rgba(255,255,255,0.04); } }
+    .md table { border-collapse: collapse; margin: 8px 0; width: 100%; }
+    .md th, .md td { border: 1px solid var(--line); padding: 6px 8px; white-space: normal; }
+    .md th { background: rgba(0,0,0,0.03); }
+    :root[data-theme="dark"] .md th { background: rgba(255,255,255,0.04); }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .md th { background: rgba(255,255,255,0.04); } }
     textarea { width: 100%; min-height: 110px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--card); padding: 9px 10px; resize: vertical; line-height: 1.5; }
     .links { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
     .links a { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -607,14 +622,24 @@
         ['hook', { id: 'hook', type: 'system', name: 'Session' }],
       ]);
       function learnActors(list) {
-        for (const a of Object.values(list || {})) if (a && a.id) actors.set(a.id, { ...actors.get(a.id), ...a, name: a.id === 'user' ? 'You' : a.name || a.id });
+        for (const a of Object.values(list || {})) if (a && a.id) actors.set(a.id, { ...actors.get(a.id), ...a, name: a.id === 'user' ? 'You' : a.name || null });
       }
       function actor(id) {
-        if (actors.has(id)) return actors.get(id);
-        const sub = String(id || '').includes('/');
-        return { id, type: sub ? 'subagent' : 'agent', name: sub ? String(id).split('/').pop() : String(id || '?') };
+        if (actors.has(id)) {
+          const a = actors.get(id);
+          const sid = String(id || '');
+          return { ...a, name: a.name || (sid.includes('/') ? sid.split('/').pop() : sid || '?') };
+        }
+        const sid = String(id || '');
+        const sub = sid.includes('/');
+        return { id, type: sub ? 'subagent' : 'agent', name: sub ? sid.split('/').pop() : sid || '?' };
       }
       const actorName = (id) => actor(id).name;
+      const actorIdTitle = (id) => {
+        const sid = String(id || '');
+        if (!sid || sid === 'user' || sid === 'claude' || sid === 'hook') return '';
+        return sid;
+      };
       function hue(id) {
         if (id === 'user') return 152;
         if (id === 'claude') return 18;
@@ -629,10 +654,21 @@
       }
       function avatar(id, extra = '') {
         const a = actor(id);
-        const title = `${a.name}${a.type === 'subagent' ? ' (subagent' + (a.parent ? ' of ' + actorName(a.parent) : '') + ')' : a.type === 'human' ? '' : ' (' + a.type + ')'}`;
-        return `<span class="av ${esc(a.type)} ${extra}" style="--h:${hue(id)}" title="${esc(title)}">${esc(initials(a))}</span>`;
+        const parts = [a.name];
+        const full = actorIdTitle(id);
+        if (full && full !== a.name) parts.push(full);
+        if (a.type === 'subagent') parts.push('subagent' + (a.parent ? ' of ' + actorName(a.parent) : ''));
+        else if (a.type !== 'human') parts.push(a.type);
+        const title = parts.filter(Boolean).join(' · ');
+        const act = String(id || '');
+        const canRename = act && !['user', 'claude', 'hook'].includes(act);
+        return `<span class="av ${esc(a.type)} ${extra}" style="--h:${hue(id)}" title="${esc(title)}" data-actor="${esc(act)}"${canRename ? ' data-act="renameActor"' : ''}>${esc(initials(a))}</span>`;
       }
-      const who = (id) => `<span class="who">${avatar(id)}<b>${esc(actorName(id))}</b></span>`;
+      const who = (id) => {
+        const act = String(id || '');
+        const canRename = act && !['user', 'claude', 'hook'].includes(act);
+        return `<span class="who" data-actor="${esc(act)}"${canRename ? ' data-act="renameActor"' : ''}>${avatar(id)}<b>${esc(actorName(id))}</b></span>`;
+      };
       const PRIO = { P0: 'P0 · now', P1: 'P1 · next', P2: 'P2 · normal', P3: 'P3 · later' };
       const prio = (p) => (p ? `<span class="prio ${esc(p)}" title="Priority ${esc(PRIO[p] || p)}">${esc(p)}</span>` : '');
       const FTYPE = { bug: 'Bug', suggestion: 'Suggestion', friction: 'Friction' };
@@ -917,8 +953,8 @@
         if (k === 'repo') return facets.repos.map((r) => o(r.value, repoName(r.value) + (facets.repos.filter((x) => repoName(x.value) === repoName(r.value)).length > 1 ? ' (' + r.value + ')' : ''), r.open || ''));
         if (k === 'session') return facets.sessions.filter((s) => !state.f.repo || s.repo === state.f.repo || repoName(s.repo) === state.f.repo).slice(0, 80).map((s) => o(s.id, `${s.title || 'Session ' + s.id.slice(0, 6)}${s.repo ? ' — ' + repoName(s.repo) : ''}`, s.open || ''));
         if (k === 'status') return [['open', 'Open'], ['todo', 'To do'], ['in_progress', 'In progress'], ['waiting_on_user', 'Waiting on you'], ['review', 'Review'], ['failed', 'Failed'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([v, l]) => o(v, l));
-        if (k === 'assignee') return [o('user', 'You'), ...(facets.actors || []).filter((a) => a.id !== 'user' && a.type !== 'system').map((a) => o(a.id, a.name, a.open || ''))];
-        if (k === 'actor') return (facets.actors || []).filter((a) => a.type !== 'system').map((a) => o(a.id, (a.type === 'subagent' ? '↳ ' : '') + (a.id === 'user' ? 'You' : a.name), a.open || ''));
+        if (k === 'assignee') return [o('user', 'You'), ...(facets.actors || []).filter((a) => a.id !== 'user' && a.type !== 'system').map((a) => o(a.id, actorName(a.id), a.open || ''))];
+        if (k === 'actor') return (facets.actors || []).filter((a) => a.type !== 'system').map((a) => o(a.id, (a.type === 'subagent' ? '↳ ' : '') + (a.id === 'user' ? 'You' : actorName(a.id)), a.open || ''));
         if (k === 'priority') return [o('P0', 'P0 · now'), o('P1', 'P1 · next'), o('P2', 'P2 · normal'), o('P3', 'P3 · later'), o('none', 'No priority')];
         if (k === 'subtype') return [o('bug', 'Bug'), o('suggestion', 'Suggestion'), o('friction', 'Friction')];
         if (k === 'label') return facets.labels.map((l) => o(l.value, '#' + l.value, l.total));
@@ -1173,7 +1209,7 @@
           .join('');
       }
       const assigneeOpts = (cur) => {
-        const list = [['user', 'You'], ['claude', 'Claude'], ...[...actors.values()].filter((a) => !['user', 'claude', 'hook'].includes(a.id) && a.type !== 'system').map((a) => [a.id, (a.type === 'subagent' ? '↳ ' : '') + a.name])];
+        const list = [['user', 'You'], ['claude', 'Claude'], ...[...actors.values()].filter((a) => !['user', 'claude', 'hook'].includes(a.id) && a.type !== 'system').map((a) => [a.id, (a.type === 'subagent' ? '↳ ' : '') + actorName(a.id)])];
         if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur)]);
         return list;
       };
@@ -1264,7 +1300,7 @@
 
       // ---- events -------------------------------------------------------------------------------
       document.addEventListener('click', async (e) => {
-        const el = e.target.closest('[data-done],[data-undep],[data-filter],[data-unfilter],[data-view],[data-act],[data-open],[data-stop]');
+        const el = e.target.closest('[data-done],[data-undep],[data-filter],[data-unfilter],[data-view],[data-act],[data-open],[data-stop],[data-actor]');
         if (!el) return;
         if (el.dataset.stop) return;
         if (el.dataset.done) {
@@ -1303,6 +1339,24 @@
         if (act === 'helpClose') return closeHelp();
         if (act === 'close') return closePanel();
         if (act === 'new') return renderCreate();
+        if (act === 'renameActor') {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = el.dataset.actor || '';
+          if (!id || ['user', 'claude', 'hook'].includes(id)) return;
+          const cur = actorName(id);
+          const next = prompt(`Display name for ${id} (empty = reset):`, cur);
+          if (next === null) return;
+          try {
+            const r = await api(`actors/${encodeURIComponent(id)}`, { name: String(next || '').trim() || null });
+            const a = r?.actor;
+            if (a && a.id) learnActors({ [a.id]: a });
+            toast(a?.name ? `Renamed ${id} → ${a.name}` : `Reset ${id}`);
+            refresh();
+            if (!$('panel').hidden && $('panel').__ticket && !$('panel').contains(document.activeElement)) openPanel($('panel').__ticket.key, false);
+          } catch (err) { toast(err.message); }
+          return;
+        }
         if (act === 'clear') {
           state.f = {};
           state.q = '';
