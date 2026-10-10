@@ -143,7 +143,8 @@ holds or opened.
 
 **Pictures (0.5.0).** Every actor, human or agent, can have a profile picture: click its avatar
 anywhere (a card, the panel, the history) and choose *Upload picture*. The page crops it square and
-resizes it to 256 px before sending it. Without one, the avatar shows coloured initials (the colour
+resizes it to 256 px before sending it ([board](docs/screenshots/avatars-board-desktop-light.png),
+[dialog](docs/screenshots/avatar-dialog-desktop-light.png)). Without one, the avatar shows coloured initials (the colour
 comes from the id). The server keeps PNG, JPEG and WebP only, checked by their first bytes (the
 file name and the declared type are ignored, so an SVG renamed `.png` is refused), at most 256 KiB
 and 1024×1024 px, and serves them with their own type, `nosniff` and a sandbox CSP. It never
@@ -187,7 +188,7 @@ Give that agent its token as `SESSION_BOARD_TOKEN` instead of the main one. A re
 `user` and `hook` cannot be agent actors, every token must be at least 24 characters and differ from
 the main token, and the server refuses to start on a line it cannot read.
 
-## Members and roles (0.5.1)
+## Members, roles and invitations (0.5.2)
 
 A board can have several humans. Each one has a name, a role and personal tokens; the history
 names whoever did what (no more anonymous *You* once there are two of you). The server checks the
@@ -230,6 +231,43 @@ then `429`); a valid token is never slowed down. Behind a proxy you run, set
 | `DELETE /api/members/<id>` | owner, admin | revoke (never the owner) |
 | `GET`, `POST /api/tokens`, `DELETE /api/tokens/<id>` | humans | your tokens (`{ label }`); admins may revoke anyone's but the owner's |
 | `GET /api/audit` | owner, admin | who invited, renamed, changed a role, revoked, created a token, and when |
+
+### Inviting someone
+
+On the Members page, owner and admins pick a role (`member`, `viewer` or `admin`, never `owner`),
+a lifetime (7 days by default, 1 to 30) and an optional note, then *Create link*. The link is shown
+once; send it to that person only. It works **once**: the first person who opens it chooses a name
+and joins with that role; the same link then answers *already used*. A pending link can be revoked
+from the same list, and an expired one stops working by itself. The list shows who joined from
+each link, and the audit log who invited whom.
+
+The invitee's browser is signed in right away (session cookie), and the page shows their personal
+token once, for the Claude Code plugin or the CLI on their machine
+([invitation](docs/screenshots/members-invite-desktop-light.png),
+[joining](docs/screenshots/invite-accept-desktop-light.png),
+[token shown once](docs/screenshots/invite-joined-desktop-light.png),
+[a viewer's board](docs/screenshots/viewer-board-desktop-light.png),
+[Members](docs/screenshots/members-desktop-light.png), [phone](docs/screenshots/members-mobile-dark.png)).
+
+How the link is protected: its secret is 32 random bytes, stored only as a SHA-256 hash; it travels
+in the URL fragment (`/#invite=…`, never sent to the server or to a `Referer`) and in POST bodies,
+never in a query string; the page drops it from the address bar as soon as it loads. Accepting and
+checking links are limited to 10 attempts per address every 15 minutes, cross-site requests are
+refused, and two people racing on one link end with one member.
+
+**HTTPS is required** for anyone but the owner: the session cookie is `Secure`, so browsers keep it
+only over HTTPS (or on `localhost`). On a plain-HTTP address, invitees can still use their token
+with the plugin and the CLI, but the page will not stay signed in.
+
+**Behind an access proxy** (Cloudflare Access, an SSO gateway, a VPN): the invitee must get past it
+first. Allow their e-mail in the proxy's policy for the board's address before you send the link,
+or the link will stop at the proxy's login page.
+
+| Route | Who | |
+| :- | :- | :- |
+| `POST /api/invites` | owner, admin | `{ role, days, note }` → `{ id, token, path }`, shown once |
+| `GET /api/invites`, `DELETE /api/invites/<id>` | owner, admin | list with status (`pending`, `used`, `expired`, `revoked`); revoke |
+| `POST /api/invites/check`, `POST /api/invites/accept` | anyone holding the link | `{ token }`; `{ token, name }` → member, personal token (once), session cookie |
 
 ## Feedback inbox
 
@@ -380,7 +418,7 @@ The import needs the server to be 0.2.3 or later: update it (`git pull && docker
 ### API
 
 Every `/api/*` route needs `Authorization: Bearer <token>`: the main token, an agent token (see
-*Agent tokens*) or a personal token (see *Members and roles*); the page uses its session cookie. A client may say who it is with `x-session-board-actor: <id>` (and
+*Agent tokens*) or a personal token (see *Members, roles and invitations*); the page uses its session cookie. A client may say who it is with `x-session-board-actor: <id>` (and
 `x-session-board-actor-name`); the plugin's MCP server does. With an agent token the header can only
 name the agent or a sub-actor under it. `GET /` serves the web page (open it once
 as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without a token.

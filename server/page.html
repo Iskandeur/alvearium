@@ -332,6 +332,8 @@
     .mbForm label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); flex: 1; min-width: 180px; }
     .mbForm input[type="text"], .mbForm select, .mbRow select { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text); font: inherit; }
     .mbForm.inline input[type="text"] { flex: 1; min-width: 160px; }
+    .mbForm input[type="number"] { padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text); font: inherit; }
+    body:has(#invite:not([hidden])) header .bar > :not(.brand) { visibility: hidden; }
     .role { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); }
     .role.owner { background: var(--accent-soft); color: var(--accent); }
     .role.admin { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--text); }
@@ -471,6 +473,14 @@
     }
 
     /* Auth */
+    #invite { max-width: 480px; margin: 10vh auto 0; padding: 0 24px; text-align: center; }
+    #invite h2 { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
+    #invite p { margin: 0 0 16px; color: var(--muted); }
+    #invite form { display: flex; gap: 8px; }
+    #invite input { flex: 1; min-width: 0; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text); font: inherit; }
+    #invite .msg { color: var(--danger); margin-top: 12px; min-height: 1em; }
+    #invite .secret { margin: 8px 0 6px; text-align: left; }
+    .invLink { margin: 8px 0 4px; }
     #auth { max-width: 440px; margin: 12vh auto 0; padding: 0 24px; text-align: center; }
     #auth h2 { font-size: 16px; font-weight: 600; margin: 0 0 6px; }
     #auth p { margin: 0 0 18px; color: var(--muted); }
@@ -543,6 +553,21 @@
     </form>
   </section>
 
+  <section id="invite" hidden>
+    <h2>You are invited to this board</h2>
+    <p id="inviteInfo">Checking the invitation…</p>
+    <form id="acceptForm" hidden>
+      <input name="name" maxlength="60" placeholder="Your name, as others will see it" autocomplete="name" required>
+      <button class="btn primary" type="submit">Join</button>
+    </form>
+    <div id="inviteDone" hidden>
+      <p>Welcome. This is your personal token, for the Claude Code plugin or the CLI (<code>SESSION_BOARD_TOKEN</code>). It is shown once: copy it now. This browser is already signed in.</p>
+      <div class="secret"><code id="inviteToken"></code><button type="button" class="btn" data-act="inviteCopy">Copy</button></div>
+      <p><button type="button" class="btn primary" data-act="inviteContinue">Open the board</button></p>
+    </div>
+    <p class="msg" id="inviteMsg" role="alert"></p>
+  </section>
+
   <main class="wrap" id="main">
     <div id="boardView">
       <div class="grid">
@@ -584,6 +609,10 @@
       const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
       const httpsUrl = (u) => (typeof u === 'string' && /^https:\/\//.test(u) ? u : null);
 
+      // An invitation link: keep the secret in memory only and drop it from the address bar at once.
+      const invHash = location.hash.match(/invite=(alvi_[\w-]+)/);
+      const inviteSecret = invHash ? invHash[1] : null;
+      if (invHash) history.replaceState(null, '', location.pathname + location.search);
       const hash = location.hash.match(/token=([^&]+)/);
       if (hash) {
         localStorage.setItem(KEY, decodeURIComponent(hash[1]));
@@ -1445,6 +1474,8 @@
           return openActor(el.dataset.actor || '');
         }
         if (act === 'avRemove') return removeAvatar();
+        if (act === 'inviteCopy') { navigator.clipboard?.writeText($('inviteToken').textContent); return toast('Copied'); }
+        if (act === 'inviteContinue') { $('invite').hidden = true; $('inviteToken').textContent = ''; return boot(); }
         if (act === 'clear') {
           state.f = {};
           state.q = '';
@@ -2129,6 +2160,92 @@
         } catch (err) { toast(err.message); }
       });
 
+      // ---- invitations -----------------------------------------------------------------------------
+      async function inviteCall(path, body) {
+        const res = await fetch('api/invites/' + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+        return data;
+      }
+      async function showInvite(secret) {
+        $('main').hidden = true;
+        $('auth').hidden = true;
+        $('invite').hidden = false;
+        try {
+          const info = await inviteCall('check', { token: secret });
+          $('inviteInfo').textContent = `${info.invited_by ? info.invited_by + ' invites you' : 'You are invited'} as ${info.role}. The invitation expires ${when(info.expires_at)}. Choose the name others will see.`;
+          $('acceptForm').hidden = false;
+          $('acceptForm').name.focus();
+        } catch (err) {
+          $('inviteInfo').textContent = 'This invitation can no longer be used.';
+          $('inviteMsg').textContent = err.message;
+        }
+        $('acceptForm').onsubmit = async (e) => {
+          e.preventDefault();
+          $('inviteMsg').textContent = '';
+          try {
+            const out = await inviteCall('accept', { token: secret, name: $('acceptForm').name.value });
+            me = { id: out.member.id, name: out.member.name, role: out.member.role, csrf: out.csrf, via: 'cookie' };
+            localStorage.removeItem(KEY);
+            $('acceptForm').hidden = true;
+            $('inviteInfo').textContent = `You joined as ${out.member.name} (${out.member.role}).`;
+            $('inviteToken').textContent = out.token;
+            $('inviteDone').hidden = false;
+          } catch (err) { $('inviteMsg').textContent = err.message; }
+        };
+      }
+      let shownInvite = null;
+      async function renderInvites() {
+        const slot = $('invitesSlot');
+        if (!slot) return;
+        let list;
+        try { list = (await api('invites')).invites; } catch { return; }
+        const base = location.origin + location.pathname;
+        const status = (i) => i.status === 'used' ? `joined as ${who(i.used_by)}` : i.status === 'pending' ? `expires ${esc(when(i.expires_at))}` : esc(i.status);
+        const rows = list.slice(0, 20).map((i) => `
+          <div class="mbRow">
+            <span><span class="role ${esc(i.role)}">${esc(i.role)}</span>${i.note ? ' ' + esc(i.note) : ''}</span>
+            <span class="mbMeta">by ${esc(actorName(i.created_by))}</span>
+            <span class="mbMeta">${status(i)}</span>
+            <span>${i.status === 'pending' ? `<button type="button" class="btn" data-inv="revoke" data-id="${esc(i.id)}">Revoke</button>` : ''}</span>
+          </div>`).join('');
+        slot.innerHTML = `
+          <section class="mbCard">
+            <h2>Invitations</h2>
+            <form id="invForm" class="mbForm inline">
+              <select name="role" aria-label="Role">${['member', 'viewer', 'admin'].map((r) => `<option value="${r}">${r}</option>`).join('')}</select>
+              <label class="mbMeta">valid <input type="number" name="days" min="1" max="30" value="7" style="width:64px"> days</label>
+              <input type="text" name="note" maxlength="80" placeholder="Note, e.g. who it is for">
+              <button class="btn primary" type="submit">Create link</button>
+            </form>
+            ${shownInvite ? `<div class="secret invLink" role="status"><code id="invLink">${esc(base + shownInvite)}</code><button type="button" class="btn" data-inv="copy">Copy</button></div><p class="mbNote warn">One use, shown once: send it to that person only.</p>` : ''}
+            <div class="mbTable">${rows || '<p class="mbNote">No invitation yet.</p>'}</div>
+          </section>`;
+      }
+      document.addEventListener('submit', async (e) => {
+        if (e.target?.id !== 'invForm') return;
+        e.preventDefault();
+        const v = Object.fromEntries(new FormData(e.target));
+        try {
+          const inv = await apiCall('POST', 'invites', { role: v.role, days: Number(v.days) || 7, note: v.note || null });
+          shownInvite = inv.path;
+          await renderInvites();
+        } catch (err) { toast(err.message); }
+      });
+      document.addEventListener('click', async (e) => {
+        const el = e.target.closest('[data-inv]');
+        if (!el) return;
+        try {
+          if (el.dataset.inv === 'copy') { await navigator.clipboard?.writeText($('invLink').textContent); return toast('Link copied'); }
+          if (el.dataset.inv === 'revoke') {
+            await apiCall('DELETE', `invites/${encodeURIComponent(el.dataset.id)}`);
+            shownInvite = null;
+            toast('Invitation revoked');
+            await renderInvites();
+          }
+        } catch (err) { toast(err.message); }
+      });
+
       let toastTimer;
       /** A short message at the bottom; `action` adds one button (Undo). Hovering or focusing it holds it. */
       function toast(text, { html = false, action = null, ms = 2600 } = {}) {
@@ -2264,7 +2381,8 @@
         if (state.ticket) openPanel(state.ticket, false);
         connectStream();
       }
-      boot();
+      if (inviteSecret) showInvite(inviteSecret);
+      else boot();
       // Fallback: poll every 10 s while the live stream is down, and once a minute anyway.
       setInterval(() => { if (!document.hidden && (!streamOn || Date.now() - lastRefresh > 60000)) refresh(); }, 10000);
       setInterval(() => { if (!document.hidden) loadFacets(); }, 60000);

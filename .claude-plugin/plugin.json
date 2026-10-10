@@ -1,7 +1,7 @@
 {
   "name": "alvearium",
   "displayName": "Alvearium",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Alvearium (formerly session-board): one ticket board for all your Claude Code sessions and agents, terminal and claude.ai/code cloud: what waits on you, what is in progress, what to do next. Live updates, dependencies, priorities, who-talks-to-whom history and a feedback inbox.",
   "author": {
     "name": "Iskandeur",

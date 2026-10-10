@@ -42,6 +42,7 @@ import { fileURLToPath } from 'node:url';
 import { VERSION, normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
 import { openStore } from '../lib/store.mjs';
 import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
+import { inviteRoutes } from './invites.mjs';
 import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib/accounts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -447,7 +448,7 @@ function stream(req, res, store, heartbeatMs, streams, auth) {
   res.on('error', stop);
 }
 
-export function createApp({ token, agents = [], store, page, heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = null }) {
+export function createApp({ token, agents = [], store, page, heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes() }) {
   const streams = new Set();
   /** End the live streams of whoever matches (a revoked member, a revoked session). */
   const cutStreams = (match) => {
@@ -489,7 +490,12 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
       const url = new URL(req.url, 'http://local');
       const path = url.pathname;
       if (path === '/healthz') return send(res, 200, { ok: true });
-      if (path === '/' && req.method === 'GET') return send(res, 200, page, 'text/html; charset=utf-8');
+      if (path === '/' && req.method === 'GET') {
+        // Not framed by another site: Members has buttons worth clickjacking (revoke, invite).
+        res.setHeader('content-security-policy', "frame-ancestors 'self'");
+        res.setHeader('x-frame-options', 'SAMEORIGIN');
+        return send(res, 200, page, 'text/html; charset=utf-8');
+      }
       if (!path.startsWith('/api/')) return send(res, 404, { error: 'not found' });
       const m = req.method;
       // Routes that run before authentication (accepting an invitation).
