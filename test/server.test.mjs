@@ -139,9 +139,13 @@ test('server: actors can be renamed (stored), agents can only rename themselves'
     const a = (actors.actors || []).find((x) => x.id === 'lupi/ticketmaster');
     assert.equal(a.name, 'Ticketmaster');
 
-    // Built-ins are never renamed.
-    const bad = await fetch(`${base}/api/actors/user`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'Hacker' }) });
+    // Built-ins are never renamed; `user` is the owner since 0.5 and takes a person's name (never "You").
+    const bad = await fetch(`${base}/api/actors/claude`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'Hacker' }) });
     assert.equal(bad.status, 400);
+    const you = await fetch(`${base}/api/actors/user`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'you' }) });
+    assert.equal(you.status, 400);
+    const owner = await fetch(`${base}/api/actors/user`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'Alex' }) });
+    assert.equal((await owner.json()).actor.name, 'Alex');
   });
 });
 
