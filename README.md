@@ -141,6 +141,14 @@ ticket is handed over. Tickets record `created_by`; `assignee` takes any actor i
 `claude` work as before). Cards show the assignee's avatar; the *Actor* filter shows what an actor
 holds or opened.
 
+**Pictures (0.5.0).** Every actor, human or agent, can have a profile picture: click its avatar
+anywhere (a card, the panel, the history) and choose *Upload picture*. The page crops it square and
+resizes it to 256 px before sending it. Without one, the avatar shows coloured initials (the colour
+comes from the id). The server keeps PNG, JPEG and WebP only, checked by their first bytes (the
+file name and the declared type are ignored, so an SVG renamed `.png` is refused), at most 256 KiB
+and 1024×1024 px, and serves them with their own type, `nosniff` and a sandbox CSP. It never
+downloads a picture from a URL. An agent token may set the picture of its own actor and sub-actors only.
+
 Optional environment variables, all off by default (nothing changes when they are unset), read by
 the hooks and the MCP server of a session:
 
@@ -340,7 +348,9 @@ as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without 
 | `GET /api/tickets/next` | open, unblocked work by priority → manual rank → age (same filters), plus the `blocked` count |
 | `POST /api/tickets/SB-12/move` | `{ before }` or `{ after }`: manual order |
 | `GET /api/stream` | Server-Sent Events: one `change` per change, a heartbeat every 15 s |
-| `GET /api/actors` | actors with their type, name, parent and open-ticket count |
+| `GET /api/actors` | actors with their type, name, parent, open-ticket count and `avatar` (an etag, or null) |
+| `PATCH /api/actors/<id>` | `{ name }`: display name (`null` resets it) |
+| `GET`, `PUT`, `DELETE /api/actors/<id>/avatar` | the picture: `PUT` the raw PNG, JPEG or WebP bytes (≤ 256 KiB, ≤ 1024 px) |
 | `POST /api/tickets` | create `{ title, body, status, kind, subtype, assignee, priority, labels, parent, blocked_by, links, session_id, repo, branch }` |
 | `GET /api/tickets/SB-12` | one ticket with its history and sub-tickets |
 | `POST` or `PATCH /api/tickets/SB-12` | update any field, `blocked_by_add` / `blocked_by_remove`, optional `comment` (and `to`) in the same call |

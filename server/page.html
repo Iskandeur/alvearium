@@ -352,6 +352,13 @@
     .av.subagent { border-radius: 6px; width: 18px; height: 18px; font-size: 9.5px; opacity: 0.9; outline: 1.5px dashed hsl(var(--h, 230) 52% 52%); outline-offset: 1px; background: hsl(var(--h, 230) 45% 60%); }
     .av.system { background: var(--faint); border-radius: 4px; }
     .av.lg { width: 22px; height: 22px; font-size: 11px; }
+    .av.xl { width: 64px; height: 64px; font-size: 24px; }
+    .av.img { background: var(--chip); outline-color: transparent; overflow: hidden; }
+    .av img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }
+    .avEdit { display: flex; gap: 14px; align-items: center; margin: 6px 0 14px; }
+    .avEdit .btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .actorForm label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); margin-bottom: 12px; }
+    .actorForm input[type="text"] { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text); font: inherit; }
     .tags .av { margin-left: auto; }
     .tags .av + .age { margin-left: 6px; }
     .who { display: inline-flex; align-items: center; gap: 5px; vertical-align: middle; }
@@ -655,7 +662,34 @@
         const parts = n.split(/\s+/).filter(Boolean);
         return (parts.length > 1 ? parts[0][0] + parts[1][0] : n.slice(0, a.type === 'subagent' ? 2 : 1)).toUpperCase() || '?';
       }
-      function avatar(id, extra = '') {
+      // Pictures are fetched with the same credentials as the API (an <img src> cannot carry a
+      // Bearer token), kept as blob: URLs keyed by actor + etag: a new picture is a new key.
+      const avatarUrls = new Map();
+      function avatarSrc(a) {
+        if (!a || !a.avatar) return null;
+        const k = a.id + '@' + a.avatar;
+        const v = avatarUrls.get(k);
+        if (v && v !== 'loading' && v !== 'error') return v;
+        if (!v) loadAvatar(a.id, a.avatar, k);
+        return null;
+      }
+      async function loadAvatar(id, etag, k) {
+        avatarUrls.set(k, 'loading');
+        try {
+          const res = await fetch(`api/actors/${encodeURIComponent(id)}/avatar?v=${encodeURIComponent(etag)}`, { headers: headers() });
+          const type = res.headers.get('content-type') || '';
+          if (!res.ok || !/^image\/(png|jpeg|webp)$/.test(type)) throw new Error('HTTP ' + res.status);
+          const url = URL.createObjectURL(await res.blob());
+          avatarUrls.set(k, url);
+          for (const el of document.querySelectorAll(`.av[data-actor="${CSS.escape(id)}"]`)) {
+            el.classList.add('img');
+            el.innerHTML = `<img src="${esc(url)}" alt="">`;
+          }
+        } catch {
+          avatarUrls.set(k, 'error');
+        }
+      }
+      function avatar(id, extra = '', { edit = true } = {}) {
         const a = actor(id);
         const parts = [a.name];
         const full = actorIdTitle(id);
@@ -664,13 +698,16 @@
         else if (a.type !== 'human') parts.push(a.type);
         const title = parts.filter(Boolean).join(' · ');
         const act = String(id || '');
-        const canRename = act && !['user', 'claude', 'hook'].includes(act);
-        return `<span class="av ${esc(a.type)} ${extra}" style="--h:${hue(id)}" title="${esc(title)}" data-actor="${esc(act)}"${canRename ? ' data-act="renameActor"' : ''}>${esc(initials(a))}</span>`;
+        const canEdit = edit && canEditActorUi(act);
+        const src = avatarSrc(a);
+        const inner = src ? `<img src="${esc(src)}" alt="">` : esc(initials(a));
+        return `<span class="av ${esc(a.type)}${src ? ' img' : ''} ${extra}" style="--h:${hue(id)}" title="${esc(title)}" data-actor="${esc(act)}"${canEdit ? ' data-act="editActor"' : ''}>${inner}</span>`;
       }
+      /** Built-in actors keep their names; `user` can still get a picture. */
+      const canEditActorUi = (id) => !!id && id !== 'claude' && id !== 'hook';
       const who = (id) => {
         const act = String(id || '');
-        const canRename = act && !['user', 'claude', 'hook'].includes(act);
-        return `<span class="who" data-actor="${esc(act)}"${canRename ? ' data-act="renameActor"' : ''}>${avatar(id)}<b>${esc(actorName(id))}</b></span>`;
+        return `<span class="who" data-actor="${esc(act)}"${canEditActorUi(act) ? ' data-act="editActor"' : ''}>${avatar(id)}<b>${esc(actorName(id))}</b></span>`;
       };
       const PRIO = { P0: 'P0 · now', P1: 'P1 · next', P2: 'P2 · normal', P3: 'P3 · later' };
       const prio = (p) => (p ? `<span class="prio ${esc(p)}" title="Priority ${esc(PRIO[p] || p)}">${esc(p)}</span>` : '');
@@ -976,7 +1013,7 @@
         const parts = [`<div class="seg" role="group" aria-label="View">${seg}${state.view === 'feedback' ? '<button type="button" data-view="feedback" aria-pressed="true">Feedback</button>' : ''}</div>`];
         for (const k of FILTERS) {
           if (!state.f[k]) continue;
-          parts.push(`<span class="chip"><span><em>${esc(PICK_LABEL[k] || k)}</em> ${esc(chipLabel(k, state.f[k]))}</span><button type="button" data-unfilter="${k}" aria-label="Remove filter">×</button></span>`);
+          parts.push(`<span class="chip"><span><em>${esc(PICK_LABEL[k] || k)}</em> ${k === 'actor' || k === 'assignee' ? avatar(state.f[k], '', { edit: false }) + ' ' : ''}${esc(chipLabel(k, state.f[k]))}</span><button type="button" data-unfilter="${k}" aria-label="Remove filter">×</button></span>`);
         }
         for (const k of Object.keys(PICK_LABEL)) {
           if (state.f[k]) continue;
@@ -1346,24 +1383,12 @@
         if (act === 'helpClose') return closeHelp();
         if (act === 'close') return closePanel();
         if (act === 'new') return renderCreate();
-        if (act === 'renameActor') {
+        if (act === 'editActor') {
           e.preventDefault();
           e.stopPropagation();
-          const id = el.dataset.actor || '';
-          if (!id || ['user', 'claude', 'hook'].includes(id)) return;
-          const cur = actorName(id);
-          const next = prompt(`Display name for ${id} (empty = reset):`, cur);
-          if (next === null) return;
-          try {
-            const r = await api(`actors/${encodeURIComponent(id)}`, { name: String(next || '').trim() || null });
-            const a = r?.actor;
-            if (a && a.id) learnActors({ [a.id]: a });
-            toast(a?.name ? `Renamed ${id} → ${a.name}` : `Reset ${id}`);
-            refresh();
-            if (!$('panel').hidden && $('panel').__ticket && !$('panel').contains(document.activeElement)) openPanel($('panel').__ticket.key, false);
-          } catch (err) { toast(err.message); }
-          return;
+          return openActor(el.dataset.actor || '');
         }
+        if (act === 'avRemove') return removeAvatar();
         if (act === 'clear') {
           state.f = {};
           state.q = '';
@@ -1426,13 +1451,15 @@
       const sendHint = (verb) => `${modLabel()}+↵ to ${verb}`;
 
       let helpPrevFocus = null;
-      function openHelp() {
-        if (!$('help').hidden) return;
+      /** The help overlay doubles as the one modal of the page (actor dialog). */
+      function openHelp(render = renderHelp, label = 'Keyboard shortcuts') {
+        if (!$('help').hidden) closeHelp();
         helpPrevFocus = document.activeElement;
-        renderHelp();
+        render();
+        $('help').setAttribute('aria-label', label);
         $('helpScrim').hidden = false;
         $('help').hidden = false;
-        $('helpClose')?.focus?.();
+        ($('help').querySelector('[autofocus]') || $('helpClose'))?.focus?.();
       }
       function closeHelp() {
         if ($('help').hidden) return;
@@ -1791,6 +1818,119 @@
         } catch (err) { toast(err.message); }
         refresh();
       });
+      // ---- actor dialog: display name and picture ------------------------------------------------
+      let actorDialogId = null;
+      function openActor(id) {
+        if (!canEditActorUi(id)) return;
+        actorDialogId = id;
+        openHelp(renderActor, 'Actor');
+      }
+      function renderActor() {
+        const id = actorDialogId;
+        const a = actor(id);
+        const named = id !== 'user';
+        $('help').innerHTML = `
+          <div class="helpHead"><h3>${esc(a.name)}</h3><button type="button" class="x" id="helpClose" data-act="helpClose" aria-label="Close">×</button></div>
+          <form id="actorForm" class="actorForm">
+            <div class="avEdit">${avatar(id, 'xl', { edit: false })}
+              <div>
+                <div class="btns">
+                  <label class="btn" tabindex="0">Upload picture<input type="file" id="avFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+                  ${a.avatar ? '<button type="button" class="btn" data-act="avRemove">Remove</button>' : ''}
+                </div>
+                <p class="helpNote">PNG, JPEG or WebP. Cropped square and resized to 256 px in this browser before upload.</p>
+              </div>
+            </div>
+            ${named ? `<label class="f">Display name<input type="text" name="name" maxlength="60" value="${esc(a.name || '')}" placeholder="${esc(id)}" autofocus></label>` : ''}
+            <p class="helpNote">${esc(id)}</p>
+            <div class="formActs"><span class="msg" id="actorMsg"></span>${named ? '<button type="submit" class="btn primary">Save name</button>' : ''}</div>
+          </form>`;
+      }
+      async function refreshActorDialog() {
+        await loadFacets();
+        if (!$('help').hidden && actorDialogId && $('actorForm')) renderActor();
+        refresh();
+        if (!$('panel').hidden && $('panel').__ticket && !$('panel').contains(document.activeElement)) openPanel($('panel').__ticket.key, false);
+      }
+      /** Square crop, at most 256 px, WebP (PNG where the browser cannot encode WebP). */
+      async function shrinkImage(file) {
+        const url = URL.createObjectURL(file);
+        try {
+          const img = await new Promise((ok, ko) => {
+            const i = new Image();
+            i.onload = () => ok(i);
+            i.onerror = () => ko(new Error('not an image'));
+            i.src = url;
+          });
+          const side = Math.min(img.naturalWidth, img.naturalHeight);
+          const out = Math.min(256, side);
+          const c = document.createElement('canvas');
+          c.width = c.height = out;
+          c.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
+          const webp = await new Promise((ok) => c.toBlob(ok, 'image/webp', 0.88));
+          if (webp && webp.type === 'image/webp') return webp;
+          return await new Promise((ok) => c.toBlob(ok, 'image/png'));
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      }
+      async function uploadAvatar(file) {
+        const id = actorDialogId;
+        const msg = $('actorMsg');
+        if (msg) msg.textContent = '';
+        try {
+          let blob;
+          try { blob = await shrinkImage(file); } catch { blob = null; }
+          if (!blob) {
+            if (file.size > 256 * 1024) throw new Error('This image cannot be resized here and is over 256 KiB.');
+            blob = file;
+          }
+          const res = await fetch(`api/actors/${encodeURIComponent(id)}/avatar`, { method: 'PUT', headers: { ...headers(), 'content-type': blob.type || 'application/octet-stream' }, body: blob });
+          const data = await res.json().catch(() => ({}));
+          if (res.status === 401) { locked(); return; }
+          if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+          toast('Picture updated');
+          await refreshActorDialog();
+        } catch (err) {
+          if (msg) msg.textContent = err.message;
+          else toast(err.message);
+        }
+      }
+      async function removeAvatar() {
+        const id = actorDialogId;
+        try {
+          const res = await fetch(`api/actors/${encodeURIComponent(id)}/avatar`, { method: 'DELETE', headers: headers() });
+          if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'HTTP ' + res.status);
+          const a = actors.get(id);
+          if (a) a.avatar = null;
+          toast('Picture removed');
+          await refreshActorDialog();
+        } catch (err) { toast(err.message); }
+      }
+      document.addEventListener('change', (e) => {
+        if (e.target?.id === 'avFile' && e.target.files?.[0]) uploadAvatar(e.target.files[0]);
+      });
+      document.addEventListener('keydown', (e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('.avEdit label.btn')) {
+          e.preventDefault();
+          $('avFile')?.click();
+        }
+      });
+      document.addEventListener('submit', async (e) => {
+        if (e.target?.id !== 'actorForm') return;
+        e.preventDefault();
+        const id = actorDialogId;
+        const name = String(new FormData(e.target).get('name') || '').trim();
+        try {
+          const r = await api(`actors/${encodeURIComponent(id)}`, { name: name || null });
+          const a = r?.actor;
+          if (a && a.id) learnActors({ [a.id]: { ...actors.get(a.id), ...a } });
+          toast(a?.name ? `Renamed ${id} → ${a.name}` : `Reset ${id}`);
+          closeHelp();
+          await refreshActorDialog();
+        } catch (err) { $('actorMsg').textContent = err.message; }
+      });
+
       let toastTimer;
       /** A short message at the bottom; `action` adds one button (Undo). Hovering or focusing it holds it. */
       function toast(text, { html = false, action = null, ms = 2600 } = {}) {

@@ -40,6 +40,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { VERSION, normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
 import { openStore } from '../lib/store.mjs';
+import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MAX_BODY = 64 * 1024;
@@ -130,6 +131,10 @@ function send(res, status, body, type = 'application/json; charset=utf-8') {
 }
 
 function readBody(req, max = MAX_BODY) {
+  return readRaw(req, max).then((b) => b.toString('utf8'));
+}
+
+function readRaw(req, max = MAX_BODY) {
   return new Promise((resolve, reject) => {
     let size = 0;
     const chunks = [];
@@ -140,7 +145,7 @@ function readBody(req, max = MAX_BODY) {
         req.destroy();
       } else chunks.push(c);
     });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
 }
@@ -188,6 +193,37 @@ function scopeEvent(evt, auth) {
 }
 
 const forbidden = (res, what) => send(res, 403, { error: `an agent token cannot ${what}` });
+
+/** The user may change any actor; an agent only itself and its sub-actors. */
+export function canEditActor(auth, id) {
+  if (auth.kind === 'agent') return id === auth.actor || String(id).startsWith(auth.actor + '/');
+  return true;
+}
+
+/**
+ * An avatar, as stored: its own sniffed type, never sniffed again by the browser, no script ever
+ * (CSP sandbox), cached by etag (the page asks with `?v=<etag>`, so a new picture is a new URL).
+ */
+function sendAvatar(req, res, av) {
+  if (!av) return send(res, 404, { error: 'no avatar' });
+  const etag = `"${av.etag}"`;
+  const headers = {
+    'content-type': av.mime,
+    'x-content-type-options': 'nosniff',
+    'content-security-policy': "default-src 'none'; sandbox",
+    'content-disposition': 'inline; filename="avatar"',
+    'cross-origin-resource-policy': 'same-origin',
+    'referrer-policy': 'no-referrer',
+    'cache-control': 'private, max-age=86400',
+    etag,
+  };
+  if (req.headers['if-none-match'] === etag) {
+    res.writeHead(304, headers);
+    return res.end();
+  }
+  res.writeHead(200, { ...headers, 'content-length': av.data.length });
+  res.end(req.method === 'HEAD' ? undefined : av.data);
+}
 
 export const HEARTBEAT_MS = 15000;
 
@@ -266,6 +302,36 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
       }
       if (path === '/api/tickets' && m === 'POST') return send(res, 201, store.createTicket(await jsonBody(req), { actor: actorOf(req, store) }));
       if (path === '/api/actors' && m === 'GET') return send(res, 200, { actors: store.listActors() });
+      const avm = path.match(/^\/api\/actors\/(.{1,200})\/avatar$/);
+      if (avm) {
+        let id;
+        try {
+          id = decodeURIComponent(avm[1]);
+        } catch {
+          return send(res, 400, { error: 'bad actor id' });
+        }
+        if (m === 'GET' || m === 'HEAD') return sendAvatar(req, res, store.getAvatar(id));
+        if (m !== 'PUT' && m !== 'DELETE') return send(res, 405, { error: 'method not allowed' });
+        if (!canEditActor(auth, id)) return forbidden(res, "change another actor's picture");
+        if (!store.getActor(id)) return send(res, 404, { error: 'actor not found' });
+        if (m === 'DELETE') {
+          store.deleteAvatar(id);
+          return send(res, 200, { ok: true, avatar: null });
+        }
+        if (Number(req.headers['content-length']) > AVATAR_MAX_BYTES) {
+          res.setHeader('connection', 'close');
+          return send(res, 413, { error: `image too large (max ${AVATAR_MAX_BYTES / 1024} KiB)` });
+        }
+        let img;
+        try {
+          img = await readRaw(req, AVATAR_MAX_BYTES);
+        } catch (e) {
+          return send(res, e.status || 400, { error: e.status === 413 ? `image too large (max ${AVATAR_MAX_BYTES / 1024} KiB)` : 'bad body' });
+        }
+        const info = checkAvatar(img);
+        const etag = store.setAvatar(id, { mime: info.mime, data: img }, actorOf(req, store));
+        return send(res, 200, { ok: true, avatar: etag, mime: info.mime, width: info.width, height: info.height });
+      }
       const am = path.match(/^\/api\/actors\/(.{1,200})$/);
       if (am && (m === 'PATCH' || m === 'POST')) {
         // Renaming is a user action; an agent may only rename itself or one of its sub-actors.
@@ -275,7 +341,7 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
         } catch {
           return send(res, 400, { error: 'bad actor id' });
         }
-        if (auth.kind === 'agent' && !(id === auth.actor || id.startsWith(auth.actor + '/'))) return forbidden(res, 'rename this actor');
+        if (!canEditActor(auth, id)) return forbidden(res, 'rename this actor');
         const body = await jsonBody(req);
         const out = store.renameActor(id, body?.name ?? null, store.clock());
         return send(res, out ? 200 : 404, { actor: out });
