@@ -1,6 +1,6 @@
 # Privacy policy: Alvearium (formerly session-board)
 
-*Last updated: 9 October 2026*
+*Last updated: 10 October 2026*
 
 Alvearium is a Claude Code plugin plus an optional self-hosted server. It has no central
 service, no analytics, and no telemetry. Nobody but you receives anything it collects.
@@ -29,6 +29,13 @@ Since 0.3 it also records who acted: the type of each subagent Claude starts (fo
 `SESSION_BOARD_SEND_TEXT=0`), the actor id and name you may set with `SESSION_BOARD_ACTOR`, and the
 feedback sessions file with `board_feedback` (its text, plus the session, repository, machine and
 plugin version).
+
+Since 0.5, a server with several people also keeps, for each member: the name they chose, their
+role, an optional profile picture (uploaded by them or an admin, never fetched from a URL), when
+they joined and who invited them, hashes of their tokens and invitation links (never the secrets),
+when a token was last used, and an audit log of invitations, role changes, renames and
+revocations. Members see each other's names, roles and pictures; only owner and admins see token
+counts and the audit log.
 
 ## Where it goes
 
