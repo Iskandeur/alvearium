@@ -9,6 +9,7 @@
 //   SESSION_BOARD_DATA        directory for board.db                (default ./data)
 //   PORT                      listen port                           (default 8793)
 //   HOST                      listen address                        (default 0.0.0.0)
+//   BOARD_KEY_PREFIX          ticket key prefix, 2 to 8 letters    (default ALV; SB on a board from before 0.5.3)
 //   SESSION_BOARD_TRUST_PROXY=1  rate limits key on CF-Connecting-IP / X-Forwarded-For (only behind a proxy you run)
 //
 // Routes (all /api/* need `Authorization: Bearer <token>`, the main token or an agent token; a
@@ -536,7 +537,7 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
         if (!can(auth, 'import')) return forbidden(res, 'import a board', auth);
         const body = await jsonBody(req, MAX_IMPORT_BODY);
         const out = store.importTickets(body);
-        if (out.imported || out.sessions) console.log(`session-board: imported ${out.imported} ticket(s), ${out.sessions} session(s) from ${String(body.machine || 'a local board').slice(0, 80)}`);
+        if (out.imported || out.sessions) console.log(`alvearium: imported ${out.imported} ticket(s), ${out.sessions} session(s) from ${String(body.machine || 'a local board').slice(0, 80)}`);
         return send(res, 200, out);
       }
       if (path === '/api/board' && m === 'GET') return send(res, 200, store.legacyBoard());
@@ -648,7 +649,7 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const token = readToken();
   if (token.length < 24) {
-    console.error('session-board: set SESSION_BOARD_TOKEN (or SESSION_BOARD_TOKEN_FILE), at least 24 characters.');
+    console.error('alvearium: set SESSION_BOARD_TOKEN (or SESSION_BOARD_TOKEN_FILE), at least 24 characters.');
     process.exit(1);
   }
   const dataDir = process.env.SESSION_BOARD_DATA || join(process.cwd(), 'data');
@@ -656,21 +657,22 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
     agents = readAgentTokens(process.env, dataDir);
   } catch (e) {
-    console.error(`session-board: ${e.message}`);
+    console.error(`alvearium: ${e.message}`);
     process.exit(1);
   }
   if (agents.some((a) => a.token === token)) {
-    console.error('session-board: an agent token must differ from SESSION_BOARD_TOKEN.');
+    console.error('alvearium: an agent token must differ from SESSION_BOARD_TOKEN.');
     process.exit(1);
   }
-  if (agents.length) console.log(`session-board: ${agents.length} agent token(s): ${agents.map((a) => a.actor).join(', ')}`);
-  const store = await openStore(join(dataDir, 'board.db'));
+  if (agents.length) console.log(`alvearium: ${agents.length} agent token(s): ${agents.map((a) => a.actor).join(', ')}`);
+  const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX });
+  console.log(`alvearium: ticket keys ${store.prefix}-n (any prefix resolves: SB-12 and ALV-12 are the same ticket)`);
   const migrated = store.migrateBoardJson(join(dataDir, 'board.json'));
-  if (migrated) console.log(`session-board: imported ${migrated} session(s) from board.json (kept as board.json.migrated)`);
+  if (migrated) console.log(`alvearium: imported ${migrated} session(s) from board.json (kept as board.json.migrated)`);
   const page = readFileSync(join(HERE, 'page.html'), 'utf8');
   const server = createServer(createApp({ token, agents, store, page, trustProxy: process.env.SESSION_BOARD_TRUST_PROXY === '1' }));
   const port = Number(process.env.PORT || 8793);
-  server.listen(port, process.env.HOST || '0.0.0.0', () => console.log(`session-board listening on :${port}`));
+  server.listen(port, process.env.HOST || '0.0.0.0', () => console.log(`alvearium listening on :${port}`));
   const stop = () => {
     store.close();
     process.exit(0);

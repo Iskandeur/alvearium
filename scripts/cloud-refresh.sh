@@ -56,7 +56,7 @@ main() {
   [ -d "$SB_HOME/git-template" ] && cp -a "$SB_HOME/git-template" "$tmp/git-template"
   local old="$SB_HOME.old.$$"
   mv "$SB_HOME" "$old" && mv "$tmp" "$SB_HOME" && rm -rf "$old" || { [ -d "$SB_HOME" ] || mv "$old" "$SB_HOME"; rm -rf "$tmp"; }
-  echo "session-board: cloud copy $have → $want"
+  echo "alvearium: cloud copy $have → $want"
 }
 
 main "$@" 2>/dev/null || true

@@ -114,7 +114,7 @@ test('dependencies: cycles refused, blocked tickets badged and out of next, unbl
 
   assert.throws(() => s.updateTicket(a.key, { blocked_by_add: [c.key] }), /cycle/, 'C waits for A: A cannot wait for C');
   assert.throws(() => s.updateTicket(a.key, { blocked_by_add: [a.key] }), /cycle/);
-  assert.throws(() => s.updateTicket(a.key, { blocked_by_add: ['SB-999'] }), /not found/);
+  assert.throws(() => s.updateTicket(a.key, { blocked_by_add: ['ALV-999'] }), /not found/);
 
   let next = s.nextTickets(parseFilters({ repo: 'acme/api' }));
   assert.deepEqual(next.tickets.map((t) => t.key), [a.key]);
@@ -190,7 +190,7 @@ test('SSE: a client receives the change of a ticket made by another client; hear
       const changes = events.filter((e) => e.event === 'change').map((e) => e.data);
       assert.equal(changes[0].type, 'ticket');
       assert.equal(changes[0].op, 'created');
-      assert.match(changes[0].key, /^SB-\d+$/);
+      assert.match(changes[0].key, /^ALV-\d+$/);
       const upd = changes.find((c) => c.op === 'updated');
       assert.ok(upd.fields.includes('status'));
       assert.ok(changes.some((c) => c.type === 'comment'));
@@ -361,21 +361,21 @@ test('feedback via MCP stdio: board_feedback files a feedback ticket with its co
   try {
     const r = await c.call('board_feedback', { title: 'ticket_list ignores the label filter', detail: 'Asked label=deploy, got everything.', type: 'bug', about: 'ticket_list' });
     assert.equal(r.result.isError, undefined, JSON.stringify(r));
-    const key = r.result.content[0].text.match(/SB-\d+/)[0];
+    const key = r.result.content[0].text.match(/ALV-\d+/)[0];
     const shown = (await c.call('ticket_get', { key })).result.content[0].text;
     assert.match(shown, /reported by: job-42/);
     assert.match(shown, /session: fb-sess/);
     assert.match(shown, /Alvearium plugin \d+\.\d+\.\d+/);
     assert.match(shown, /about: ticket_list/);
     const created = await c.call('ticket_create', { title: 'Ship it', priority: 'P1' });
-    const k2 = created.result.content[0].text.match(/SB-\d+/)[0];
+    const k2 = created.result.content[0].text.match(/ALV-\d+/)[0];
     const blocked = await c.call('ticket_create', { title: 'Announce it', blocked_by: [k2] });
     assert.match(blocked.result.content[0].text, /blocked/);
     const next = (await c.call('ticket_next', { scope: 'all' })).result.content[0].text;
     assert.match(next, new RegExp(`1\\. ${k2} P1`));
     assert.match(next, /1 more blocked/);
     assert.doesNotMatch(next, /label filter/, 'feedback is not work to pick up');
-    const cyc = await c.call('ticket_update', { key: k2, blocked_by_add: [blocked.result.content[0].text.match(/SB-\d+/)[0]] });
+    const cyc = await c.call('ticket_update', { key: k2, blocked_by_add: [blocked.result.content[0].text.match(/ALV-\d+/)[0]] });
     assert.equal(cyc.result.isError, true);
     assert.match(cyc.result.content[0].text, /cycle/);
   } finally {

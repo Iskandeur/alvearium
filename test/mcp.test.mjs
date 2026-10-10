@@ -68,19 +68,19 @@ test('mcp over stdio: initialize, tools/list, ticket_create attached to the curr
 
     const created = await c.request('tools/call', { name: 'ticket_create', arguments: { title: 'Add the NPM_TOKEN secret to the repo', body: 'Settings → Secrets → Actions', labels: ['ci'] } });
     assert.equal(created.result.isError, undefined);
-    const key = created.result.content[0].text.match(/SB-\d+/)[0];
+    const key = created.result.content[0].text.match(/ALV-\d+/)[0];
 
     const listed = await c.request('tools/call', { name: 'ticket_list', arguments: {} });
     const text = listed.result.content[0].text;
     assert.match(text, new RegExp(`${key} \\[todo, on user\\] Add the NPM_TOKEN secret`));
-    assert.match(text, /SB-1 \[in_progress\] set up CI/, 'the session ticket from the hooks');
+    assert.match(text, /ALV-1 \[in_progress\] set up CI/, 'the session ticket from the hooks');
 
     const upd = await c.request('tools/call', { name: 'ticket_update', arguments: { key, status: 'done', comment: 'user confirmed' } });
     assert.match(upd.result.content[0].text, /\[done/);
     const shown = await c.request('tools/call', { name: 'ticket_get', arguments: { key } });
     assert.match(shown.result.content[0].text, /claude: comment:\nuser confirmed/);
 
-    const bad = await c.request('tools/call', { name: 'ticket_update', arguments: { key: 'SB-999', status: 'done' } });
+    const bad = await c.request('tools/call', { name: 'ticket_update', arguments: { key: 'ALV-999', status: 'done' } });
     assert.equal(bad.result.isError, true);
     const unknown = await c.request('tools/call', { name: 'nope', arguments: {} });
     assert.equal(unknown.error.code, -32602);
@@ -100,7 +100,7 @@ test('mcp over stdio: initialize, tools/list, ticket_create attached to the curr
     const r = await c2.request('tools/call', { name: 'ticket_create', arguments: { title: 'Env session' } });
     assert.equal(r.result.isError, undefined);
     const l = await c2.request('tools/call', { name: 'ticket_list', arguments: {} });
-    assert.match(l.result.content[0].text, /^1 ticket \(session, open\):\nSB-\d+ \[todo, on user\] Env session/);
+    assert.match(l.result.content[0].text, /^1 ticket \(session, open\):\nALV-\d+ \[todo, on user\] Env session/);
   } finally {
     await c2.close();
   }
@@ -113,13 +113,13 @@ test('/ticket CLI: argument parsing and commands', async () => {
   const backend = await openBackend({ env: { SESSION_BOARD_DIR: dir }, actor: 'user' });
   const context = { session_id: null, repo: 'acme/cli', branch: 'main', cwd: '/w', machine: 'mac', origin: 'terminal' };
   const out = await run(splitArgs(['new "Renew the TLS cert" --label ops --priority high']), { backend, context });
-  assert.match(out, /Created SB-1 P1 \[todo, on user\] Renew the TLS cert · acme\/cli@main · #ops/);
+  assert.match(out, /Created ALV-1 P1 \[todo, on user\] Renew the TLS cert · acme\/cli@main · #ops/);
   assert.match(await run(['list'], { backend, context }), /1 ticket \(repo, open\)/);
-  assert.match(await run(['done', 'SB-1', 'renewed'], { backend, context }), /\[done/);
+  assert.match(await run(['done', 'ALV-1', 'renewed'], { backend, context }), /\[done/);
   assert.match(await run(['list'], { backend, context }), /No open tickets/);
-  assert.match(await run(['status', 'SB-1', 'bogus'], { backend, context }), /usage/);
+  assert.match(await run(['status', 'ALV-1', 'bogus'], { backend, context }), /usage/);
   assert.match(await run(['frobnicate'], { backend, context }), /usage/);
-  const detail = await run(['show', 'SB-1'], { backend, context });
+  const detail = await run(['show', 'ALV-1'], { backend, context });
   assert.match(detail, /user: comment:\nrenewed/);
   backend.close();
 });

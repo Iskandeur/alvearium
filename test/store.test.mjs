@@ -125,7 +125,7 @@ test('tickets: create, sub-tickets, labels, update validation, history', async (
   assert.equal(store.getTicket(parent.key).children.length, 1);
   assert.throws(() => store.updateTicket(parent.key, { status: 'nope' }), /status must be/);
   assert.throws(() => store.updateTicket(parent.key, { parent: parent.key }), /own parent/);
-  assert.throws(() => store.createTicket({ title: 'x', parent: 'SB-999' }), /parent not found/);
+  assert.throws(() => store.createTicket({ title: 'x', parent: 'ALV-999' }), /parent not found/);
   store.updateTicket(child.key, { status: 'done' }, { actor: 'claude' });
   const got = store.getTicket(child.key);
   assert.ok(got.closed_at);

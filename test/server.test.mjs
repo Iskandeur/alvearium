@@ -80,7 +80,7 @@ test('server: ticket routes — create, filter, search, update, comment, detail,
     let res = await post(base, '/api/tickets', { title: 'Create the S3 bucket', body: 'eu-west-3, versioned', labels: ['infra'], session_id: 's1' }, { ...auth, 'x-session-board-actor': 'claude' });
     assert.equal(res.status, 201);
     const created = await res.json();
-    assert.match(created.key, /^SB-\d+$/);
+    assert.match(created.key, /^ALV-\d+$/);
     assert.equal(created.repo, 'acme/app', 'context inherited from the session');
     assert.equal(created.source, 'claude');
     assert.equal((await post(base, '/api/tickets', { body: 'no title' })).status, 400);
@@ -105,7 +105,7 @@ test('server: ticket routes — create, filter, search, update, comment, detail,
     const detail = await getJson(base, `/api/tickets/${created.key}`);
     assert.deepEqual(detail.events.map((e) => e.type), ['created', 'status', 'comment', 'comment']);
     assert.equal(detail.comments_count, 2);
-    assert.equal((await fetch(`${base}/api/tickets/SB-999`, { headers: auth })).status, 404);
+    assert.equal((await fetch(`${base}/api/tickets/ALV-999`, { headers: auth })).status, 404);
 
     const board = await getJson(base, '/api/tickets/board?repo=acme/app');
     assert.equal(board.counts.inProgress, 2);

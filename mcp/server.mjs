@@ -6,7 +6,7 @@
 // Same backend as the CLI: the board server when SESSION_BOARD_URL/TOKEN (or the plugin options)
 // are set, else the local SQLite store in ~/.claude/session-board/board.db.
 //
-// `--cloud-only`: the copy that `/session-board:install-cloud` vendors into a repository (declared in
+// `--cloud-only`: the copy that `/alvearium:install-cloud` vendors into a repository (declared in
 // the repo's .mcp.json). Outside a claude.ai/code cloud session it offers no tool at all, so a machine
 // that also has the plugin does not see every tool twice; in the cloud it needs the server (a local
 // board would die with the VM).
@@ -27,7 +27,7 @@ const TOOLS = [
   {
     name: 'ticket_create',
     description:
-      'Create a ticket on the session board. Use it for an action item the human must do (assignee "user": create a secret, review a PR, decide something), ' +
+      'Create a ticket on the Alvearium board. Use it for an action item the human must do (assignee "user": create a secret, review a PR, decide something), ' +
       'or to split a long task into tracked steps (assignee "claude"). The ticket is attached to the current session and repo unless told otherwise.',
     inputSchema: {
       type: 'object',
@@ -39,8 +39,8 @@ const TOOLS = [
         kind: { type: 'string', description: 'action (default for the human), task, bug, question, note… any short slug' },
         priority: PRIORITY,
         labels: { type: 'array', items: { type: 'string' } },
-        parent: { type: 'string', description: 'Key of the parent ticket (e.g. SB-12) to make this a sub-ticket' },
-        blocked_by: { type: 'array', items: { type: 'string' }, description: 'Keys of tickets that must be done first (e.g. ["SB-3"]). Cycles are refused.' },
+        parent: { type: 'string', description: 'Key of the parent ticket (e.g. ALV-12) to make this a sub-ticket' },
+        blocked_by: { type: 'array', items: { type: 'string' }, description: 'Keys of tickets that must be done first (e.g. ["ALV-3"]). Cycles are refused.' },
         links: { type: 'array', items: { type: 'string' }, description: 'https URLs (PR, docs) or repo-relative file paths' },
         session: { type: 'string', description: '"current" (default), "none" for a ticket outside any session, or a session id' },
       },
@@ -55,7 +55,7 @@ const TOOLS = [
     inputSchema: {
       type: 'object',
       properties: {
-        key: { type: 'string', description: 'Ticket key, e.g. SB-12' },
+        key: { type: 'string', description: 'Ticket key, e.g. ALV-12' },
         status: { type: 'string', enum: STATUSES },
         title: { type: 'string' },
         body: { type: 'string' },
@@ -340,8 +340,8 @@ export async function handleMessage(msg, deps) {
           capabilities: { tools: { listChanged: false } },
           serverInfo: SERVER_INFO,
           ...(offered === 'off' ? {} : { instructions:
-            'Tickets on the session board. Create one for every action item the human must do, and to track the steps of long work (with priorities P0-P3 and blocked_by dependencies). ' +
-            'Use ticket_next to pick what to do. Report anything that wastes your time, or an improvement, with board_feedback. Keys look like SB-12.' +
+            'Tickets on the Alvearium board. Create one for every action item the human must do, and to track the steps of long work (with priorities P0-P3 and blocked_by dependencies). ' +
+            'Use ticket_next to pick what to do. Report anything that wastes your time, or an improvement, with board_feedback. Keys look like ALV-12 (an older board may use SB-12; both forms resolve).' +
             (offered === 'unconfigured' ? ' ' + CLOUD_SETUP_HINT : ''),
           }),
         });

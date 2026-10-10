@@ -137,12 +137,12 @@ export function vendoredSkill(text) {
   const front = [
     '---',
     `name: ${SKILL_NAME}`,
-    `description: ${desc} (Repository copy for claude.ai/code cloud sessions; where the session-board plugin's own tickets skill is listed, use that one.)`,
+    `description: ${desc} (Repository copy for claude.ai/code cloud sessions; where the Alvearium plugin's own tickets skill is listed, use that one.)`,
     '---',
   ].join('\n');
   const note =
-    `\n\n> Copied into this repository by \`/session-board:install-cloud\` (session-board ${VERSION}). It is meant for\n` +
-    "> claude.ai/code cloud sessions, where plugins are not installed. If the session-board MCP tools\n" +
+    `\n\n> Copied into this repository by \`/alvearium:install-cloud\` (Alvearium ${VERSION}). It is meant for\n` +
+    "> claude.ai/code cloud sessions, where plugins are not installed. If the Alvearium MCP tools (server `session-board`)\n" +
     '> (`ticket_create`, `ticket_next`, …) are not available in this session, ignore this skill.\n';
   return front + note + text.slice(m[0].length).replace(/^(\s*\n)?/, '\n');
 }
@@ -151,7 +151,7 @@ export function vendoredCommand(name) {
   const lines = {
     board: [
       '---',
-      'description: Show the session board (cloud copy of session-board) - waiting on you, in progress, to do',
+      'description: Show the Alvearium board (cloud copy) - waiting on you, in progress, to do',
       'allowed-tools: Bash(node:*)',
       'argument-hint: "[--here] [--repo <name>] [--q <text>]"',
       '---',
@@ -162,9 +162,9 @@ export function vendoredCommand(name) {
     ],
     ticket: [
       '---',
-      'description: Tickets on the session board (cloud copy of session-board) - new, next, done, status, priority, block, list, show, comment',
+      'description: Tickets on the Alvearium board (cloud copy of Alvearium) - new, next, done, status, priority, block, list, show, comment',
       'allowed-tools: Bash(node:*)',
-      'argument-hint: "new <title> [--priority P1] [--blocked-by SB-3] | next | done <KEY> | status <KEY> <status> | list [--all] [words] | show <KEY> | comment <KEY> <text>"',
+      'argument-hint: "new <title> [--priority P1] [--blocked-by ALV-3] | next | done <KEY> | status <KEY> <status> | list [--all] [words] | show <KEY> | comment <KEY> <text>"',
       '---',
       '!`node "${CLAUDE_PROJECT_DIR}/.claude/session-board/scripts/ticket.mjs" --cloud-only "$ARGUMENTS"`',
       '',
@@ -175,9 +175,9 @@ export function vendoredCommand(name) {
   return lines.join('\n') + `\n\n${COMMAND_TAG}\n`;
 }
 
-const README = `# session-board (cloud copy)
+const README = `# Alvearium (cloud copy)
 
-Copied by the \`session-board\` Claude Code plugin (\`/session-board:install-cloud\`): claude.ai/code cloud
+Copied by the Alvearium Claude Code plugin (\`/alvearium:install-cloud\`): claude.ai/code cloud
 sessions do not install plugins, so this repository carries what they need.
 
 - \`hooks/\`: session state on the board (registered in \`.claude/settings.json\`, \`--cloud-only\`)
@@ -187,8 +187,8 @@ sessions do not install plugins, so this repository carries what they need.
 Everything here is silent outside a cloud session (\`CLAUDE_CODE_REMOTE\` is not \`true\`): machines with
 the plugin keep using the plugin. It reports to the server named by \`SESSION_BOARD_URL\` (with
 \`SESSION_BOARD_TOKEN\`, or \`SESSION_BOARD_TOKEN=proxy\` and an API credential for that host).
-\`VERSION\` is the version of this copy: run \`/session-board:install-cloud\` again to update it, or
-\`/session-board:install-cloud --uninstall\` to remove it.
+\`VERSION\` is the version of this copy: run \`/alvearium:install-cloud\` again to update it, or
+\`/alvearium:install-cloud --uninstall\` to remove it.
 Source: https://github.com/Iskandeur/alvearium
 `;
 
@@ -304,17 +304,17 @@ function main() {
   try {
     ({ notes } = install(repo, { remove, local }));
   } catch (e) {
-    console.error(`session-board: ${e.message}`);
+    console.error(`alvearium: ${e.message}`);
     process.exit(1);
   }
   console.log(
     remove
-      ? `session-board: cloud copy removed from ${repo}`
-      : `session-board ${VERSION}: cloud copy written to ${repo} (.claude/session-board/, .claude/settings.json, .mcp.json, ` +
+      ? `alvearium: cloud copy removed from ${repo}`
+      : `Alvearium ${VERSION}: cloud copy written to ${repo} (.claude/session-board/, .claude/settings.json, .mcp.json, ` +
           `.claude/skills/${SKILL_NAME}/, .claude/commands/)` +
           (local ? '; on this machine the copy stays quiet (.claude/settings.local.json), the plugin does the work.' : '.'),
   );
-  for (const n of notes) console.log(`session-board: ${n}`);
+  for (const n of notes) console.log(`alvearium: ${n}`);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) main();

@@ -8,6 +8,7 @@
 # Agent tokens (optional, README "Agent tokens"): one `<actor> <token>` per line in
 #   $SB_DATA_DIR/agent-tokens, then `docker compose restart`.
 #   SB_BIND/SB_PORT published address                          (default 127.0.0.1:8793)
+#   BOARD_KEY_PREFIX ticket keys (default ALV; a board from before 0.5.3 keeps SB until you set it)
 # Put it behind HTTPS (reverse proxy or tunnel) before pointing cloud sessions at it.
 services:
   session-board:
@@ -19,6 +20,7 @@ services:
     environment:
       SESSION_BOARD_TOKEN_FILE: /run/session-board/token
       SESSION_BOARD_DATA: /data
+      BOARD_KEY_PREFIX: ${BOARD_KEY_PREFIX:-}
     volumes:
       - ${SB_TOKEN_FILE:-./token}:/run/session-board/token:ro
       - ${SB_DATA_DIR:-./data}:/data

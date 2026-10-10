@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Tickets from the terminal (the /ticket command). The human is the actor.
-//   ticket new <title> [--body text] [--label a,b] [--priority P1] [--assignee claude] [--parent SB-3] [--no-session]
+//   ticket new <title> [--body text] [--label a,b] [--priority P1] [--assignee claude] [--parent ALV-3] [--no-session]
 //   ticket done <KEY> [comment…]          ticket status <KEY> <status>
 //   ticket list [--repo|--all] [--closed] [words…]   (default: open tickets of this repo)
 //   ticket show <KEY>                     ticket comment <KEY> <text…>
@@ -11,7 +11,7 @@ import { cloudCopyGuard, openBackend } from '../lib/runtime.mjs';
 import { callTool, currentContext } from '../mcp/server.mjs';
 
 const USAGE =
-  'usage: /ticket new <title> [--priority P1] [--blocked-by SB-3] | next [--all] | done <KEY> | status <KEY> <status> | priority <KEY> <P0-P3> | ' +
+  'usage: /ticket new <title> [--priority P1] [--blocked-by ALV-3] | next [--all] | done <KEY> | status <KEY> <status> | priority <KEY> <P0-P3> | ' +
   'block <KEY> --by <KEY> | unblock <KEY> --by <KEY> | list [--all] [words] | show <KEY> | comment <KEY> <text>';
 
 /** Split "$ARGUMENTS" (one string from the slash command) or argv into words, honouring quotes. */
@@ -70,7 +70,7 @@ export async function run(words, { backend, context }) {
       return actorTool('ticket_next', { scope: flags.all ? 'all' : flags.session ? 'session' : 'repo', label: flags.label, limit: 15 });
     case 'block':
     case 'unblock': {
-      // ticket block SB-5 --by SB-3,SB-4   (SB-5 waits for SB-3 and SB-4)
+      // ticket block ALV-5 --by ALV-3,ALV-4   (ALV-5 waits for ALV-3 and ALV-4)
       const by = flags.by ? String(flags.by).split(',') : rest.slice(1);
       if (!rest[0] || !by.length) return 'usage: /ticket block <KEY> --by <KEY>[,<KEY>]   (or unblock)';
       return actorTool('ticket_update', { key: rest[0], [cmd === 'block' ? 'blocked_by_add' : 'blocked_by_remove']: by });
@@ -95,7 +95,7 @@ export async function run(words, { backend, context }) {
 
 if (process.argv[1] && import.meta.filename === process.argv[1]) {
   let backend;
-  // `--cloud-only`: the copy vendored into a repository (/session-board:install-cloud).
+  // `--cloud-only`: the copy vendored into a repository (/alvearium:install-cloud).
   const args = process.argv.slice(2).filter((a) => a !== '--cloud-only');
   const guard = process.argv.includes('--cloud-only') ? cloudCopyGuard('ticket') : '';
   try {
@@ -105,7 +105,7 @@ if (process.argv[1] && import.meta.filename === process.argv[1]) {
       console.log(await run(splitArgs(args), { backend, context: currentContext() }));
     }
   } catch (err) {
-    console.log(`session-board: ${err?.message || err}`);
+    console.log(`alvearium: ${err?.message || err}`);
   } finally {
     backend?.close();
   }

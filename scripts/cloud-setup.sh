@@ -20,7 +20,7 @@ REPO_URL="${SESSION_BOARD_REPO_URL:-https://github.com/Iskandeur/alvearium}"
 RAW="https://raw.githubusercontent.com/Iskandeur/alvearium/$REF"
 FILES="hooks/report.mjs lib/core.mjs lib/runtime.mjs lib/store.mjs mcp/server.mjs scripts/board.mjs scripts/doctor.mjs scripts/ticket.mjs scripts/install-repo.mjs scripts/cloud-apply.mjs scripts/cloud-refresh.sh skills/tickets/SKILL.md"
 
-log() { echo "session-board setup: $*"; }
+log() { echo "alvearium setup: $*"; }
 
 fetch() { # $1 = target dir
   if git clone -q --depth 1 --branch "$REF" "$REPO_URL" "$1" 2>/dev/null; then return 0; fi

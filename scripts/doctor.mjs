@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// session-board doctor: one command that says whether this session can write to the board, and if
+// Alvearium doctor: one command that says whether this session can write to the board, and if
 // not, what to fix. Uses the plugin's own HTTP client (lib/runtime.mjs), not curl: curl honours the
 // proxy variables, Node's fetch does not, and that difference is what hid the 0.3.3 cloud failure.
 //

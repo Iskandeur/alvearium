@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Uncommitted cloud copy: what the environment setup script (scripts/cloud-setup.sh) applies to every
-// repository cloned in a claude.ai/code cloud VM. Same files as /session-board:install-cloud, but
+// repository cloned in a claude.ai/code cloud VM. Same files as /alvearium:install-cloud, but
 // hidden from git, so no session can commit them by mistake:
 //   - files the repository does not track      → listed in .git/info/exclude
 //   - files it tracks (.claude/settings.json, .mcp.json) → `git update-index --skip-worktree`
@@ -97,8 +97,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
   const dir = resolve(args.find((a) => !a.startsWith('--')) || process.cwd());
   try {
     const result = cloudApply(dir, { remove: args.includes('--uninstall') });
-    if (!quiet) console.log(`session-board ${VERSION}: ${result} (${dir})`);
+    if (!quiet) console.log(`Alvearium ${VERSION}: ${result} (${dir})`);
   } catch (e) {
-    if (!quiet) console.error(`session-board: ${e.message}`);
+    if (!quiet) console.error(`alvearium: ${e.message}`);
   }
 }

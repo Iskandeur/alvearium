@@ -71,7 +71,7 @@ test('sync: local tickets reach the server once, keys renumbered, history, dates
     assert.equal(t.session_id, 'sess-1');
     assert.equal(t.children.length, 1, 'the sub-ticket follows its parent');
     assert.ok(t.events.some((e) => e.type === 'comment' && e.text === 'done half of it'));
-    assert.ok(t.events.some((e) => e.type === 'note' && /Imported from the local board of .* \(was SB-\d+ there\)/.test(e.text)));
+    assert.ok(t.events.some((e) => e.type === 'note' && /Imported from the local board of .* \(was ALV-\d+ there\)/.test(e.text)));
     assert.equal(server.listTickets({ q: 'half', archived: 'include' }).total, 1, 'comments are searchable');
     const keys = server.listTickets({ archived: 'include', limit: 100 }).tickets.map((x) => x.key);
     assert.equal(new Set(keys).size, keys.length, 'no key collision');

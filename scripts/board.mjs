@@ -7,10 +7,10 @@ import { renderTicketsText, ticketStatusText } from '../lib/core.mjs';
 import { cloudCopyGuard, loadBoard } from '../lib/runtime.mjs';
 import { currentContext } from '../mcp/server.mjs';
 
-// `--cloud-only`: the copy vendored into a repository (/session-board:install-cloud).
+// `--cloud-only`: the copy vendored into a repository (/alvearium:install-cloud).
 const argv = process.argv.slice(2).filter((a) => a !== '--cloud-only');
 const guard = process.argv.includes('--cloud-only')
-  ? cloudCopyGuard('board') || (argv[0] === 'sync' ? 'session-board: nothing to sync here, a cloud session writes to the server directly.' : '')
+  ? cloudCopyGuard('board') || (argv[0] === 'sync' ? 'alvearium: nothing to sync here, a cloud session writes to the server directly.' : '')
   : '';
 const opt = (name) => {
   const i = argv.indexOf(name);
@@ -27,12 +27,12 @@ if (argv[0] === 'doctor') {
   // Send this machine's local board.db to the server now (the SessionStart hook does it too).
   const { describeSync, syncLocalToServer } = await import('../lib/sync.mjs');
   const r = await syncLocalToServer({ deadlineMs: 120_000, requestTimeoutMs: 20_000 });
-  if (r.status === 'local-mode') console.log('session-board: local mode (no server URL and token set), nothing to send.');
-  else if (r.status === 'none') console.log(`session-board: no local board on this machine, nothing to send to ${r.server}.`);
+  if (r.status === 'local-mode') console.log('alvearium: local mode (no server URL and token set), nothing to send.');
+  else if (r.status === 'none') console.log(`alvearium: no local board on this machine, nothing to send to ${r.server}.`);
   else
     console.log(
       describeSync(r) ||
-        `session-board: the ${r.total} local ticket${r.total === 1 ? ' was' : 's were'} already on ${r.server}` +
+        `alvearium: the ${r.total} local ticket${r.total === 1 ? ' was' : 's were'} already on ${r.server}` +
           (r.file ? `; the local file is now ${r.file}.` : r.renameError ? `; could not rename board.db (${r.renameError}), close the other Claude Code sessions and retry.` : '.'),
     );
   process.exitCode = 0;
@@ -53,5 +53,5 @@ if (argv[0] === 'doctor') {
     console.log(renderTicketsText(board));
   }
 } catch (err) {
-  console.log(`session-board: could not load the board (${err?.message || err}).`);
+  console.log(`alvearium: could not load the board (${err?.message || err}).`);
 }

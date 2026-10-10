@@ -1,6 +1,6 @@
 ---
-description: Tickets on the session board - new, next, done, status, priority, block, list, show, comment
-argument-hint: "new <title> [--priority P1] [--blocked-by SB-3] | next | done <KEY> | status <KEY> <status> | priority <KEY> <P0-P3> | block <KEY> --by <KEY> | list [--all] [words] | show <KEY> | comment <KEY> <text>"
+description: Tickets on the Alvearium board - new, next, done, status, priority, block, list, show, comment
+argument-hint: "new <title> [--priority P1] [--blocked-by ALV-3] | next | done <KEY> | status <KEY> <status> | priority <KEY> <P0-P3> | block <KEY> --by <KEY> | list [--all] [words] | show <KEY> | comment <KEY> <text>"
 ---
 !`node "${CLAUDE_PLUGIN_ROOT}/scripts/ticket.mjs" "$ARGUMENTS"`
 

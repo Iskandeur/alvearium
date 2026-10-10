@@ -212,7 +212,7 @@ test('vendored MCP server in the cloud: tickets reach the server, through an API
       await c.request('initialize', {});
       const r = await c.request('tools/call', { name: 'ticket_create', arguments: { title: `Add the secret (${sid})` } });
       assert.ok(!r.result.isError, r.result.content[0].text);
-      assert.match(r.result.content[0].text, /^Created SB-\d+/);
+      assert.match(r.result.content[0].text, /^Created ALV-\d+/);
       await c.close();
       const t = store.listTickets(parseFilters({ session: sid })).tickets;
       assert.equal(t.length, 1);

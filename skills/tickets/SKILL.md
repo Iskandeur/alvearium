@@ -1,12 +1,12 @@
 ---
 name: tickets
-description: Track action items and work steps as tickets on the session board (Alvearium MCP tools ticket_create, ticket_update, ticket_next, ticket_list, ticket_comment, ticket_get, board_feedback). Use when the user must do something outside this conversation, when a task is long enough to split into steps (with priorities and dependencies), to pick what to do next, when asked what is left, and to report anything that wastes your time.
+description: Track action items and work steps as tickets on the Alvearium board (Alvearium MCP tools ticket_create, ticket_update, ticket_next, ticket_list, ticket_comment, ticket_get, board_feedback). Use when the user must do something outside this conversation, when a task is long enough to split into steps (with priorities and dependencies), to pick what to do next, when asked what is left, and to report anything that wastes your time.
 ---
 
-# Tickets on the session board
+# Tickets on the Alvearium board
 
 The user watches one board for all their Claude Code sessions and agents, live. A ticket is how
-something reaches them when the conversation is not on screen. Keys look like `SB-12`.
+something reaches them when the conversation is not on screen. Keys look like `ALV-12` (a board made before 0.5.3 may use `SB-12`; both forms resolve).
 
 ## When to create a ticket
 
@@ -16,7 +16,7 @@ something reaches them when the conversation is not on screen. Keys look like `S
   "Rotate the leaked token". Put the exact steps and links in `body`. If you cannot continue until
   it is done, use `status: "waiting_on_user"`; otherwise leave the default `todo`.
 - **Splitting long work** (`assignee: "claude"`, `kind: "task"`): when a task has several steps that
-  will outlive one turn, create a parent ticket and sub-tickets (`parent: "SB-12"`). Move each to
+  will outlive one turn, create a parent ticket and sub-tickets (`parent: "ALV-12"`). Move each to
   `in_progress` when you start it and `done` when it is finished.
 - **Something you noticed but will not do now** (bug, follow-up): a `todo` ticket with a label.
 
@@ -31,8 +31,8 @@ declare **what blocks what**, so the board's *Next* view (and `ticket_next`) giv
 
 - `priority`: `P0` drop everything (outage, data loss, a blocker for others), `P1` next up, `P2`
   normal (default for planned work), `P3` some day. Most tickets are P2; P0 is rare.
-- `blocked_by: ["SB-3"]` on `ticket_create`, or `blocked_by_add` / `blocked_by_remove` on
-  `ticket_update`: this ticket cannot start before SB-3 is done ("write the migration" is blocked by
+- `blocked_by: ["ALV-3"]` on `ticket_create`, or `blocked_by_add` / `blocked_by_remove` on
+  `ticket_update`: this ticket cannot start before ALV-3 is done ("write the migration" is blocked by
   "design the schema"; "deploy" is blocked by both). A blocked ticket is badged and stays out of
   *Next*; when its last blocker is done it is unblocked by itself. Cycles are refused.
 - A user action that gates your work (a secret, an approval) is a blocker too: block your task on

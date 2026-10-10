@@ -2,7 +2,9 @@
 
 > Plugin id: `alvearium` (marketplace: `session-board`).
 >
-> This repository kept its name so existing setups (cloud scripts, clones, server deploys) keep working.
+> A few technical names keep the old one on purpose, so that nothing already installed breaks: the
+> marketplace `session-board`, the `SESSION_BOARD_*` variables, the `~/.claude/session-board/` data
+> folder and the `session-board` MCP server name of the cloud copy. Everything you read says Alvearium.
 
 One ticket board for **all** your Claude Code work, terminal and claude.ai/code cloud alike, and for
 every agent and subagent that works with you: what is **waiting on you**, what is **in progress**,
@@ -96,6 +98,14 @@ Tickets come from three places:
 
 The hook is one zero-dependency Node script. It never blocks or fails your session: network calls
 time out after 2 s, every error is swallowed, it always exits 0, and hot-path events run `async`.
+
+## Ticket keys (0.5.3)
+
+Tickets are numbered `ALV-1`, `ALV-2`… A board created before 0.5.3 keeps its `SB-` keys (they are in
+notes, links and commit messages) until you choose: set `BOARD_KEY_PREFIX=ALV` (2 to 8 letters) on
+the server and restart it. The choice is kept in the database. Only the number identifies a ticket:
+`SB-523`, `ALV-523` and `523` open the same one everywhere (API, MCP tools, `/ticket`, search, and
+page links like `?ticket=SB-523`), so switching renumbers nothing and breaks no old link.
 
 ## Realtime
 

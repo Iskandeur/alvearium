@@ -46,7 +46,7 @@ try {
     const { loadConfig, routeOf } = await import('../lib/runtime.mjs');
     const cfg = loadConfig();
     const where = cfg.remote ? ` · ${cfg.url} via ${routeOf(cfg.url)}` : ' · local board';
-    process.stderr.write(`session-board: ${event} → ${status}${where}${out.error ? `\n  ${out.error}` : ''}\n`);
+    process.stderr.write(`alvearium: ${event} → ${status}${where}${out.error ? `\n  ${out.error}` : ''}\n`);
     if (status === 'ignored' && !input.session_id) process.stderr.write('  (no session_id on stdin: a hook run by hand needs a payload; use scripts/doctor.mjs to test the connection)\n');
   }
   // Storage changes (local board left behind, server switched): at most once per start, never in the
@@ -65,11 +65,11 @@ try {
       const text = lines.filter(Boolean).join('\n');
       if (text) process.stdout.write(JSON.stringify({ systemMessage: text }) + '\n');
     } catch (err) {
-      if (process.env.SESSION_BOARD_DEBUG === '1') process.stderr.write(`session-board sync: ${err?.message || err}\n`);
+      if (process.env.SESSION_BOARD_DEBUG === '1') process.stderr.write(`alvearium sync: ${err?.message || err}\n`);
     }
   }
 } catch (err) {
-  if (process.env.SESSION_BOARD_DEBUG === '1') process.stderr.write(`session-board: ${err?.message || err}\n`);
+  if (process.env.SESSION_BOARD_DEBUG === '1') process.stderr.write(`alvearium: ${err?.message || err}\n`);
 }
 // No process.exit() here: on Windows, exiting while libuv handles (stdin pipe, fetch socket) are
 // still closing aborts with `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), src\win\async.c`

@@ -163,7 +163,7 @@ test('hooks and the MCP server, as processes, write to the board through the pro
     try {
       const r = await c.call('ticket_create', { title: 'test cloud' });
       assert.ok(!r.result.isError, r.result.content[0].text);
-      assert.match(r.result.content[0].text, /^Created SB-\d+ \[todo, on user\] test cloud/);
+      assert.match(r.result.content[0].text, /^Created ALV-\d+ \[todo, on user\] test cloud/);
     } finally {
       await c.close();
     }
@@ -249,7 +249,7 @@ test('a 2xx login page (redirect already followed, the global fetch) and a 401 a
     const empty = { create: async () => ({}) };
     await assert.rejects(callTool('ticket_create', { title: 'x' }, { backend: empty, context: { cwd: '/w' } }), /answered without a ticket.*Nothing was saved/);
   });
-  assert.equal(explainReply({ status: 200, headers: { get: () => 'application/json' } }, '{"key":"SB-1"}', {}), '');
+  assert.equal(explainReply({ status: 200, headers: { get: () => 'application/json' } }, '{"key":"ALV-1"}', {}), '');
 });
 
 test('direct path (no proxy variables): plain http and https with the real token', async () => {
@@ -261,7 +261,7 @@ test('direct path (no proxy variables): plain http and https with the real token
     const env = { ...CLEAN, SESSION_BOARD_URL: base, SESSION_BOARD_TOKEN: TOKEN, SESSION_BOARD_DIR: tmp() };
     const backend = new HttpBackend(loadConfig(env), { fetchImpl: (u, i) => boardFetch(u, i, { env }) });
     const t = await backend.create({ title: 'direct one' });
-    assert.match(t.key, /^SB-\d+$/);
+    assert.match(t.key, /^ALV-\d+$/);
     const res = await boardFetch(`${base}/api/version`, {}, { env });
     assert.equal(res.route, 'direct');
     // NO_PROXY keeps a local board direct even when a proxy is set
@@ -301,7 +301,7 @@ test('a cloud copy refreshed by the 0.3.3 refresh script (its fixed file list) s
   await gateway(async (base) => {
     const env = { ...CLEAN, CLAUDE_CODE_REMOTE: 'true', SESSION_BOARD_URL: base, SESSION_BOARD_TOKEN: 'proxy', SESSION_BOARD_DIR: tmp() };
     const r = await run([join(repo, '.claude', 'session-board', 'scripts', 'board.mjs'), '--cloud-only', 'doctor'], { env });
-    assert.match(r.stdout, /session-board doctor — problem found/, r.stderr);
+    assert.match(r.stdout, /(session-board|Alvearium) doctor — problem found/, r.stderr);
     const hook = await run([join(repo, '.claude', 'session-board', 'hooks', 'report.mjs'), 'SessionStart', '--cloud-only'], {
       input: JSON.stringify({ session_id: 'old-list', cwd: repo, source: 'startup' }),
       env: { ...env, SESSION_BOARD_DEBUG: '1' },
@@ -327,7 +327,7 @@ test('doctor: through the proxy it reads, creates the test ticket, and says ok; 
     assert.equal(r.status, 0, r.stdout + r.stderr);
     assert.match(r.stdout, /the board answers as the board/);
     assert.match(r.stdout, /ok  route: proxy 127\.0\.0\.1/);
-    assert.match(r.stdout, /ok  ticket_create: Created SB-\d+/);
+    assert.match(r.stdout, /ok  ticket_create: Created ALV-\d+/);
     assert.doesNotMatch(r.stdout, /pw|sess:/, 'proxy credentials are not printed');
     assert.equal(store.listTickets({ q: 'test cloud' }).tickets[0].origin, 'cloud');
   });
