@@ -187,6 +187,50 @@ Give that agent its token as `SESSION_BOARD_TOKEN` instead of the main one. A re
 `user` and `hook` cannot be agent actors, every token must be at least 24 characters and differ from
 the main token, and the server refuses to start on a line it cannot read.
 
+## Members and roles (0.5.0)
+
+A board can have several humans. Each one has a name, a role and personal tokens; the history
+names whoever did what (no more anonymous *You* once there are two of you). The server checks the
+role on every route, whatever the page shows.
+
+| Role | Can | Why this role exists |
+| :- | :- | :- |
+| `owner` | everything, including members, invitations and every token | one person answers for the board. The owner is the actor `user` of the whole history and whoever holds the server token (`SESSION_BOARD_TOKEN`): an existing install changes nothing, and ownership moves only by handing over that token, never through the API |
+| `admin` | everything except touching the owner: change roles, revoke members and their tokens, invite, import, delete sessions, read the audit log | so the owner is not the only one who can let a colleague in or lock someone out |
+| `member` | create, comment on, reorder and change tickets; report sessions from its own Claude Code | the everyday collaborator |
+| `viewer` | read only (board, tickets, live updates) | someone who follows without changing anything |
+| `agent` | an agent token (see *Agent tokens*): read and write tickets as its actor or a sub-actor, nothing else | unattended bots and daemons |
+
+Every human, whatever the role, may change its own name and picture and manage its own tokens.
+Changing another actor's name or picture is for the owner and admins (an agent may still name and
+picture itself and its sub-actors). Names are unique among active members and can never be *You*,
+*user*, *owner*, *admin*, *claude*, *hook* or *system*. A member's own Claude shows as
+`<member>/claude`, and a header can never make a request count as another human.
+
+**The Members page** (the people icon in the header): your name, picture, role and tokens; the list
+of members with their role (owner and admins change it from a menu) and a *Revoke* button (two
+clicks); the audit log for owner and admins. Revoking someone is immediate: their tokens and page
+sessions stop working on the next request and their live stream is closed.
+
+**Personal tokens** (`alvm_…`) are for the plugin and the CLI: put one in `SESSION_BOARD_TOKEN` on
+your machine and your sessions report as you, with your role. A token is shown once and stored
+hashed (SHA-256), never in clear. **The page** trades whatever token you paste for an httpOnly,
+Secure, SameSite=Strict session cookie (30 days) and keeps no token in the browser's storage; every
+change it makes carries a CSRF token, and a cross-site request is refused. The old `/#token=` link
+still works for the owner. Failed authentications are rate limited per address (30 per 5 minutes,
+then `429`); a valid token is never slowed down. Behind a proxy you run, set
+`SESSION_BOARD_TRUST_PROXY=1` so the limit keys on `CF-Connecting-IP` / `X-Forwarded-For`.
+
+| Route | Who | |
+| :- | :- | :- |
+| `GET /api/me` | anyone | `{ id, name, role, humans }` |
+| `POST /api/session`, `POST /api/logout` | humans | page session cookie from a Bearer token; end it |
+| `GET /api/members` | humans | members and roles (token counts for owner and admins) |
+| `PATCH /api/members/<id>` | owner, admin; yourself for `name` | `{ role }` (`admin`, `member`, `viewer`), `{ name }` |
+| `DELETE /api/members/<id>` | owner, admin | revoke (never the owner) |
+| `GET`, `POST /api/tokens`, `DELETE /api/tokens/<id>` | humans | your tokens (`{ label }`); admins may revoke anyone's but the owner's |
+| `GET /api/audit` | owner, admin | who invited, renamed, changed a role, revoked, created a token, and when |
+
 ## Feedback inbox
 
 A board-wide inbox for what does not work or could work better, written by the sessions themselves.
@@ -335,8 +379,8 @@ The import needs the server to be 0.2.3 or later: update it (`git pull && docker
 
 ### API
 
-Every `/api/*` route needs `Authorization: Bearer <token>`, the main token or an agent token (see
-*Agent tokens*). A client may say who it is with `x-session-board-actor: <id>` (and
+Every `/api/*` route needs `Authorization: Bearer <token>`: the main token, an agent token (see
+*Agent tokens*) or a personal token (see *Members and roles*); the page uses its session cookie. A client may say who it is with `x-session-board-actor: <id>` (and
 `x-session-board-actor-name`); the plugin's MCP server does. With an agent token the header can only
 name the agent or a sub-actor under it. `GET /` serves the web page (open it once
 as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without a token.

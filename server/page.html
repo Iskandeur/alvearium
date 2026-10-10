@@ -313,6 +313,37 @@
     .helpNote { color: var(--faint); font-size: 12.5px; margin: 8px 0 0; }
     @media (max-width: 900px) { .help .cols { grid-template-columns: 1fr; } .help .rowH { grid-template-columns: 72px minmax(0, 1fr); } }
 
+    /* Members */
+    .mbWrap { max-width: 860px; margin: 18px auto 40px; display: flex; flex-direction: column; gap: 16px; }
+    .mbCard { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow); }
+    .mbCard h2 { margin: 0 0 10px; font-size: 14px; font-weight: 600; display: flex; gap: 8px; align-items: center; }
+    .mbCard h2 .count { color: var(--faint); font-weight: 500; }
+    .mbTable { display: flex; flex-direction: column; }
+    .mbRow { display: grid; grid-template-columns: minmax(0, 1.4fr) 110px minmax(0, 1.4fr) 90px; gap: 10px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
+    .mbRow:first-child { border-top: 0; }
+    .mbRow > span:last-child { text-align: right; }
+    .mbMeta, .mbNote { color: var(--faint); font-size: 12.5px; }
+    .mbNote { margin: 10px 0 0; line-height: 1.6; }
+    .mbNote.warn { color: var(--danger); margin-top: 4px; }
+    .mbYou { font-style: normal; color: var(--faint); font-size: 12px; }
+    .mbMe { display: flex; gap: 16px; align-items: center; }
+    .mbForm { display: flex; gap: 8px; align-items: flex-end; flex: 1; flex-wrap: wrap; }
+    .mbForm.inline { margin: 8px 0; }
+    .mbForm label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); flex: 1; min-width: 180px; }
+    .mbForm input[type="text"], .mbForm select, .mbRow select { padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text); font: inherit; }
+    .mbForm.inline input[type="text"] { flex: 1; min-width: 160px; }
+    .role { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--chip); color: var(--muted); }
+    .role.owner { background: var(--accent-soft); color: var(--accent); }
+    .role.admin { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--text); }
+    .secret { display: flex; gap: 8px; align-items: center; background: var(--lane); border-radius: 8px; padding: 8px 10px; }
+    .secret code { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12.5px; }
+    .mbAudit { font-size: 12.5px; padding: 5px 0; border-top: 1px solid var(--line); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .mbAudit:first-of-type { border-top: 0; }
+    .mbAudit time { color: var(--faint); min-width: 110px; }
+    .btn.danger { color: var(--danger); }
+    .linkBtn { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
+    :root[data-role="viewer"] [data-act="new"], :root[data-role="viewer"] .doneBtn, :root[data-role="viewer"] .compose { display: none !important; }
+    @media (max-width: 900px) { .mbRow { grid-template-columns: minmax(0, 1fr) auto; } .mbRow .mbMeta { grid-column: 1 / -1; } .mbBtn .opt { display: none; } }
     .toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 20; display: flex; align-items: center; gap: 4px 12px; max-width: calc(100vw - 28px); box-shadow: 0 6px 24px rgba(16, 18, 27, 0.18); }
     .toast .tmsg { overflow-wrap: anywhere; }
     .toast .tmsg em { font-style: normal; opacity: 0.72; }
@@ -491,6 +522,10 @@
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
         <span class="opt">Feedback</span><span class="n zero" id="fbCount">0</span>
       </button>
+      <button class="btn mbBtn" type="button" data-view="members" id="mbBtn" title="Members, roles, invitations and your tokens">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="6" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 13.5c.6-2.4 2.3-3.6 4.5-3.6s3.9 1.2 4.5 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10.5 3.2a2.4 2.4 0 0 1 0 4.6M12.2 9.9c1.2.5 2 1.6 2.3 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        <span class="opt">Members</span>
+      </button>
       <button class="btn primary" type="button" data-act="new">
         <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         <span>New</span>
@@ -501,7 +536,7 @@
 
   <section id="auth" hidden>
     <h2>Access token needed</h2>
-    <p>Paste the board token once; it stays in this browser.</p>
+    <p>Paste your token once. This browser keeps a session cookie, never the token itself.</p>
     <form id="authForm">
       <input id="tok" type="password" placeholder="Token" autocomplete="off" spellcheck="false">
       <button class="btn primary" type="submit">Open board</button>
@@ -532,6 +567,7 @@
     <div id="listView" hidden></div>
     <div id="nextView" hidden></div>
     <div id="feedbackView" hidden></div>
+    <div id="membersView" hidden></div>
   </main>
 
   <div class="scrim" id="scrim" hidden></div>
@@ -553,13 +589,18 @@
         localStorage.setItem(KEY, decodeURIComponent(hash[1]));
         history.replaceState(null, '', location.pathname + location.search);
       }
+      // Who is looking: { id, role, name, csrf? } from api/me (a cookie session carries a CSRF token).
+      let me = null;
       const headers = (json) => {
         const t = localStorage.getItem(KEY);
-        return { ...(t ? { authorization: 'Bearer ' + t } : {}), ...(json ? { 'content-type': 'application/json' } : {}) };
+        return { ...(t ? { authorization: 'Bearer ' + t } : {}), ...(!t && me?.csrf ? { 'x-csrf-token': me.csrf } : {}), ...(json ? { 'content-type': 'application/json' } : {}) };
       };
       // Relative paths only: the page works under any sub-path (e.g. /session-board/).
       async function api(path, body) {
-        const res = await fetch('api/' + path, body ? { method: 'POST', headers: headers(true), body: JSON.stringify(body), cache: 'no-store' } : { headers: headers(), cache: 'no-store' });
+        return apiCall(body ? 'POST' : 'GET', path, body);
+      }
+      async function apiCall(method, path, body) {
+        const res = await fetch('api/' + path, method !== 'GET' ? { method, headers: headers(body !== undefined), body: body === undefined ? undefined : JSON.stringify(body), cache: 'no-store' } : { headers: headers(), cache: 'no-store' });
         if (res.status === 401) { locked(); throw new Error('locked'); }
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
@@ -568,7 +609,7 @@
 
       // ---- state: everything that matters lives in the URL ------------------------------------
       const FILTERS = ['repo', 'session', 'actor', 'status', 'priority', 'assignee', 'kind', 'subtype', 'label', 'origin', 'machine', 'branch'];
-      const VIEWS = ['board', 'next', 'list', 'feedback'];
+      const VIEWS = ['board', 'next', 'list', 'feedback', 'members'];
       let state = readUrl();
       function readUrl() {
         const p = new URLSearchParams(location.search);
@@ -632,9 +673,14 @@
         ['hook', { id: 'hook', type: 'system', name: 'Session' }],
       ]);
       function learnActors(list) {
-        for (const a of Object.values(list || {})) if (a && a.id) actors.set(a.id, { ...actors.get(a.id), ...a, name: a.id === 'user' ? 'You' : a.name || null });
+        for (const a of Object.values(list || {})) if (a && a.id) actors.set(a.id, { ...actors.get(a.id), ...a, name: a.name && !(a.id === 'user' && a.name === 'You') ? a.name : null });
       }
       function actor(id) {
+        if (id === 'user' || (me && id === me.id)) {
+          const a = actors.get(id) || { id, type: 'human' };
+          const mine = me ? id === me.id : id === 'user';
+          return { ...a, type: 'human', name: a.name || (mine ? 'You' : 'Owner') };
+        }
         if (actors.has(id)) {
           const a = actors.get(id);
           const sid = String(id || '');
@@ -997,8 +1043,8 @@
         if (k === 'repo') return facets.repos.map((r) => o(r.value, repoName(r.value) + (facets.repos.filter((x) => repoName(x.value) === repoName(r.value)).length > 1 ? ' (' + r.value + ')' : ''), r.open || ''));
         if (k === 'session') return facets.sessions.filter((s) => !state.f.repo || s.repo === state.f.repo || repoName(s.repo) === state.f.repo).slice(0, 80).map((s) => o(s.id, `${s.title || 'Session ' + s.id.slice(0, 6)}${s.repo ? ' — ' + repoName(s.repo) : ''}`, s.open || ''));
         if (k === 'status') return [['open', 'Open'], ['todo', 'To do'], ['in_progress', 'In progress'], ['waiting_on_user', 'Waiting on you'], ['review', 'Review'], ['failed', 'Failed'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([v, l]) => o(v, l));
-        if (k === 'assignee') return [o('user', 'You'), ...(facets.actors || []).filter((a) => a.id !== 'user' && a.type !== 'system').map((a) => o(a.id, actorName(a.id), a.open || ''))];
-        if (k === 'actor') return (facets.actors || []).filter((a) => a.type !== 'system').map((a) => o(a.id, (a.type === 'subagent' ? '↳ ' : '') + (a.id === 'user' ? 'You' : actorName(a.id)), a.open || ''));
+        if (k === 'assignee') return [o('user', actorName('user')), ...(facets.actors || []).filter((a) => a.id !== 'user' && a.type !== 'system').map((a) => o(a.id, actorName(a.id), a.open || ''))];
+        if (k === 'actor') return (facets.actors || []).filter((a) => a.type !== 'system').map((a) => o(a.id, (a.type === 'subagent' ? '↳ ' : '') + actorName(a.id), a.open || ''));
         if (k === 'priority') return [o('P0', 'P0 · now'), o('P1', 'P1 · next'), o('P2', 'P2 · normal'), o('P3', 'P3 · later'), o('none', 'No priority')];
         if (k === 'subtype') return [o('bug', 'Bug'), o('suggestion', 'Suggestion'), o('friction', 'Friction')];
         if (k === 'label') return facets.labels.map((l) => o(l.value, '#' + l.value, l.total));
@@ -1028,6 +1074,7 @@
         parts.push(`<button type="button" class="clear" data-act="archived" title="Done and cancelled tickets closed more than 30 days ago">${state.archived ? 'Hide archived' : 'Show archived'}</button>`);
         setHtml($('filters'), parts.join(''));
         $('fbBtn').setAttribute('aria-pressed', String(state.view === 'feedback'));
+        $('mbBtn').setAttribute('aria-pressed', String(state.view === 'members'));
       }
 
       // ---- board / list -------------------------------------------------------------------------
@@ -1044,6 +1091,15 @@
         refreshing = (async () => {
           let data;
           const view = state.view;
+          if (view === 'members') {
+            for (const id of ['boardView', 'listView', 'nextView', 'feedbackView', 'membersView']) $(id).hidden = id !== 'membersView';
+            $('auth').hidden = true;
+            $('main').hidden = false;
+            // Live changes must not wipe what you are typing on this page.
+            if (!(document.activeElement?.matches?.('#membersView input, #membersView select'))) await renderMembers();
+            lastRefresh = Date.now();
+            return;
+          }
           try {
             if (view === 'list') data = await api('tickets' + query({ limit: listLimit, sort: 'updated' }));
             else if (view === 'next') data = await api('tickets/next' + query({ limit: 100 }));
@@ -1056,7 +1112,7 @@
           $('auth').hidden = true;
           $('main').hidden = false;
           const now = data.now ?? Date.now();
-          for (const id of ['boardView', 'listView', 'nextView', 'feedbackView']) $(id).hidden = id !== view + 'View';
+          for (const id of ['boardView', 'listView', 'nextView', 'feedbackView', 'membersView']) $(id).hidden = id !== view + 'View';
           if (view === 'list') renderList(data, now);
           else if (view === 'next') renderNext(data, now);
           else if (view === 'feedback') renderFeedback(data, now);
@@ -1372,7 +1428,7 @@
         }
         if (el.dataset.unfilter) return setFilter(el.dataset.unfilter, '');
         if (el.dataset.view) {
-          if (state.view === el.dataset.view && el.dataset.view === 'feedback') state.view = 'board';
+          if (state.view === el.dataset.view && (el.dataset.view === 'feedback' || el.dataset.view === 'members')) state.view = 'board';
           else state.view = el.dataset.view;
           writeUrl(true);
           renderFilters();
@@ -1931,6 +1987,148 @@
         } catch (err) { $('actorMsg').textContent = err.message; }
       });
 
+      // ---- accounts: who am I, members, roles, personal tokens -----------------------------------
+      const ROLE_INFO = {
+        owner: 'Everything, including members and tokens. Holds the server token.',
+        admin: 'Everything except the owner: members, invitations, imports, deletions.',
+        member: 'Creates, comments on and changes tickets.',
+        viewer: 'Reads only.',
+      };
+      async function loadMe() {
+        try {
+          const res = await fetch('api/me', { headers: headers(), cache: 'no-store' });
+          if (!res.ok) return;
+          me = await res.json();
+        } catch { return; }
+        root.dataset.role = me.role || '';
+        if (me.id !== 'user') {
+          // The first column is the owner's queue: say whose it is.
+          const owner = actor('user').name;
+          $('h-waiting').textContent = 'Waiting on ' + owner;
+        }
+      }
+      const canManage = () => me && (me.role === 'owner' || me.role === 'admin');
+      let shownToken = null;
+      async function renderMembers() {
+        let data, tokens, audit = null;
+        try {
+          [data, tokens] = await Promise.all([api('members'), api('tokens')]);
+          if (canManage()) audit = await api('audit?limit=50');
+        } catch (e) {
+          if (e.message !== 'locked') setHtml($('membersView'), `<div class="mbWrap"><p class="mbNote">${esc(e.message)}</p></div>`);
+          return;
+        }
+        if (data.me) me = { ...me, ...data.me, csrf: me?.csrf ?? data.me.csrf };
+        learnActors(Object.fromEntries(data.members.map((x) => [x.id, { id: x.id, type: 'human', name: x.name }])));
+        const active = data.members.filter((x) => !x.revoked_at);
+        const roleCell = (x) => {
+          if (x.role === 'owner' || !canManage()) return `<span class="role ${esc(x.role)}">${esc(x.role)}</span>`;
+          return `<select data-mb-role="${esc(x.id)}" aria-label="Role of ${esc(x.name || x.id)}">${data.roles.map((r) => `<option value="${r}"${r === x.role ? ' selected' : ''}>${r}</option>`).join('')}</select>`;
+        };
+        const rows = active.map((x) => `
+          <div class="mbRow">
+            ${who(x.id)}${x.id === me.id ? ' <em class="mbYou">you</em>' : ''}
+            <span>${roleCell(x)}</span>
+            <span class="mbMeta">${x.created_at ? 'since ' + esc(when(x.created_at)) : ''}${x.last_used_at ? ' · seen ' + esc(ago(x.last_used_at, Date.now())) : ''}</span>
+            <span>${canManage() && x.role !== 'owner' && x.id !== me.id ? `<button type="button" class="btn danger" data-mb="revoke" data-id="${esc(x.id)}">Revoke</button>` : ''}</span>
+          </div>`).join('');
+        const toks = tokens.tokens.map((t) => `
+          <div class="mbRow tok">
+            <span><b>${esc(t.label || (t.kind === 'session' ? 'Browser session' : 'Token'))}</b>${t.current ? ' <em class="mbYou">this one</em>' : ''}</span>
+            <span class="role">${esc(t.kind === 'session' ? 'page' : 'api')}</span>
+            <span class="mbMeta">created ${esc(when(t.created_at))}${t.last_used_at ? ' · used ' + esc(ago(t.last_used_at, Date.now())) : ''}</span>
+            <span><button type="button" class="btn" data-mb="tokRevoke" data-id="${esc(t.id)}">Revoke</button></span>
+          </div>`).join('');
+        const audits = audit ? audit.audit.map((a) => `<div class="mbAudit"><time>${esc(when(a.at))}</time> ${who(a.actor)} <code>${esc(a.action)}</code> ${a.target ? who(a.target) : ''}</div>`).join('') : '';
+        const named = !!actors.get(me.id)?.name;
+        setHtml($('membersView'), `
+          <div class="mbWrap">
+            <section class="mbCard">
+              <h2>You</h2>
+              <div class="mbMe">${avatar(me.id, 'xl')}
+                <form id="meForm" class="mbForm">
+                  <label class="f">Your name<input type="text" name="name" maxlength="60" value="${esc(named ? actorName(me.id) : '')}" placeholder="How others see you" required></label>
+                  <button class="btn primary" type="submit">Save</button>
+                </form>
+              </div>
+              <p class="mbNote">Role: <span class="role ${esc(me.role)}">${esc(me.role)}</span> · ${esc(ROLE_INFO[me.role] || '')}${me.via === 'cookie' ? ' · <button type="button" class="linkBtn" data-mb="logout">Sign out</button>' : ''}</p>
+            </section>
+            <section class="mbCard">
+              <h2>Members <span class="count">${active.length}</span></h2>
+              <div class="mbTable">${rows}</div>
+              <p class="mbNote">${Object.entries(ROLE_INFO).map(([r, d]) => `<b>${r}</b>: ${esc(d)}`).join('<br>')}</p>
+            </section>
+            <div id="invitesSlot"></div>
+            <section class="mbCard">
+              <h2>Your tokens</h2>
+              <p class="mbNote">For the plugin or the CLI (<code>SESSION_BOARD_TOKEN</code>): it acts as you, with your role. Shown once.</p>
+              ${shownToken ? `<div class="secret" role="status"><code id="newTok">${esc(shownToken)}</code><button type="button" class="btn" data-mb="copyTok">Copy</button></div><p class="mbNote warn">Copy it now: it will not be shown again.</p>` : ''}
+              <form id="tokForm" class="mbForm inline"><input type="text" name="label" maxlength="60" placeholder="Label, e.g. laptop"><button class="btn" type="submit">New token</button></form>
+              <div class="mbTable">${toks || '<p class="mbNote">No token yet.</p>'}</div>
+            </section>
+            ${audit ? `<section class="mbCard"><h2>Audit log</h2>${audits || '<p class="mbNote">Nothing yet.</p>'}</section>` : ''}
+          </div>`);
+        if (typeof renderInvites === 'function' && canManage()) await renderInvites();
+      }
+      document.addEventListener('click', async (e) => {
+        const el = e.target.closest('[data-mb]');
+        if (!el) return;
+        const id = el.dataset.id;
+        try {
+          if (el.dataset.mb === 'revoke') {
+            // Two clicks, no browser dialog: the first one arms the button.
+            if (el.dataset.armed !== '1') {
+              el.dataset.armed = '1';
+              el.textContent = 'Confirm';
+              el.title = `Revoke ${actorName(id)}: their tokens and sessions stop working now`;
+              setTimeout(() => { if (el.isConnected) { el.dataset.armed = ''; el.textContent = 'Revoke'; } }, 4000);
+              return;
+            }
+            await apiCall('DELETE', `members/${encodeURIComponent(id)}`);
+            toast(`${actorName(id)} revoked`);
+          } else if (el.dataset.mb === 'tokRevoke') {
+            await apiCall('DELETE', `tokens/${encodeURIComponent(id)}`);
+            toast('Token revoked');
+          } else if (el.dataset.mb === 'copyTok') {
+            await navigator.clipboard?.writeText(shownToken || '');
+            toast('Copied');
+            return;
+          } else if (el.dataset.mb === 'logout') {
+            await apiCall('POST', 'logout');
+            me = null;
+            return locked();
+          } else return;
+          shownToken = null;
+          await renderMembers();
+        } catch (err) { if (err.message !== 'locked') toast(err.message); }
+      });
+      document.addEventListener('change', async (e) => {
+        const id = e.target?.dataset?.mbRole;
+        if (!id) return;
+        try {
+          await apiCall('PATCH', `members/${encodeURIComponent(id)}`, { role: e.target.value });
+          toast(`${actorName(id)} is now ${e.target.value}`);
+        } catch (err) { toast(err.message); }
+        renderMembers();
+      });
+      document.addEventListener('submit', async (e) => {
+        const f = e.target;
+        if (f?.id !== 'meForm' && f?.id !== 'tokForm') return;
+        e.preventDefault();
+        const v = Object.fromEntries(new FormData(f));
+        try {
+          if (f.id === 'meForm') {
+            await apiCall('PATCH', `members/${encodeURIComponent(me.id)}`, { name: v.name });
+            toast('Saved');
+          } else {
+            const t = await apiCall('POST', 'tokens', { label: v.label || null });
+            shownToken = t.token;
+          }
+          await loadFacets();
+          await renderMembers();
+        } catch (err) { toast(err.message); }
+      });
+
       let toastTimer;
       /** A short message at the bottom; `action` adds one button (Undo). Hovering or focusing it holds it. */
       function toast(text, { html = false, action = null, ms = 2600 } = {}) {
@@ -2029,10 +2227,18 @@
         if (state.ticket === key && !$('panel').hidden) openPanel(key, false);
         toast(`${key} back to ${STATUS[prev] || prev}`);
       }
-      $('authForm').addEventListener('submit', (e) => {
+      $('authForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        localStorage.setItem(KEY, $('tok').value.trim());
-        boot();
+        const t = $('tok').value.trim();
+        if (!t) return;
+        try {
+          const res = await fetch('api/session', { method: 'POST', headers: { authorization: 'Bearer ' + t }, cache: 'no-store' });
+          if (!res.ok) throw new Error(res.status === 429 ? 'Too many attempts, wait a few minutes.' : 'This token does not open the board.');
+          me = await res.json();
+          localStorage.removeItem(KEY);
+          $('tok').value = '';
+          boot();
+        } catch (err) { toast(err.message); }
       });
 
       async function loadFacets() {
@@ -2052,6 +2258,7 @@
         renderFilters();
         favicon(0);
         isLocked = false;
+        await loadMe();
         await Promise.all([loadFacets(), refresh()]);
         if (state.ticket) openPanel(state.ticket, false);
         connectStream();
