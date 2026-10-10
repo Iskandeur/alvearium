@@ -266,6 +266,20 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
       }
       if (path === '/api/tickets' && m === 'POST') return send(res, 201, store.createTicket(await jsonBody(req), { actor: actorOf(req, store) }));
       if (path === '/api/actors' && m === 'GET') return send(res, 200, { actors: store.listActors() });
+      const am = path.match(/^\/api\/actors\/(.{1,200})$/);
+      if (am && (m === 'PATCH' || m === 'POST')) {
+        // Renaming is a user action; an agent may only rename itself or one of its sub-actors.
+        let id;
+        try {
+          id = decodeURIComponent(am[1]);
+        } catch {
+          return send(res, 400, { error: 'bad actor id' });
+        }
+        if (auth.kind === 'agent' && !(id === auth.actor || id.startsWith(auth.actor + '/'))) return forbidden(res, 'rename this actor');
+        const body = await jsonBody(req);
+        const out = store.renameActor(id, body?.name ?? null, store.clock());
+        return send(res, out ? 200 : 404, { actor: out });
+      }
       if (path === '/api/facets' && m === 'GET') return send(res, 200, store.facets());
       if (path === '/api/sessions' && m === 'GET') {
         const lim = Math.min(Number(url.searchParams.get('limit')) || 100, 500);

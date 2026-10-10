@@ -78,7 +78,7 @@ test('mcp over stdio: initialize, tools/list, ticket_create attached to the curr
     const upd = await c.request('tools/call', { name: 'ticket_update', arguments: { key, status: 'done', comment: 'user confirmed' } });
     assert.match(upd.result.content[0].text, /\[done/);
     const shown = await c.request('tools/call', { name: 'ticket_get', arguments: { key } });
-    assert.match(shown.result.content[0].text, /claude: comment: user confirmed/);
+    assert.match(shown.result.content[0].text, /claude: comment:\nuser confirmed/);
 
     const bad = await c.request('tools/call', { name: 'ticket_update', arguments: { key: 'SB-999', status: 'done' } });
     assert.equal(bad.result.isError, true);
@@ -120,6 +120,6 @@ test('/ticket CLI: argument parsing and commands', async () => {
   assert.match(await run(['status', 'SB-1', 'bogus'], { backend, context }), /usage/);
   assert.match(await run(['frobnicate'], { backend, context }), /usage/);
   const detail = await run(['show', 'SB-1'], { backend, context });
-  assert.match(detail, /user: comment: renewed/);
+  assert.match(detail, /user: comment:\nrenewed/);
   backend.close();
 });

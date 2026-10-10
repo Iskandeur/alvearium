@@ -19,6 +19,7 @@ import {
   STALE_MS,
   THROTTLE_MS,
   CLOSED_TTL_MS,
+  markdownToTerminal,
 } from '../lib/core.mjs';
 
 test('mapping: prompts and tool calls mean working', () => {

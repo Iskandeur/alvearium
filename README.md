@@ -371,6 +371,14 @@ it, use the back button. Light and dark follow your system (`?theme=light|dark` 
 the *Done* button of the panel, or `d` on the focused card or open ticket closes it, with *Undo*
 for 6 seconds ([desktop](docs/screenshots/done-desktop-light.png), [phone](docs/screenshots/done-mobile-dark.png)).
 
+**Keyboard**: `Ctrl+Enter` (`⌘+Enter` on a Mac) sends the comment you are typing, saves the ticket's
+title or description, or creates a new ticket; `Enter` alone stays a new line. Outside a text field:
+`/` search, `n` new ticket, `j` / `k` next / previous ticket, `Enter` or `o` open it, `d` done,
+`c` comment on the open ticket, `b` / `l` Board / List, `Esc` close, `?` the list of all of them
+([help](docs/screenshots/keys-help-desktop-light.png), [comment hint](docs/screenshots/keys-comment-desktop-light.png)).
+Single keys never fire with Ctrl, ⌘ or Alt held, so the browser's and a screen reader's own keys
+stay theirs.
+
 ### Cloud sessions (claude.ai/code)
 
 Cloud sessions never install plugins. They do load what a repository commits: the hooks of

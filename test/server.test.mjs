@@ -119,6 +119,32 @@ test('server: ticket routes — create, filter, search, update, comment, detail,
   });
 });
 
+test('server: actors can be renamed (stored), agents can only rename themselves', async () => {
+  const store = await openStore(':memory:');
+  await withServer(store, async (base) => {
+    // Create a ticket attributed to an agent actor, so the actor exists.
+    const res = await post(base, '/api/tickets', { title: 'By ticketmaster', assignee: 'lupi/ticketmaster' }, { ...auth, 'x-session-board-actor': 'lupi/ticketmaster' });
+    assert.equal(res.status, 201);
+
+    // Rename via the main token.
+    const renamed = await fetch(`${base}/api/actors/lupi/ticketmaster`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'Ticketmaster' }) });
+    assert.equal(renamed.status, 200);
+    const body = await renamed.json();
+    assert.equal(body.actor.id, 'lupi/ticketmaster');
+    assert.equal(body.actor.name, 'Ticketmaster');
+
+    // Touching the actor again must not override the manual name.
+    await post(base, '/api/tickets', { title: 'Second', assignee: 'lupi/ticketmaster' }, { ...auth, 'x-session-board-actor': 'lupi/ticketmaster' });
+    const actors = await getJson(base, '/api/actors');
+    const a = (actors.actors || []).find((x) => x.id === 'lupi/ticketmaster');
+    assert.equal(a.name, 'Ticketmaster');
+
+    // Built-ins are never renamed.
+    const bad = await fetch(`${base}/api/actors/user`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'Hacker' }) });
+    assert.equal(bad.status, 400);
+  });
+});
+
 test('server: body size limit', async () => {
   await withServer(await openStore(':memory:'), async (base) => {
     const big = JSON.stringify({ pad: 'x'.repeat(100 * 1024) });

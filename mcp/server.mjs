@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { hostname } from 'node:os';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { FEEDBACK_TYPES, PRIORITIES, STATUSES, VERSION, repoFromRemote, truncate } from '../lib/core.mjs';
+import { FEEDBACK_TYPES, PRIORITIES, STATUSES, VERSION, actorDisplayName, markdownToTerminal, repoFromRemote, truncate } from '../lib/core.mjs';
 import { CLOUD_SETUP_HINT, dataDir, loadConfig, openBackend, sessionForCwd } from '../lib/runtime.mjs';
 
 export { VERSION };
@@ -164,24 +164,42 @@ export function currentContext(env = process.env, cwd = env.CLAUDE_PROJECT_DIR |
   };
 }
 
-const line = (t) =>
-  `${t.key}${t.priority ? ' ' + t.priority : ''} [${t.status}${t.assignee === 'user' ? ', on user' : t.assignee && t.assignee !== 'claude' ? ', ' + t.assignee : ''}${t.blocked ? ', blocked' : ''}] ${t.title}` +
-  (t.repo ? ` · ${t.repo}${t.branch && t.branch !== 'HEAD' ? '@' + t.branch : ''}` : '') +
-  (t.labels?.length ? ` · ${t.labels.map((l) => '#' + l).join(' ')}` : '');
+const aName = (id, name) => (id === 'user' ? 'user' : id === 'claude' ? 'claude' : actorDisplayName(id, name));
+
+const line = (t) => {
+  const held =
+    t.assignee === 'user' ? ', on user' : t.assignee && t.assignee !== 'claude' ? ', ' + aName(t.assignee, (t.actors || {})[t.assignee]?.name) : '';
+  return (
+    `${t.key}${t.priority ? ' ' + t.priority : ''} [${t.status}${held}${t.blocked ? ', blocked' : ''}] ${t.title}` +
+    (t.repo ? ` · ${t.repo}${t.branch && t.branch !== 'HEAD' ? '@' + t.branch : ''}` : '') +
+    (t.labels?.length ? ` · ${t.labels.map((l) => '#' + l).join(' ')}` : '')
+  );
+};
 
 function describe(t) {
   const out = [line(t)];
   if (t.parent_key) out.push(`parent: ${t.parent_key} ${t.parent_title || ''}`.trim());
   if (t.blocked_by?.length) out.push(`blocked by: ${t.blocked_by.map((b) => `${b.key} [${b.status}]`).join(', ')}`);
   if (t.blocking?.length) out.push(`blocks: ${t.blocking.map((b) => `${b.key} [${b.status}]`).join(', ')}`);
-  if (t.body) out.push('', truncate(t.body, 1500));
+
+  if (t.body) out.push('', markdownToTerminal(t.body, { ansi: true, max: 1800 }));
+
   for (const l of t.links || []) out.push(`link: ${l.url}`);
   if (t.children?.length) out.push('', 'sub-tickets:', ...t.children.map((c) => '  ' + line(c)));
   if (t.events?.length) {
     out.push('', 'history:');
     for (const e of t.events.slice(-15)) {
-      const what = e.type === 'comment' ? `comment: ${truncate(e.text, 200)}` : e.from_status || e.to_status ? `${e.type} ${e.from_status ?? ''}→${e.to_status ?? ''}${e.text ? ' (' + truncate(e.text, 120) + ')' : ''}` : `${e.type}${e.text ? ' ' + truncate(e.text, 120) : ''}`;
-      out.push(`  ${new Date(e.at).toISOString().slice(0, 16).replace('T', ' ')} ${e.actor}${e.target ? ' → ' + e.target : ''}: ${what}`);
+      const actor = aName(e.actor, (t.actors || {})[e.actor]?.name);
+      const target = e.target ? aName(e.target, (t.actors || {})[e.target]?.name) : '';
+      const ts = new Date(e.at).toISOString().slice(0, 16).replace('T', ' ');
+      const body = e.text ? markdownToTerminal(e.text, { ansi: true, max: 260 }) : '';
+      const what =
+        e.type === 'comment'
+          ? `comment:\n${body}`
+          : e.from_status || e.to_status
+            ? `${e.type} ${e.from_status ?? ''}→${e.to_status ?? ''}${body ? '\n' + body : ''}`
+            : `${e.type}${body ? '\n' + body : ''}`;
+      out.push(`  ${ts} ${actor}${target ? ' → ' + target : ''}: ${what}`);
     }
   }
   return out.join('\n');
