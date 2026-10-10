@@ -187,7 +187,7 @@ Give that agent its token as `SESSION_BOARD_TOKEN` instead of the main one. A re
 `user` and `hook` cannot be agent actors, every token must be at least 24 characters and differ from
 the main token, and the server refuses to start on a line it cannot read.
 
-## Members and roles (0.5.0)
+## Members and roles (0.5.1)
 
 A board can have several humans. Each one has a name, a role and personal tokens; the history
 names whoever did what (no more anonymous *You* once there are two of you). The server checks the

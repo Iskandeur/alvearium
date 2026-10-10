@@ -668,7 +668,7 @@
 
       // ---- actors: who did what, to whom ------------------------------------------------------
       const actors = new Map([
-        ['user', { id: 'user', type: 'human', name: 'You' }],
+        ['user', { id: 'user', type: 'human', name: null }],
         ['claude', { id: 'claude', type: 'agent', name: 'Claude' }],
         ['hook', { id: 'hook', type: 'system', name: 'Session' }],
       ]);
@@ -2001,11 +2001,11 @@
           me = await res.json();
         } catch { return; }
         root.dataset.role = me.role || '';
-        if (me.id !== 'user') {
-          // The first column is the owner's queue: say whose it is.
-          const owner = actor('user').name;
-          $('h-waiting').textContent = 'Waiting on ' + owner;
-        }
+        waitingLabel();
+      }
+      /** The first column is the owner's queue: for anyone else, say whose it is. */
+      function waitingLabel() {
+        if (me && me.id !== 'user') $('h-waiting').textContent = 'Waiting on ' + actor('user').name;
       }
       const canManage = () => me && (me.role === 'owner' || me.role === 'admin');
       let shownToken = null;
@@ -2027,7 +2027,7 @@
         };
         const rows = active.map((x) => `
           <div class="mbRow">
-            ${who(x.id)}${x.id === me.id ? ' <em class="mbYou">you</em>' : ''}
+            <span>${who(x.id)}${x.id === me.id ? ' <em class="mbYou">you</em>' : ''}</span>
             <span>${roleCell(x)}</span>
             <span class="mbMeta">${x.created_at ? 'since ' + esc(when(x.created_at)) : ''}${x.last_used_at ? ' · seen ' + esc(ago(x.last_used_at, Date.now())) : ''}</span>
             <span>${canManage() && x.role !== 'owner' && x.id !== me.id ? `<button type="button" class="btn danger" data-mb="revoke" data-id="${esc(x.id)}">Revoke</button>` : ''}</span>
@@ -2246,6 +2246,7 @@
           facets = await api('facets');
           facets.hasCloud = facets.sessions.some((s) => s.origin === 'cloud');
           learnActors(Object.fromEntries((facets.actors || []).map((a) => [a.id, a])));
+          waitingLabel();
           const n = facets.feedback?.open || 0;
           $('fbCount').textContent = String(n);
           $('fbCount').classList.toggle('zero', !n);
