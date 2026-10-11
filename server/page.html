@@ -419,6 +419,8 @@
       top: 50%;
       transform: translate(-50%, -50%);
       transform-origin: center;
+      max-width: none; /* natural size: the crop math scales from it */
+      max-height: none;
       user-select: none;
       -webkit-user-drag: none;
       will-change: transform;
@@ -1639,9 +1641,10 @@
           if (m) m.textContent = '';
           encodeAvatarCrop()
             .then((b) => uploadAvatarBlob(b))
-            .then(() => {
+            .then((uploaded) => {
               closeAvatarCrop();
-              swapHelp(renderActor, 'Actor');
+              if (uploaded) swapHelp(renderActor, 'Actor');
+              else closeHelp(); // locked: the sign-in screen, nothing over it
             })
             .catch((err) => {
               if (m) m.textContent = err.message;
@@ -2116,7 +2119,7 @@
                   <label class="btn" tabindex="0">Upload picture<input type="file" id="avFile" accept="image/png,image/jpeg,image/webp" hidden></label>
                   ${a.avatar ? '<button type="button" class="btn" data-act="avRemove">Remove</button>' : ''}
                 </div>
-                <p class="helpNote">PNG, JPEG or WebP. Previewed behind a circle; drag to center, zoom, then uploaded as a 256 px square (WebP, or PNG where WebP is unavailable).</p>
+                <p class="helpNote">PNG, JPEG or WebP. Previewed behind a circle; drag to center, zoom, then uploaded as a square of at most 256 px (WebP, or PNG where WebP is unavailable).</p>
               </div>
             </div>
             ${named ? `<label class="f">Display name<input type="text" name="name" maxlength="60" value="${esc(a.name || '')}" placeholder="${esc(id)}" autofocus></label>` : ''}
@@ -2247,7 +2250,7 @@
         v.onpointerup = (e) => {
           pts.delete(e.pointerId);
           if (pts.size < 2) pinch = null;
-          if (pts.size !== 1) drag = null;
+          if (pts.size !== 1 || !avatarCrop) drag = null;
           else {
             const p = [...pts.values()][0];
             drag = { p, dx: avatarCrop.dx, dy: avatarCrop.dy };
@@ -2285,13 +2288,15 @@
         const img = new Image();
         avatarCrop = { url, img, w: 0, h: 0, dx: 0, dy: 0, zoom: 1, base: 1, crop: 260 };
         swapHelp(renderAvatarCropLoading, 'Crop picture');
+        // A cancelled or replaced crop leaves its image loading: only the current one may act.
         img.onload = () => {
-          if (!avatarCrop) return;
+          if (avatarCrop?.img !== img) return;
           avatarCrop.w = img.naturalWidth;
           avatarCrop.h = img.naturalHeight;
           swapHelp(renderAvatarCrop, 'Crop picture');
         };
         img.onerror = () => {
+          if (avatarCrop?.img !== img) return;
           closeAvatarCrop();
           toast('Not an image');
           swapHelp(renderActor, 'Actor');
@@ -2301,10 +2306,11 @@
       async function encodeAvatarCrop() {
         if (!avatarCrop) throw new Error('no crop');
         clampAvatarCrop();
-        const out = 256;
+        const r = cropSourceRect(avatarCrop);
+        // At most 256 px, never upscaled: a small picture stays sharp.
+        const out = Math.max(1, Math.min(256, Math.round(r.side)));
         const c = document.createElement('canvas');
         c.width = c.height = out;
-        const r = cropSourceRect(avatarCrop);
         c.getContext('2d').drawImage(avatarCrop.img, r.x, r.y, r.side, r.side, 0, 0, out, out);
         const webp = await new Promise((ok) => c.toBlob(ok, 'image/webp', 0.88));
         if (webp && webp.type === 'image/webp') return webp;
@@ -2318,10 +2324,11 @@
         if (msg) msg.textContent = '';
         const res = await fetch(`api/actors/${encodeURIComponent(id)}/avatar`, { method: 'PUT', headers: { ...headers(), 'content-type': blob.type || 'application/octet-stream' }, body: blob });
         const data = await res.json().catch(() => ({}));
-        if (res.status === 401) { locked(); return; }
+        if (res.status === 401) { locked(); return false; }
         if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
         toast('Picture updated');
         await refreshActorDialog();
+        return true;
       }
       async function removeAvatar() {
         const id = actorDialogId;
