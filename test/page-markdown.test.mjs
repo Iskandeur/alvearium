@@ -9,7 +9,8 @@ const escLine = page.match(/^\s*const esc = .*$/m)[0];
 const from = page.indexOf('// ---- markdown');
 const to = page.indexOf('/** One line that says what a ticket needs from you. */');
 assert.ok(from > 0 && to > from, 'markdown block found in page.html');
-const { md, plain } = new Function(`${escLine}\n${page.slice(from, to)}\nreturn { md, plain };`)();
+// The renderer reads the global actors list to render @mentions as pills.
+const { md, plain } = new Function(`${escLine}\nconst actors = new Map([["ferao", { id: "ferao", type: "agent", name: "Ferao" }]]);\nconst actorName = (id) => actors.get(id)?.name || String(id);\n${page.slice(from, to)}\nreturn { md, plain };`)();
 
 test('md: headings, emphasis, code, lists, quotes, tables', () => {
   const h = md('### Title\n\n**bold** and _it_ and `x < y`\n\n- a\n- b\n\n1. one\n\n> quote\n\n| A | B |\n|---|---|\n| 1 | 2 |');
@@ -20,6 +21,11 @@ test('md: headings, emphasis, code, lists, quotes, tables', () => {
   assert.match(h, /<blockquote>quote<\/blockquote>/);
   assert.match(h, /<th>A<\/th><th>B<\/th>.*<td>1<\/td><td>2<\/td>/);
   assert.doesNotMatch(h, /###/);
+});
+
+test('md: @mentions become pills', () => {
+  const h = md('hi @ferao');
+  assert.match(h, /<span class="mention"[^>]*>@ferao<\/span>/);
 });
 
 test('md: a markdown link and a bare URL each become exactly one anchor', () => {

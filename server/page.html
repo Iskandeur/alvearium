@@ -290,6 +290,16 @@
     .compose .acts, .formActs { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
     .formActs .msg { margin-right: auto; color: var(--danger); font-size: 12.5px; }
 
+    /* @mentions */
+    .md .mention { display: inline-flex; align-items: center; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 650; font-size: 0.95em; white-space: nowrap; }
+    .md .mention:hover { filter: brightness(0.98); }
+    .mentions { position: relative; }
+    .mentionBox { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); z-index: 5; background: var(--card); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); overflow: auto; max-height: 240px; }
+    .mentionBox .mRow { display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: pointer; }
+    .mentionBox .mRow:hover, .mentionBox .mRow.sel { background: var(--chip); }
+    .mentionBox .mName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mentionBox .mId { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
     /* Keyboard shortcut help */
     .kbd { font: inherit; font-size: 11.5px; color: var(--faint); border: 1px solid var(--line-strong); border-radius: 5px; padding: 0 5px; line-height: 18px; background: color-mix(in srgb, var(--card) 60%, transparent); }
     .helpScrim { position: fixed; inset: 0; background: rgba(10, 10, 14, 0.22); z-index: 29; }
@@ -703,6 +713,7 @@
       ]);
       function learnActors(list) {
         for (const a of Object.values(list || {})) if (a && a.id) actors.set(a.id, { ...actors.get(a.id), ...a, name: a.name && !(a.id === 'user' && a.name === 'You') ? a.name : null });
+        if (mention.open) mentionUpdate($('comment'));
       }
       function actor(id) {
         if (id === 'user' || (me && id === me.id)) {
@@ -849,6 +860,12 @@
         s = s.replace(/\*\*([^*\n]{1,200})\*\*/g, '<strong>$1</strong>');
         s = s.replace(/(^|[\s(])_([^_\n]{1,200})_(?=[\s).,!?;:]|$)/g, '$1<em>$2</em>');
         s = s.replace(/(^|[\s(])\*([^*\n]{1,200})\*(?=[\s).,!?;:]|$)/g, '$1<em>$2</em>');
+        // @mentions, by actor id: @ferao. Only known actors become pills.
+        s = s.replace(/(^|[\s(])@([\p{L}0-9-]{1,64})\b/gu, (m, pre, id) => {
+          if (!actors?.has?.(id)) return m;
+          const title = actorName(id);
+          return `${pre}<span class="mention" title="${esc(title)}">@${esc(id)}</span>`;
+        });
         return s.replace(/\u0000(\d+)\u0000/g, (_, i) => kept[Number(i)] ?? '');
       }
 
@@ -1306,6 +1323,7 @@
         if (!state.ticket && $('panel').hidden) return;
         state.ticket = '';
         panelDirty = false;
+        mentionClose();
         $('panel').hidden = true;
         $('scrim').hidden = true;
         writeUrl(push);
@@ -1344,6 +1362,7 @@
       };
       function renderPanel(t) {
         panelDirty = false;
+        mentionClose();
         const now = Date.now();
         learnActors(t.actors);
         const ctx = [];
@@ -1383,7 +1402,7 @@
             </div>`}
             <div class="sect">History</div>
             <div class="timeline">${(t.events || []).map(eventLine).join('')}</div>
-            <div class="compose"><textarea id="comment" placeholder="Add a comment…" aria-label="Comment"></textarea><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts"><button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
+            <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" placeholder="Add a comment…" aria-label="Comment"></textarea><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts"><button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
           </form>`;
         $('panel').hidden = false;
         $('scrim').hidden = false;
@@ -1393,6 +1412,7 @@
       }
       function renderCreate(prefill = {}) {
         state.ticket = '';
+        mentionClose();
         writeUrl(false);
         const f = state.f;
         $('panel').innerHTML = `
@@ -1427,8 +1447,87 @@
         return v;
       }
 
+      // ---- @mentions --------------------------------------------------------------------------
+      const MENTION_ID = /^[\p{L}0-9-]{1,64}$/u;
+      let mention = { open: false, start: 0, end: 0, q: '', list: [], sel: 0 };
+      function mentionClose() {
+        const box = $('mentionBox');
+        if (box) { box.hidden = true; box.innerHTML = ''; }
+        mention = { open: false, start: 0, end: 0, q: '', list: [], sel: 0 };
+      }
+      function mentionActors() {
+        const list = [];
+        for (const id of actors.keys()) {
+          if (!id || id === 'user' || id === 'claude' || id === 'hook') continue;
+          if (!MENTION_ID.test(id)) continue;
+          list.push({ id, name: actorName(id) });
+        }
+        list.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+        return list;
+      }
+      function mentionRender() {
+        const box = $('mentionBox');
+        if (!box) return;
+        if (!mention.open) { box.hidden = true; box.innerHTML = ''; return; }
+        box.hidden = false;
+        const rows = mention.list.map((a, i) => {
+          const sel = i === mention.sel ? ' sel' : '';
+          return `<div class="mRow${sel}" data-m="${esc(a.id)}">${avatar(a.id, '', { edit: false })}<span class="mName">${esc(a.name)}</span><span class="mId">@${esc(a.id)}</span></div>`;
+        });
+        box.innerHTML = rows.join('') || `<div class="mRow" style="color:var(--faint)">No match</div>`;
+      }
+      function mentionPick(id) {
+        const ta = $('comment');
+        if (!ta || !id || !MENTION_ID.test(id) || !mention.open) return;
+        const before = ta.value.slice(0, mention.start);
+        const after = ta.value.slice(mention.end);
+        const space = ' ';
+        const next = before + '@' + id + space + after;
+        const pos = (before + '@' + id + space).length;
+        ta.value = next;
+        try { ta.setSelectionRange(pos, pos); } catch {}
+        mentionClose();
+        ta.focus();
+      }
+      function computeMention(text, caret, all) {
+        const before = String(text || '').slice(0, caret);
+        let at = before.lastIndexOf('@');
+        while (at >= 0) {
+          const p = at ? before[at - 1] : '';
+          if (!p || /\s|\(/.test(p)) break;
+          at = before.lastIndexOf('@', at - 1);
+        }
+        if (at < 0) return null;
+        const q = before.slice(at + 1);
+        if (!/^[\p{L}0-9-]{0,64}$/u.test(q)) return null;
+        const term = q.toLowerCase();
+        const list = term ? all.filter((a) => a.id.toLowerCase().startsWith(term) || a.name.toLowerCase().startsWith(term)) : all;
+        return { open: true, start: at, end: caret, q, list: list.slice(0, 20), sel: 0 };
+      }
+      function mentionUpdate(ta) {
+        if (!ta || ta.id !== 'comment') return;
+        if (ta.selectionStart !== ta.selectionEnd) return void mentionClose();
+        const caret = ta.selectionStart;
+        const next = computeMention(ta.value, caret, mentionActors());
+        if (!next) return void mentionClose();
+        mention = next;
+        mentionRender();
+      }
+      function mentionKey(e) {
+        if (!mention.open) return false;
+        if (e.key === 'Escape') { e.preventDefault(); mentionClose(); return true; }
+        if (e.key === 'ArrowDown') { e.preventDefault(); mention.sel = Math.min(mention.sel + 1, Math.max(mention.list.length - 1, 0)); mentionRender(); return true; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); mention.sel = Math.max(mention.sel - 1, 0); mentionRender(); return true; }
+        if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) { e.preventDefault(); mentionPick(mention.list[mention.sel]?.id); return true; }
+        if (e.key === 'Tab' && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); mentionPick(mention.list[mention.sel]?.id); return true; }
+        return false;
+      }
+
       // ---- events -------------------------------------------------------------------------------
       document.addEventListener('click', async (e) => {
+        const pick = e.target.closest?.('[data-m]');
+        if (pick && mention.open) { e.preventDefault(); e.stopPropagation(); return mentionPick(pick.dataset.m); }
+        if (mention.open && !e.target.closest?.('.mentionBox') && e.target?.id !== 'comment') mentionClose();
         const el = e.target.closest('[data-done],[data-undep],[data-filter],[data-unfilter],[data-view],[data-act],[data-open],[data-stop],[data-actor]');
         if (!el) return;
         if (el.dataset.stop) return;
@@ -1646,6 +1745,7 @@
         refresh();
       }
       document.addEventListener('keydown', (e) => {
+        if (mentionKey(e)) return;
         const t = e.target;
         const card = t?.dataset?.open && !t.closest('aside') ? t : null;
         const a = shortcut(e, {
@@ -1688,7 +1788,8 @@
       });
       $('panel').addEventListener('input', (e) => {
         if (e.target.classList.contains('pTitle')) autosize(e.target);
-        if (['comment', 'addBlocker', 'addBlocked', 'resolution'].includes(e.target.id) || !$('panel').__ticket || $('panel').querySelector('#cform')) return;
+        if (e.target.id === 'comment') return mentionUpdate(e.target);
+        if (['addBlocker', 'addBlocked', 'resolution'].includes(e.target.id) || !$('panel').__ticket || $('panel').querySelector('#cform')) return;
         panelDirty = true;
         $('saveBar').hidden = false;
       });
