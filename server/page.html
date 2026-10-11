@@ -711,6 +711,7 @@
         ['claude', { id: 'claude', type: 'agent', name: 'Claude' }],
         ['hook', { id: 'hook', type: 'system', name: 'Session' }],
       ]);
+      let mention = { open: false, start: 0, end: 0, q: '', list: [], sel: 0 };
       let mentionActorsCache = null;
       function learnActors(list) {
         for (const a of Object.values(list || {})) if (a && a.id) actors.set(a.id, { ...actors.get(a.id), ...a, name: a.name && !(a.id === 'user' && a.name === 'You') ? a.name : null });
@@ -1451,7 +1452,6 @@
 
       // ---- @mentions --------------------------------------------------------------------------
       const MENTION_ID = /^[\p{L}0-9-]{1,64}$/u;
-      let mention = { open: false, start: 0, end: 0, q: '', list: [], sel: 0 };
       function mentionClose() {
         const box = $('mentionBox');
         if (box) { box.hidden = true; box.innerHTML = ''; }
@@ -1522,6 +1522,15 @@
         if (e.target?.id !== 'comment') return false;
         if (e.key === 'Escape') { e.preventDefault(); mentionClose(); return true; }
         // With no match, do not steal keys: Enter stays a newline, Tab stays navigation.
+        if ((e.key === 'Enter' || e.key === 'Tab') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+          // The caret may have moved since the last input (arrows, click): re-read it before inserting.
+          const sel = mention.sel;
+          mentionUpdate(e.target);
+          if (!mention.open) return false;
+          mention.sel = Math.min(sel, Math.max(mention.list.length - 1, 0));
+          // A bare "@" then Enter is a newline, not a pick (Tab still picks).
+          if (e.key === 'Enter' && !mention.q) { mentionClose(); return false; }
+        }
         if (!mention.list?.length) return false;
         if (e.key === 'ArrowDown') { e.preventDefault(); mention.sel = Math.min(mention.sel + 1, Math.max(mention.list.length - 1, 0)); mentionRender(); return true; }
         if (e.key === 'ArrowUp') { e.preventDefault(); mention.sel = Math.max(mention.sel - 1, 0); mentionRender(); return true; }
