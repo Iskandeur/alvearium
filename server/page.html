@@ -1637,11 +1637,13 @@
         if (act === 'avCropOk') {
           if (!avatarCrop || avatarCrop.busy) return;
           avatarCrop.busy = true;
+          const mine = avatarCrop;
           const m = $('cropMsg');
           if (m) m.textContent = '';
           encodeAvatarCrop()
             .then((b) => uploadAvatarBlob(b))
             .then((uploaded) => {
+              if (avatarCrop !== mine) return; // cancelled meanwhile: reopen nothing
               closeAvatarCrop();
               if (uploaded) swapHelp(renderActor, 'Actor');
               else closeHelp(); // locked: the sign-in screen, nothing over it
@@ -2179,9 +2181,9 @@
         $('help').innerHTML = `
           <div class="helpHead"><h3>Crop picture</h3><button type="button" class="x" data-act="avCropCancel" aria-label="Close">×</button></div>
           <div class="cropWrap">
-            <div class="cropV" id="cropV"><img id="cropImg" alt="" draggable="false"><div class="cropRing"></div></div>
+            <div class="cropV" id="cropV" tabindex="0" role="application" aria-label="Picture position: arrow keys move it, + and - zoom"><img id="cropImg" alt="" draggable="false"><div class="cropRing"></div></div>
             <div style="min-width: 220px">
-              <p class="helpNote" style="margin-top:0">Drag to center. Zoom with the slider, wheel, or pinch.</p>
+              <p class="helpNote" style="margin-top:0">Drag to center. Zoom with the slider, wheel, or pinch. Keyboard: arrows move, + and - zoom.</p>
               <div class="cropZoom"><label for="cropZ">Zoom</label><input id="cropZ" type="range" min="1" max="6" value="1" step="0.01"></div>
               <div class="formActs" style="margin-top:12px"><span class="msg" id="cropMsg"></span><button type="button" class="btn ghost" data-act="avCropCancel">Cancel</button><button type="button" class="btn primary" data-act="avCropOk">Validate</button></div>
             </div>
@@ -2271,6 +2273,21 @@
           avatarCrop.zoom = z;
           avatarCrop.dx = p.x - (qx - avatarCrop.w / 2) * s;
           avatarCrop.dy = p.y - (qy - avatarCrop.h / 2) * s;
+          applyAvatarCrop();
+        };
+
+        v.onkeydown = (e) => {
+          if (!avatarCrop) return;
+          const step = e.shiftKey ? 40 : 8;
+          const k = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+          if (k) {
+            avatarCrop.dx += k[0];
+            avatarCrop.dy += k[1];
+          } else if (e.key === '+' || e.key === '=' || e.key === '-') {
+            avatarCrop.zoom = Math.max(1, Math.min(6, avatarCrop.zoom * (e.key === '-' ? 1 / 1.1 : 1.1)));
+          } else return;
+          e.preventDefault();
+          e.stopPropagation();
           applyAvatarCrop();
         };
 
