@@ -863,8 +863,8 @@
         s = s.replace(/(^|[\s(])_([^_\n]{1,200})_(?=[\s).,!?;:]|$)/g, '$1<em>$2</em>');
         s = s.replace(/(^|[\s(])\*([^*\n]{1,200})\*(?=[\s).,!?;:]|$)/g, '$1<em>$2</em>');
         // @mentions, by actor id: @ferao. Only known actors become pills.
-        s = s.replace(/(^|[\s(])@([\p{L}0-9-]{1,64})\b/gu, (m, pre, id) => {
-          if (!actors?.has?.(id)) return m;
+        s = s.replace(/(^|[\s(])@([\p{L}0-9-]{1,64})(?![\p{L}0-9-])/gu, (m, pre, id) => {
+          if (id === 'claude' || id === 'hook' || !actors?.has?.(id)) return m;
           const title = actorName(id);
           return `${pre}<span class="mention" title="${esc(title)}">@${esc(id)}</span>`;
         });
@@ -1521,6 +1521,8 @@
         if (!mention.open) return false;
         if (e.target?.id !== 'comment') return false;
         if (e.key === 'Escape') { e.preventDefault(); mentionClose(); return true; }
+        // With no match, do not steal keys: Enter stays a newline, Tab stays navigation.
+        if (!mention.list?.length) return false;
         if (e.key === 'ArrowDown') { e.preventDefault(); mention.sel = Math.min(mention.sel + 1, Math.max(mention.list.length - 1, 0)); mentionRender(); return true; }
         if (e.key === 'ArrowUp') { e.preventDefault(); mention.sel = Math.max(mention.sel - 1, 0); mentionRender(); return true; }
         if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) { e.preventDefault(); mentionPick(mention.list[mention.sel]?.id); return true; }

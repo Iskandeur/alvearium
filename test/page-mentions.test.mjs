@@ -6,9 +6,11 @@ import { join } from 'node:path';
 
 const page = readFileSync(join(import.meta.dirname, '..', 'server', 'page.html'), 'utf8');
 
-// Extract by following function boundary: avoid brittle brace counting (regex literals contain `{0,64}`).
-const src = page.match(/function computeMention\(text, caret, all\) \{[\s\S]*?\n {6}\}\n(?= {6}function mentionUpdate\()/)?.[0];
-assert.ok(src, 'computeMention() is in the page');
+// Extract by slicing between two function declarations: stable on indentation and regex literals.
+const from = page.indexOf('function computeMention(text, caret, all) {');
+const to = page.indexOf('function mentionUpdate(ta) {', from);
+assert.ok(from > 0 && to > from, 'computeMention() is in the page');
+const src = page.slice(from, to);
 const computeMention = new Function(`${src}; return computeMention;`)();
 
 test('mentions: @ at start and after whitespace opens', () => {
