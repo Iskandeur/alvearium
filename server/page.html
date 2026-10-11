@@ -2136,16 +2136,26 @@
         try { URL.revokeObjectURL(avatarCrop.url); } catch { /* ignore */ }
         avatarCrop = null;
       }
+      /** Keep the circle inside the image: clamp the pan (dx, dy, px from the viewport center) in place. */
+      function cropClamp(st) {
+        const s = st.base * st.zoom;
+        const maxDx = Math.max(0, (st.w * s - st.crop) / 2);
+        const maxDy = Math.max(0, (st.h * s - st.crop) / 2);
+        st.dx = Math.max(-maxDx, Math.min(maxDx, st.dx));
+        st.dy = Math.max(-maxDy, Math.min(maxDy, st.dy));
+        return st;
+      }
+      /** Square of the source image under the circle, in image pixels. */
+      function cropSourceRect(st) {
+        const s = st.base * st.zoom;
+        return {
+          x: st.w / 2 - (st.crop / 2 + st.dx) / s,
+          y: st.h / 2 - (st.crop / 2 + st.dy) / s,
+          side: st.crop / s,
+        };
+      }
       function clampAvatarCrop() {
-        if (!avatarCrop) return;
-        const s = avatarCrop.base * avatarCrop.zoom;
-        const halfW = (avatarCrop.w * s) / 2;
-        const halfH = (avatarCrop.h * s) / 2;
-        const halfC = avatarCrop.crop / 2;
-        const maxDx = Math.max(0, halfW - halfC);
-        const maxDy = Math.max(0, halfH - halfC);
-        avatarCrop.dx = Math.max(-maxDx, Math.min(maxDx, avatarCrop.dx));
-        avatarCrop.dy = Math.max(-maxDy, Math.min(maxDy, avatarCrop.dy));
+        if (avatarCrop) cropClamp(avatarCrop);
       }
       function applyAvatarCrop() {
         if (!avatarCrop) return;
@@ -2239,7 +2249,7 @@
           if (pts.size < 2) pinch = null;
           if (pts.size !== 1) drag = null;
           else {
-            const [id, p] = [...pts.entries()][0];
+            const p = [...pts.values()][0];
             drag = { p, dx: avatarCrop.dx, dy: avatarCrop.dy };
           }
         };
@@ -2294,17 +2304,8 @@
         const out = 256;
         const c = document.createElement('canvas');
         c.width = c.height = out;
-        const ctx = c.getContext('2d');
-        const s = avatarCrop.base * avatarCrop.zoom;
-        const cropHalf = avatarCrop.crop / 2;
-        const halfW = (avatarCrop.w * s) / 2;
-        const halfH = (avatarCrop.h * s) / 2;
-        const imgLeft = -halfW + avatarCrop.dx;
-        const imgTop = -halfH + avatarCrop.dy;
-        const srcX = (-cropHalf - imgLeft) / s;
-        const srcY = (-cropHalf - imgTop) / s;
-        const srcS = avatarCrop.crop / s;
-        ctx.drawImage(avatarCrop.img, srcX, srcY, srcS, srcS, 0, 0, out, out);
+        const r = cropSourceRect(avatarCrop);
+        c.getContext('2d').drawImage(avatarCrop.img, r.x, r.y, r.side, r.side, 0, 0, out, out);
         const webp = await new Promise((ok) => c.toBlob(ok, 'image/webp', 0.88));
         if (webp && webp.type === 'image/webp') return webp;
         const png = await new Promise((ok) => c.toBlob(ok, 'image/png'));
