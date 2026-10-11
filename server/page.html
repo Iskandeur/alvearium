@@ -400,6 +400,47 @@
     .av img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block; }
     .avEdit { display: flex; gap: 14px; align-items: center; margin: 6px 0 14px; }
     .avEdit .btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+    /* Avatar cropper (in the help modal) */
+    .cropWrap { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+    .cropV {
+      position: relative;
+      width: min(360px, calc(100vw - 60px));
+      aspect-ratio: 1;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      touch-action: none;
+      flex: none;
+    }
+    .cropV img {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      transform-origin: center;
+      max-width: none; /* natural size: the crop math scales from it */
+      max-height: none;
+      user-select: none;
+      -webkit-user-drag: none;
+      will-change: transform;
+    }
+    .cropRing {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: var(--crop, 260px);
+      height: var(--crop, 260px);
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      box-shadow: 0 0 0 999px rgba(10, 10, 14, 0.55);
+      border: 2px solid rgba(255, 255, 255, 0.82);
+      pointer-events: none;
+    }
+    .cropZoom { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .cropZoom label { font-size: 12.5px; color: var(--muted); }
+    .cropZoom input[type="range"] { width: 180px; }
+
     .actorForm label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--muted); margin-bottom: 12px; }
     .actorForm input[type="text"] { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text); font: inherit; }
     .tags .av { margin-left: auto; }
@@ -1589,6 +1630,33 @@
           e.stopPropagation();
           return openActor(el.dataset.actor || '');
         }
+        if (act === 'avCropCancel') {
+          closeAvatarCrop();
+          return swapHelp(renderActor, 'Actor');
+        }
+        if (act === 'avCropOk') {
+          if (!avatarCrop || avatarCrop.busy) return;
+          avatarCrop.busy = true;
+          const mine = avatarCrop;
+          const m = $('cropMsg');
+          if (m) m.textContent = '';
+          encodeAvatarCrop()
+            .then((b) => uploadAvatarBlob(b))
+            .then((uploaded) => {
+              if (avatarCrop !== mine) return; // cancelled meanwhile: reopen nothing
+              closeAvatarCrop();
+              if (uploaded) swapHelp(renderActor, 'Actor');
+              else closeHelp(); // locked: the sign-in screen, nothing over it
+            })
+            .catch((err) => {
+              if (m) m.textContent = err.message;
+              else toast(err.message);
+            })
+            .finally(() => {
+              if (avatarCrop) avatarCrop.busy = false;
+            });
+          return;
+        }
         if (act === 'avRemove') return removeAvatar();
         if (act === 'inviteCopy') { navigator.clipboard?.writeText($('inviteToken').textContent); return toast('Copied'); }
         if (act === 'inviteContinue') { $('invite').hidden = true; $('inviteToken').textContent = ''; return boot(); }
@@ -1654,7 +1722,7 @@
       const sendHint = (verb) => `${modLabel()}+↵ to ${verb}`;
 
       let helpPrevFocus = null;
-      /** The help overlay doubles as the one modal of the page (actor dialog). */
+      /** The help overlay doubles as the one modal of the page (help, actor dialog, avatar crop). */
       function openHelp(render = renderHelp, label = 'Keyboard shortcuts') {
         if (!$('help').hidden) closeHelp();
         helpPrevFocus = document.activeElement;
@@ -1664,8 +1732,16 @@
         $('help').hidden = false;
         ($('help').querySelector('[autofocus]') || $('helpClose'))?.focus?.();
       }
+      /** Replace the help contents without closing/reopening the modal. */
+      function swapHelp(render, label) {
+        if ($('help').hidden) return openHelp(render, label);
+        render();
+        $('help').setAttribute('aria-label', label);
+        ($('help').querySelector('[autofocus]') || $('helpClose'))?.focus?.();
+      }
       function closeHelp() {
         if ($('help').hidden) return;
+        closeAvatarCrop();
         $('helpScrim').hidden = true;
         $('help').hidden = true;
         const prev = helpPrevFocus;
@@ -2045,7 +2121,7 @@
                   <label class="btn" tabindex="0">Upload picture<input type="file" id="avFile" accept="image/png,image/jpeg,image/webp" hidden></label>
                   ${a.avatar ? '<button type="button" class="btn" data-act="avRemove">Remove</button>' : ''}
                 </div>
-                <p class="helpNote">PNG, JPEG or WebP. Cropped square and resized to 256 px in this browser before upload.</p>
+                <p class="helpNote">PNG, JPEG or WebP. Previewed behind a circle; drag to center, zoom, then uploaded as a square of at most 256 px (WebP, or PNG where WebP is unavailable).</p>
               </div>
             </div>
             ${named ? `<label class="f">Display name<input type="text" name="name" maxlength="60" value="${esc(a.name || '')}" placeholder="${esc(id)}" autofocus></label>` : ''}
@@ -2059,49 +2135,217 @@
         refresh();
         if (!$('panel').hidden && $('panel').__ticket && !$('panel').contains(document.activeElement)) openPanel($('panel').__ticket.key, false);
       }
-      /** Square crop, at most 256 px, WebP (PNG where the browser cannot encode WebP). */
-      async function shrinkImage(file) {
-        const url = URL.createObjectURL(file);
-        try {
-          const img = await new Promise((ok, ko) => {
-            const i = new Image();
-            i.onload = () => ok(i);
-            i.onerror = () => ko(new Error('not an image'));
-            i.src = url;
-          });
-          const side = Math.min(img.naturalWidth, img.naturalHeight);
-          const out = Math.min(256, side);
-          const c = document.createElement('canvas');
-          c.width = c.height = out;
-          c.getContext('2d').drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
-          const webp = await new Promise((ok) => c.toBlob(ok, 'image/webp', 0.88));
-          if (webp && webp.type === 'image/webp') return webp;
-          return await new Promise((ok) => c.toBlob(ok, 'image/png'));
-        } finally {
-          URL.revokeObjectURL(url);
-        }
+      let avatarCrop = null;
+      function closeAvatarCrop() {
+        if (!avatarCrop) return;
+        try { URL.revokeObjectURL(avatarCrop.url); } catch { /* ignore */ }
+        avatarCrop = null;
       }
-      async function uploadAvatar(file) {
+      /** Keep the circle inside the image: clamp the pan (dx, dy, px from the viewport center) in place. */
+      function cropClamp(st) {
+        const s = st.base * st.zoom;
+        const maxDx = Math.max(0, (st.w * s - st.crop) / 2);
+        const maxDy = Math.max(0, (st.h * s - st.crop) / 2);
+        st.dx = Math.max(-maxDx, Math.min(maxDx, st.dx));
+        st.dy = Math.max(-maxDy, Math.min(maxDy, st.dy));
+        return st;
+      }
+      /** Square of the source image under the circle, in image pixels. */
+      function cropSourceRect(st) {
+        const s = st.base * st.zoom;
+        return {
+          x: st.w / 2 - (st.crop / 2 + st.dx) / s,
+          y: st.h / 2 - (st.crop / 2 + st.dy) / s,
+          side: st.crop / s,
+        };
+      }
+      function clampAvatarCrop() {
+        if (avatarCrop) cropClamp(avatarCrop);
+      }
+      function applyAvatarCrop() {
+        if (!avatarCrop) return;
+        clampAvatarCrop();
+        const img = $('cropImg');
+        if (!img) return;
+        const s = avatarCrop.base * avatarCrop.zoom;
+        img.style.transform = `translate(-50%, -50%) translate(${avatarCrop.dx}px, ${avatarCrop.dy}px) scale(${s})`;
+        const z = $('cropZ');
+        if (z && Number(z.value) !== avatarCrop.zoom) z.value = String(avatarCrop.zoom);
+      }
+      function renderAvatarCropLoading() {
+        $('help').innerHTML = `
+          <div class="helpHead"><h3>Crop picture</h3><button type="button" class="x" data-act="avCropCancel" aria-label="Close">×</button></div>
+          <p class="helpNote">Loading…</p>`;
+      }
+      function renderAvatarCrop() {
+        $('help').innerHTML = `
+          <div class="helpHead"><h3>Crop picture</h3><button type="button" class="x" data-act="avCropCancel" aria-label="Close">×</button></div>
+          <div class="cropWrap">
+            <div class="cropV" id="cropV" tabindex="0" role="application" aria-label="Picture position: arrow keys move it, + and - zoom"><img id="cropImg" alt="" draggable="false"><div class="cropRing"></div></div>
+            <div style="min-width: 220px">
+              <p class="helpNote" style="margin-top:0">Drag to center. Zoom with the slider, wheel, or pinch. Keyboard: arrows move, + and - zoom.</p>
+              <div class="cropZoom"><label for="cropZ">Zoom</label><input id="cropZ" type="range" min="1" max="6" value="1" step="0.01"></div>
+              <div class="formActs" style="margin-top:12px"><span class="msg" id="cropMsg"></span><button type="button" class="btn ghost" data-act="avCropCancel">Cancel</button><button type="button" class="btn primary" data-act="avCropOk">Validate</button></div>
+            </div>
+          </div>`;
+
+        const v = $('cropV');
+        const img = $('cropImg');
+        if (!v || !img || !avatarCrop) return;
+
+        img.src = avatarCrop.url;
+        avatarCrop.crop = Math.min(260, Math.floor(v.clientWidth * 0.78));
+        v.style.setProperty('--crop', avatarCrop.crop + 'px');
+        avatarCrop.base = avatarCrop.crop / Math.min(avatarCrop.w, avatarCrop.h);
+        applyAvatarCrop();
+
+        const pts = new Map();
+        let drag = null;
+        let pinch = null;
+        const pos = (e) => {
+          const r = v.getBoundingClientRect();
+          return { x: e.clientX - (r.left + r.width / 2), y: e.clientY - (r.top + r.height / 2) };
+        };
+        const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+        const center = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+
+        v.onpointerdown = (e) => {
+          if (!avatarCrop) return;
+          v.setPointerCapture(e.pointerId);
+          pts.set(e.pointerId, pos(e));
+          if (pts.size === 1) drag = { p: pts.get(e.pointerId), dx: avatarCrop.dx, dy: avatarCrop.dy };
+          if (pts.size === 2) {
+            const [a, b] = [...pts.values()];
+            const c0 = center(a, b);
+            const s0 = avatarCrop.base * avatarCrop.zoom;
+            pinch = {
+              d0: dist(a, b),
+              c0,
+              z0: avatarCrop.zoom,
+              qx: (c0.x - avatarCrop.dx) / s0 + avatarCrop.w / 2,
+              qy: (c0.y - avatarCrop.dy) / s0 + avatarCrop.h / 2,
+            };
+            drag = null;
+          }
+        };
+        v.onpointermove = (e) => {
+          if (!avatarCrop || !pts.has(e.pointerId)) return;
+          pts.set(e.pointerId, pos(e));
+          if (pts.size === 2 && pinch) {
+            const [a, b] = [...pts.values()];
+            const d = dist(a, b);
+            const c = center(a, b);
+            const z = Math.max(1, Math.min(6, pinch.z0 * (d / pinch.d0)));
+            const s = avatarCrop.base * z;
+            avatarCrop.zoom = z;
+            avatarCrop.dx = c.x - (pinch.qx - avatarCrop.w / 2) * s;
+            avatarCrop.dy = c.y - (pinch.qy - avatarCrop.h / 2) * s;
+            return applyAvatarCrop();
+          }
+          if (drag && pts.size === 1) {
+            const p = pts.get(e.pointerId);
+            avatarCrop.dx = drag.dx + (p.x - drag.p.x);
+            avatarCrop.dy = drag.dy + (p.y - drag.p.y);
+            return applyAvatarCrop();
+          }
+        };
+        v.onpointerup = (e) => {
+          pts.delete(e.pointerId);
+          if (pts.size < 2) pinch = null;
+          if (pts.size !== 1 || !avatarCrop) drag = null;
+          else {
+            const p = [...pts.values()][0];
+            drag = { p, dx: avatarCrop.dx, dy: avatarCrop.dy };
+          }
+        };
+        v.onpointercancel = v.onpointerup;
+
+        v.onwheel = (e) => {
+          if (!avatarCrop) return;
+          e.preventDefault();
+          const p = pos(e);
+          const s0 = avatarCrop.base * avatarCrop.zoom;
+          const qx = (p.x - avatarCrop.dx) / s0 + avatarCrop.w / 2;
+          const qy = (p.y - avatarCrop.dy) / s0 + avatarCrop.h / 2;
+          const k = Math.exp((-e.deltaY / 300) * 0.55);
+          const z = Math.max(1, Math.min(6, avatarCrop.zoom * k));
+          const s = avatarCrop.base * z;
+          avatarCrop.zoom = z;
+          avatarCrop.dx = p.x - (qx - avatarCrop.w / 2) * s;
+          avatarCrop.dy = p.y - (qy - avatarCrop.h / 2) * s;
+          applyAvatarCrop();
+        };
+
+        v.onkeydown = (e) => {
+          if (!avatarCrop) return;
+          const step = e.shiftKey ? 40 : 8;
+          const k = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+          if (k) {
+            avatarCrop.dx += k[0];
+            avatarCrop.dy += k[1];
+          } else if (e.key === '+' || e.key === '=' || e.key === '-') {
+            avatarCrop.zoom = Math.max(1, Math.min(6, avatarCrop.zoom * (e.key === '-' ? 1 / 1.1 : 1.1)));
+          } else return;
+          e.preventDefault();
+          e.stopPropagation();
+          applyAvatarCrop();
+        };
+
+        $('cropZ').oninput = (e) => {
+          if (!avatarCrop) return;
+          avatarCrop.zoom = Math.max(1, Math.min(6, Number(e.target.value) || 1));
+          applyAvatarCrop();
+        };
+      }
+      function openAvatarCrop(file) {
+        closeAvatarCrop();
+        const msg = $('actorMsg');
+        if (msg) msg.textContent = '';
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        avatarCrop = { url, img, w: 0, h: 0, dx: 0, dy: 0, zoom: 1, base: 1, crop: 260 };
+        swapHelp(renderAvatarCropLoading, 'Crop picture');
+        // A cancelled or replaced crop leaves its image loading: only the current one may act.
+        img.onload = () => {
+          if (avatarCrop?.img !== img) return;
+          avatarCrop.w = img.naturalWidth;
+          avatarCrop.h = img.naturalHeight;
+          swapHelp(renderAvatarCrop, 'Crop picture');
+        };
+        img.onerror = () => {
+          if (avatarCrop?.img !== img) return;
+          closeAvatarCrop();
+          toast('Not an image');
+          swapHelp(renderActor, 'Actor');
+        };
+        img.src = url;
+      }
+      async function encodeAvatarCrop() {
+        if (!avatarCrop) throw new Error('no crop');
+        clampAvatarCrop();
+        const r = cropSourceRect(avatarCrop);
+        // At most 256 px, never upscaled: a small picture stays sharp.
+        const out = Math.max(1, Math.min(256, Math.round(r.side)));
+        const c = document.createElement('canvas');
+        c.width = c.height = out;
+        c.getContext('2d').drawImage(avatarCrop.img, r.x, r.y, r.side, r.side, 0, 0, out, out);
+        const webp = await new Promise((ok) => c.toBlob(ok, 'image/webp', 0.88));
+        if (webp && webp.type === 'image/webp') return webp;
+        const png = await new Promise((ok) => c.toBlob(ok, 'image/png'));
+        if (!png) throw new Error('This browser cannot encode images.');
+        return png;
+      }
+      async function uploadAvatarBlob(blob) {
         const id = actorDialogId;
         const msg = $('actorMsg');
         if (msg) msg.textContent = '';
-        try {
-          let blob;
-          try { blob = await shrinkImage(file); } catch { blob = null; }
-          if (!blob) {
-            if (file.size > 256 * 1024) throw new Error('This image cannot be resized here and is over 256 KiB.');
-            blob = file;
-          }
-          const res = await fetch(`api/actors/${encodeURIComponent(id)}/avatar`, { method: 'PUT', headers: { ...headers(), 'content-type': blob.type || 'application/octet-stream' }, body: blob });
-          const data = await res.json().catch(() => ({}));
-          if (res.status === 401) { locked(); return; }
-          if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
-          toast('Picture updated');
-          await refreshActorDialog();
-        } catch (err) {
-          if (msg) msg.textContent = err.message;
-          else toast(err.message);
-        }
+        const res = await fetch(`api/actors/${encodeURIComponent(id)}/avatar`, { method: 'PUT', headers: { ...headers(), 'content-type': blob.type || 'application/octet-stream' }, body: blob });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 401) { locked(); return false; }
+        if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+        toast('Picture updated');
+        await refreshActorDialog();
+        return true;
       }
       async function removeAvatar() {
         const id = actorDialogId;
@@ -2115,7 +2359,11 @@
         } catch (err) { toast(err.message); }
       }
       document.addEventListener('change', (e) => {
-        if (e.target?.id === 'avFile' && e.target.files?.[0]) uploadAvatar(e.target.files[0]);
+        if (e.target?.id === 'avFile' && e.target.files?.[0]) {
+          const f = e.target.files[0];
+          e.target.value = '';
+          openAvatarCrop(f);
+        }
       });
       document.addEventListener('keydown', (e) => {
         if ((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('.avEdit label.btn')) {

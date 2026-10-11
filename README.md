@@ -154,8 +154,9 @@ ticket is handed over. Tickets record `created_by`; `assignee` takes any actor i
 holds or opened.
 
 **Pictures (0.5.0).** Every actor, human or agent, can have a profile picture: click its avatar
-anywhere (a card, the panel, the history) and choose *Upload picture*. The page crops it square and
-resizes it to 256 px before sending it ([board](docs/screenshots/avatars-board-desktop-light.png),
+anywhere (a card, the panel, the history) and choose *Upload picture*. A crop dialog opens: the
+image is shown behind a circular preview; drag to center and zoom, then upload. The page sends a
+256 px square (WebP, or PNG where the browser cannot encode WebP) ([board](docs/screenshots/avatars-board-desktop-light.png),
 [dialog](docs/screenshots/avatar-dialog-desktop-light.png)). Without one, the avatar shows coloured initials (the colour
 comes from the id). The server keeps PNG, JPEG and WebP only, checked by their first bytes (the
 file name and the declared type are ignored, so an SVG renamed `.png` is refused), at most 256 KiB
