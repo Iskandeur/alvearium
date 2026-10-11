@@ -415,3 +415,25 @@ test('server: next, move, actors and the actor header', async () => {
     assert.equal(bad.status, 400);
   });
 });
+
+test('listActors: the owner and actors with a picture make the list even past the 300 most recent', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb-actors-'));
+  const s = await openStore(join(dir, 'board.db'));
+  const t0 = 1_000_000;
+  s.touchActor({ id: 'user', type: 'human', name: 'You' }, t0);
+  s.touchActor({ id: 'old-agent', type: 'agent', name: 'Old' }, t0 + 1);
+  s.touchActor({ id: 'bare-agent', type: 'agent', name: 'Bare' }, t0 + 2);
+  // A 1×1 PNG, enough for the avatar row.
+  const png = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex');
+  s.db.prepare('INSERT INTO avatars (actor_id, mime, data, etag, updated_at) VALUES (?, ?, ?, ?, ?)').run('old-agent', 'image/png', png, 'e1', t0);
+  for (let i = 0; i < 320; i++) s.touchActor({ id: `job-${i}`, type: 'agent' }, t0 + 10 + i);
+  // The store seeds its built-in actors at open time: age them so only the 320 jobs are recent.
+  s.db.prepare("UPDATE actors SET last_seen = ? WHERE id NOT LIKE 'job-%' AND id NOT IN ('old-agent', 'bare-agent')").run(t0);
+  const ids = s.listActors().map((a) => a.id);
+  assert.ok(ids.includes('user'), 'the owner is always listed');
+  assert.ok(ids.includes('old-agent'), 'an actor with a picture is always listed');
+  assert.ok(!ids.includes('bare-agent'), 'an old actor without a picture still falls past the cap');
+  assert.equal(ids.filter((id) => id.startsWith('job-')).length, 300, 'the 300 most recent stay, unchanged');
+  assert.equal(s.listActors().find((a) => a.id === 'old-agent').avatar, 'e1');
+  s.close();
+});
