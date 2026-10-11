@@ -172,6 +172,7 @@ the hooks and the MCP server of a session:
 | `SESSION_BOARD_ACTOR_NAME` | its display name |
 | `SESSION_BOARD_THREAD` | one stable name for a conversation that lives across several short sessions (a bot, a tmux loop, CI): all those sessions share **one** session ticket, which follows the latest session and is not closed at `SessionEnd` |
 | `SESSION_BOARD_SESSION_TICKETS=0` | no automatic tickets at all for this session (session, questions, task mirror, subagent lines): for routine or scripted sessions. Tickets created explicitly through MCP still attach to the session |
+| `SESSION_BOARD_PERMISSION_TICKETS` | `1` / `0` / `auto` (default). Whether a permission request opens a "waiting on you" ticket. `auto`: yes, except in a non-interactive `claude -p` session (`CLAUDE_CODE_ENTRYPOINT=sdk-cli`), where nobody can answer the prompt: the request is auto-denied, and the ticket would open and close within seconds in the list of a human who never saw the prompt. Set `1` for a headless session that a human really does answer (a remote-control session, a custom permission-prompt tool) |
 
 ### Agent tokens (0.4.0)
 
