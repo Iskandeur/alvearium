@@ -51,6 +51,13 @@ test('Monitor progress every 5 s: the session ticket stays in review, its histor
   assert.equal(s.events.length, before, 'not one history entry for ten reports');
   assert.equal(s.body, 'Render started in the background, I will watch it.', 'the last real reply stays on the ticket');
 
+  // A report whose turn ends on a question is the human's business.
+  fire('UserPromptSubmit', { prompt: progress(11) });
+  fire('Stop', { last_assistant_message: 'The render failed at 80%. Should I retry with a lower bitrate?' });
+  s = sessionTicket(store);
+  assert.equal(s.status, 'waiting_on_user');
+  assert.match(s.body, /^❓ Should I retry with a lower bitrate\?/);
+
   // The human comes back: a real prompt moves the ticket as before.
   fire('UserPromptSubmit', { prompt: 'ship it' });
   assert.equal(sessionTicket(store).status, 'in_progress');
