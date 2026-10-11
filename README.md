@@ -49,6 +49,7 @@ Alvearium is a Claude Code plugin plus an optional self-hosted server.
 
 - From the environment: `SESSION_BOARD_URL`, `SESSION_BOARD_TOKEN`, and optional knobs like `SESSION_BOARD_SEND_TEXT`, `SESSION_BOARD_MIRROR_TASKS`.
 - From disk (local mode): `~/.claude/session-board/board.db` and small helper files under the same directory.
+- From the session transcript (the `transcript_path` Claude Code hands the hook; skipped when `SESSION_BOARD_SEND_TEXT=0`): the last reply when a `Stop` or a waiting notification carries none, and the first prompt of a session the board has no title for (its first 256 KB only).
 - From plugin config: `server_url` and `token` (stored by Claude Code; `token` is `sensitive`).
 
 **What it sends**
@@ -80,7 +81,8 @@ Tickets come from three places:
    | Hook event | Ticket |
    | :- | :- |
    | `UserPromptSubmit`, `PreToolUse`, `PostToolUse` | session ticket **in progress**; open questions close (tool calls throttled to one report per 20 s) |
-   | `PermissionRequest`, `Elicitation`, `Notification` (`permission_prompt`, `elicitation_dialog`, `agent_needs_input`) | a **waiting on you** ticket (*Approve Bash: …*, or the question) |
+   | `UserPromptSubmit` carrying a background task's report (`<task-notification>`, a Monitor's progress) | nothing: the session ticket keeps its status, and so does the turn the report starts, unless that turn needs you (0.5.4) |
+   | `PermissionRequest`, `Elicitation`, `Notification` (`permission_prompt`, `elicitation_dialog`, `agent_needs_input`) | a **waiting on you** ticket (*Approve Bash: …*, or the question). Its body carries the question Claude's last reply ended on, the session's folder and the `claude --resume <id>` line to get back into it (0.5.4) |
    | `Stop`, `Notification` (`agent_completed`) | session ticket **review**, with the end of Claude's last message and the PR link |
    | `StopFailure` | session ticket **failed**, with the error |
    | `SessionEnd` | session ticket **done**; unanswered questions cancelled |
