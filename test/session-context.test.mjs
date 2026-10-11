@@ -89,7 +89,8 @@ test('waiting alert: the question, the folder and how to resume, on the ticket',
   const ctx = waitContext(input);
   assert.match(ctx, /^❓ Should I keep the staging one or the prod one\?$/m);
   assert.match(ctx, /^📁 \/home\/dev\/my project$/m);
-  assert.match(ctx, /^↩︎ cd "\/home\/dev\/my project" && claude --resume a1b2c3d4-0000$/m);
+  assert.match(ctx, /^↩︎ cd '\/home\/dev\/my project' && claude --resume a1b2c3d4-0000$/m);
+  assert.match(waitContext({ ...input, cwd: "/w/it's $HOME!" }), /cd '\/w\/it'\\''s \$HOME!' && claude/, 'nothing expands in the copied line');
   assert.doesNotMatch(waitContext({ ...input, last_assistant_message: 'x?' }, { sendText: false }), /❓/, 'SESSION_BOARD_SEND_TEXT=0 keeps the text home');
   assert.match(waitContext({ ...input, last_assistant_message: 'Done with the scan.' }), /^💬 Done with the scan\.$/m, 'no question: the reply it follows');
 
