@@ -138,6 +138,27 @@ test('session title from the transcript when its first prompt never reached the 
   }
 });
 
+test('a generic permission notification never renames the approval ticket, question or not', async () => {
+  const store = await openStore(':memory:');
+  const { fire } = driver(store);
+  fire('UserPromptSubmit', { prompt: 'migrate' });
+  fire('PermissionRequest', { tool_name: 'Bash', tool_input: { command: 'npm run migrate' } });
+  fire('Notification', { notification_type: 'permission_prompt', message: 'Claude needs your permission to use Bash', last_assistant_message: 'Shall I run the migration?' });
+  const [w] = store.listTickets(parseFilters({ kind: 'permission' })).tickets;
+  assert.equal(w.title, 'Approve Bash: npm run migrate');
+});
+
+test('a report that arrives while a question waits does not keep the question open after the answer', async () => {
+  const store = await openStore(':memory:');
+  const { fire } = driver(store);
+  fire('UserPromptSubmit', { prompt: 'clean up' });
+  fire('PermissionRequest', { tool_name: 'Bash', tool_input: { command: 'rm -r build' } });
+  fire('UserPromptSubmit', { prompt: progress(1) });
+  fire('PostToolUse', { tool_name: 'Bash', tool_input: {} });
+  assert.equal(store.listTickets(parseFilters({ kind: 'permission', archived: '1' })).tickets[0].status, 'done');
+  assert.equal(sessionTicket(store).status, 'in_progress');
+});
+
 test('legacy import: an idle "your turn" is a review, not a context-free question ticket', async () => {
   const store = await openStore(':memory:');
   store.importLegacy([{ sessionId: 'old', state: 'waiting', kind: 'idle', detail: 'Claude is waiting for your input', cwd: '/w/x', lastSeen: Date.now() }]);
