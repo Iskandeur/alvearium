@@ -1522,6 +1522,7 @@
         if (e.target?.id !== 'comment') return false;
         if (e.key === 'Escape') { e.preventDefault(); mentionClose(); return true; }
         // With no match, do not steal keys: Enter stays a newline, Tab stays navigation.
+        if (e.key === 'Tab' && e.shiftKey) { mentionClose(); return false; }
         if ((e.key === 'Enter' || e.key === 'Tab') && !e.ctrlKey && !e.metaKey && !e.altKey) {
           // The caret may have moved since the last input (arrows, click): re-read it before inserting.
           const sel = mention.sel;
