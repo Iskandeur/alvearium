@@ -6,7 +6,8 @@ import { join } from 'node:path';
 
 const page = readFileSync(join(import.meta.dirname, '..', 'server', 'page.html'), 'utf8');
 
-const src = page.match(/function computeMention\(text, caret, all\) \{[\s\S]*?\n {6}\}\n/)?.[0];
+// Extract by following function boundary: avoid brittle brace counting (regex literals contain `{0,64}`).
+const src = page.match(/function computeMention\(text, caret, all\) \{[\s\S]*?\n {6}\}\n(?= {6}function mentionUpdate\()/)?.[0];
 assert.ok(src, 'computeMention() is in the page');
 const computeMention = new Function(`${src}; return computeMention;`)();
 

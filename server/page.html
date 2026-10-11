@@ -711,8 +711,10 @@
         ['claude', { id: 'claude', type: 'agent', name: 'Claude' }],
         ['hook', { id: 'hook', type: 'system', name: 'Session' }],
       ]);
+      let mentionActorsCache = null;
       function learnActors(list) {
         for (const a of Object.values(list || {})) if (a && a.id) actors.set(a.id, { ...actors.get(a.id), ...a, name: a.name && !(a.id === 'user' && a.name === 'You') ? a.name : null });
+        mentionActorsCache = null;
         if (mention.open) mentionUpdate($('comment'));
       }
       function actor(id) {
@@ -1456,6 +1458,7 @@
         mention = { open: false, start: 0, end: 0, q: '', list: [], sel: 0 };
       }
       function mentionActors() {
+        if (mentionActorsCache) return mentionActorsCache;
         const list = [];
         for (const id of actors.keys()) {
           if (!id || id === 'user' || id === 'claude' || id === 'hook') continue;
@@ -1463,6 +1466,7 @@
           list.push({ id, name: actorName(id) });
         }
         list.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+        mentionActorsCache = list;
         return list;
       }
       function mentionRender() {
@@ -1515,6 +1519,7 @@
       }
       function mentionKey(e) {
         if (!mention.open) return false;
+        if (e.target?.id !== 'comment') return false;
         if (e.key === 'Escape') { e.preventDefault(); mentionClose(); return true; }
         if (e.key === 'ArrowDown') { e.preventDefault(); mention.sel = Math.min(mention.sel + 1, Math.max(mention.list.length - 1, 0)); mentionRender(); return true; }
         if (e.key === 'ArrowUp') { e.preventDefault(); mention.sel = Math.max(mention.sel - 1, 0); mentionRender(); return true; }
