@@ -29,7 +29,8 @@
 //   POST /api/tickets               create
 //   GET  /api/tickets/:key          one ticket with history and sub-tickets
 //   POST|PATCH /api/tickets/:key    update (status, title, body, labels, …, optional `comment`)
-//   POST /api/tickets/:key/comments { text }
+//   POST /api/tickets/:key/comments { text }  (a comment or a body above MAX_TEXT_CHARS = 64 000
+//                                   characters is refused with 413 and a message, never cut)
 //   POST /api/tickets/:key/answer   { answer: option|yes|no|done|later|decline|undo, choice, days }: a button of the
 //                                   "Waiting on you" lane = a comment from you + a reversible move
 //   GET  /api/facets                values to filter on (repos, sessions, machines, labels, kinds)
@@ -42,7 +43,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { VERSION, normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
+import { MAX_TEXT_CHARS, VERSION, normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
 import { openStore } from '../lib/store.mjs';
 import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
 import { inviteRoutes } from './invites.mjs';
@@ -50,6 +51,11 @@ import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MAX_BODY = 64 * 1024;
+// Creating or updating a ticket may carry a body and a comment of MAX_TEXT_CHARS each. At up to 3
+// bytes a character in UTF-8 (accents, CJK) plus JSON and the other fields, this is what lets them in,
+// so that the length check of the store (a clear 413 "comment too long: …") answers instead of the
+// byte limit of the request. Only the ticket write routes take it; every other route keeps MAX_BODY.
+export const MAX_TICKET_REQUEST = 2 * MAX_TEXT_CHARS * 3 + MAX_BODY;
 const MAX_IMPORT_BODY = 4 * 1024 * 1024;
 
 export function readToken(env = process.env) {
@@ -143,12 +149,21 @@ function readBody(req, max = MAX_BODY) {
 function readRaw(req, max = MAX_BODY) {
   return new Promise((resolve, reject) => {
     let size = 0;
+    let over = false;
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
+      if (over) {
+        // Read and drop the rest, so that the client gets the 413 and its message instead of a reset
+        // connection (until 0.5.9 the socket was destroyed and the answer never arrived); a sender
+        // that keeps going far past the limit is cut off.
+        if (size > max * 4) req.destroy();
+        return;
+      }
       if (size > max) {
+        over = true;
+        chunks.length = 0;
         reject(Object.assign(new Error('too large'), { status: 413 }));
-        req.destroy();
       } else chunks.push(c);
     });
     req.on('end', () => resolve(Buffer.concat(chunks)));
@@ -156,13 +171,13 @@ function readRaw(req, max = MAX_BODY) {
   });
 }
 
-async function jsonBody(req, max) {
+async function jsonBody(req, max = MAX_BODY) {
   try {
     const v = JSON.parse((await readBody(req, max)) || '{}');
     if (!v || typeof v !== 'object') throw new Error('bad');
     return v;
   } catch (e) {
-    throw Object.assign(new Error(e.status === 413 ? 'too large' : 'bad body'), { status: e.status || 400 });
+    throw Object.assign(new Error(e.status === 413 ? `request too large (max ${Math.floor(max / 1024)} KiB)` : 'bad body'), { status: e.status || 400 });
   }
 }
 
@@ -556,7 +571,7 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
         if (!url.searchParams.get('limit')) f.limit = 50;
         return send(res, 200, store.nextTickets(f));
       }
-      if (path === '/api/tickets' && m === 'POST') return mustWrite() || send(res, 201, store.createTicket(await jsonBody(req), { actor: actorOf(req, store) }));
+      if (path === '/api/tickets' && m === 'POST') return mustWrite() || send(res, 201, store.createTicket(await jsonBody(req, MAX_TICKET_REQUEST), { actor: actorOf(req, store) }));
       if (path === '/api/actors' && m === 'GET') return send(res, 200, { actors: store.listActors() });
       const avm = path.match(/^\/api\/actors\/(.{1,200})\/avatar$/);
       if (avm) {
@@ -633,14 +648,14 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
         }
         if (tm[2]) {
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
-          const body = await jsonBody(req);
+          const body = await jsonBody(req, MAX_TICKET_REQUEST);
           return send(res, 201, store.comment(key, String(body.text ?? ''), { actor: actorOf(req, store), to: body.to }));
         }
         if (m === 'GET') {
           const t = store.getTicket(key);
           return t ? send(res, 200, t) : send(res, 404, { error: 'ticket not found' });
         }
-        if (m === 'POST' || m === 'PATCH') return send(res, 200, store.updateTicket(key, await jsonBody(req), { actor: actorOf(req, store) }));
+        if (m === 'POST' || m === 'PATCH') return send(res, 200, store.updateTicket(key, await jsonBody(req, MAX_TICKET_REQUEST), { actor: actorOf(req, store) }));
         return send(res, 405, { error: 'method not allowed' });
       }
       return send(res, 404, { error: 'not found' });

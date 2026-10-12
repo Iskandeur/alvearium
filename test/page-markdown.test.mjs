@@ -83,3 +83,17 @@ test('plain: previews never show markers', () => {
   assert.equal(plain('```\nhidden\n```\nshown'), 'shown');
   assert.equal(plain('| A | B |\n|---|---|\n| 1 | 2 |'), '| A | B | | 1 | 2 |');
 });
+
+test('md: nested lists by indentation, numbering kept across a nested list and blank lines (0.5.10)', () => {
+  assert.equal(
+    md('1. Add a lock\n   - key: `k`\n   - TTL\n     - shorter\n2. Retry\n3. Test'),
+    '<ol><li>Add a lock<ul><li>key: <code>k</code></li><li>TTL<ul><li>shorter</li></ul></li></ul></li><li>Retry</li><li>Test</li></ol>',
+  );
+  // Until 0.5.9 the sub-bullets flattened and "2." restarted a new list at 1.
+  assert.equal(md('1. a\n\n2. b\n   continued'), '<ol><li>a</li><li>b<br>continued</li></ol>');
+  assert.equal(md('* x\n  1) y\n  2) z\n* w'), '<ul><li>x<ol><li>y</li><li>z</li></ol></li><li>w</li></ul>');
+  assert.equal(md('3. three\n4. four'), '<ol start="3"><li>three</li><li>four</li></ol>');
+  assert.equal(md('- a\n- b\n\n1. one'), '<ul><li>a</li><li>b</li></ul><ol><li>one</li></ol>', 'another kind of list is another list');
+  assert.equal(md('- **bold** item\n\nAfter.'), '<ul><li><strong>bold</strong> item</li></ul><p>After.</p>');
+  assert.doesNotMatch(md('- <img src=x onerror=alert(1)>\n  - <script>x</script>'), /<img|<script/);
+});

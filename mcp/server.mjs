@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { hostname } from 'node:os';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { FEEDBACK_TYPES, PRIORITIES, STATUSES, VERSION, actorDisplayName, markdownToTerminal, repoFromRemote, truncate } from '../lib/core.mjs';
+import { FEEDBACK_TYPES, MAX_BODY_CHARS, MAX_COMMENT_CHARS, PRIORITIES, STATUSES, VERSION, actorDisplayName, groupDigits, markdownToTerminal, normalizeActorId, repoFromRemote, textTooLong, truncate } from '../lib/core.mjs';
 import { CLOUD_SETUP_HINT, dataDir, loadConfig, openBackend, sessionForCwd } from '../lib/runtime.mjs';
 
 export { VERSION };
@@ -22,6 +22,7 @@ const SERVER_INFO = { name: 'alvearium', version: VERSION };
 const ASSIGNEE = { type: 'string', description: 'user = the human (default); claude = Claude; or any actor id (an agent, e.g. "ci-bot")' };
 const PRIORITY = { type: 'string', enum: PRIORITIES, description: 'P0 = drop everything, P1 = next up, P2 = normal, P3 = some day' };
 const PROTOCOL = '2025-06-18';
+const LIMIT = `at most ${groupDigits(MAX_COMMENT_CHARS)} characters; a longer text is refused, never cut`;
 
 const TOOLS = [
   {
@@ -33,7 +34,7 @@ const TOOLS = [
       type: 'object',
       properties: {
         title: { type: 'string', description: 'Short imperative title, e.g. "Add the STRIPE_KEY secret to the staging env"' },
-        body: { type: 'string', description: 'Markdown details: why, exact steps, links' },
+        body: { type: 'string', description: `Markdown details: why, exact steps, links (${LIMIT})` },
         assignee: ASSIGNEE,
         status: { type: 'string', enum: STATUSES, description: 'Default: todo. Use waiting_on_user when the human must act before Claude can go on.' },
         kind: { type: 'string', description: 'action (default for the human), task, bug, question, note… any short slug' },
@@ -58,13 +59,13 @@ const TOOLS = [
         key: { type: 'string', description: 'Ticket key, e.g. ALV-12' },
         status: { type: 'string', enum: STATUSES },
         title: { type: 'string' },
-        body: { type: 'string' },
+        body: { type: 'string', description: `Markdown (${LIMIT})` },
         assignee: ASSIGNEE,
         priority: { type: 'string', enum: [...PRIORITIES, ''], description: 'P0…P3, or "" to clear' },
         labels: { type: 'array', items: { type: 'string' } },
         blocked_by_add: { type: 'array', items: { type: 'string' }, description: 'Keys of tickets that block this one (must be done first)' },
         blocked_by_remove: { type: 'array', items: { type: 'string' }, description: 'Keys of blockers to remove' },
-        comment: { type: 'string', description: 'Optional note recorded in the ticket history' },
+        comment: { type: 'string', description: `Optional note recorded in the ticket history (${LIMIT})` },
       },
       required: ['key'],
     },
@@ -120,7 +121,7 @@ const TOOLS = [
   },
   {
     name: 'ticket_comment',
-    description: 'Add a comment to a ticket (progress note, answer, what is left).',
+    description: `Add a comment to a ticket (progress note, answer, what is left). Markdown, ${LIMIT}: split a longer text into several comments.`,
     inputSchema: {
       type: 'object',
       properties: { key: { type: 'string' }, text: { type: 'string' }, to: { type: 'string', description: 'Optional: who the comment is for (user, claude, an actor id)' } },
@@ -215,9 +216,30 @@ function must(t, tool) {
   );
 }
 
-export async function callTool(name, args = {}, { backend, context }) {
+/**
+ * Who a `board_feedback` ticket goes to: SESSION_BOARD_FEEDBACK_ASSIGNEE, else `user`, the owner of the
+ * board (the inbox is kept out of the lanes, so this files nothing in anyone's "Waiting on you").
+ * A value that is not an actor id fails loudly rather than sending feedback somewhere else.
+ */
+export function feedbackAssignee(env = process.env) {
+  const raw = String(env.SESSION_BOARD_FEEDBACK_ASSIGNEE ?? '').trim();
+  if (!raw) return 'user';
+  const id = normalizeActorId(raw);
+  if (!id) throw new Error(`SESSION_BOARD_FEEDBACK_ASSIGNEE=${JSON.stringify(raw.slice(0, 80))} is not an actor id (user, claude, or letters, digits, . _ - : @ /). Nothing was saved.`);
+  return id;
+}
+
+/** The same limits as the board, checked before sending: a clear refusal, with the tool's name, and no round trip. */
+function mustFit(tool, text, max, what, { trim = false } = {}) {
+  if (typeof text !== 'string') return;
+  const tooLong = textTooLong(trim ? text.trim() : text, max, what);
+  if (tooLong) throw new Error(`${tool}: ${tooLong}`);
+}
+
+export async function callTool(name, args = {}, { backend, context, env = process.env }) {
   switch (name) {
     case 'ticket_create': {
+      mustFit('ticket_create', args.body, MAX_BODY_CHARS, 'body');
       const body = { ...args };
       const where = body.session ?? 'current';
       delete body.session;
@@ -231,11 +253,14 @@ export async function callTool(name, args = {}, { backend, context }) {
       return `Created ${line(t)}`;
     }
     case 'ticket_update': {
+      mustFit('ticket_update', args.body, MAX_BODY_CHARS, 'body');
+      mustFit('ticket_update', args.comment, MAX_COMMENT_CHARS, 'comment', { trim: true });
       const { key, ...rest } = args;
       const t = must(await backend.update(String(key), rest), 'ticket_update');
       return `Updated ${line(t)}`;
     }
     case 'ticket_comment': {
+      mustFit('ticket_comment', String(args.text ?? ''), MAX_COMMENT_CHARS, 'comment', { trim: true });
       const t = must(await backend.comment(String(args.key), String(args.text ?? ''), args.to ? String(args.to) : undefined), 'ticket_comment');
       return `Commented on ${t.key} (${t.comments_count} comment${t.comments_count === 1 ? '' : 's'})`;
     }
@@ -272,12 +297,13 @@ export async function callTool(name, args = {}, { backend, context }) {
         `- Alvearium plugin ${VERSION}`,
       ].filter(Boolean);
       const body = [String(args.detail || '').trim(), '', '---', ...ctx].join('\n').trim();
+      mustFit('board_feedback', body, MAX_BODY_CHARS, 'feedback detail (with its context lines)');
       const t = await backend.create({
         title: String(args.title || '').trim(),
         body,
         kind: 'feedback',
         subtype: type,
-        assignee: 'user',
+        assignee: feedbackAssignee(env),
         priority: args.priority,
         labels: ['feedback', type],
         session_id: context.session_id,

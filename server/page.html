@@ -225,10 +225,29 @@
     /* Panel */
     .scrim { position: fixed; inset: 0; background: rgba(10, 10, 14, 0.18); z-index: 9; }
     aside.panel {
-      position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100vw); z-index: 10; background: var(--card);
+      /* --panel-w: the width dragged on the left edge, kept per browser; always leaves 96 px of board to click */
+      position: fixed; top: 0; right: 0; bottom: 0; width: clamp(380px, var(--panel-w, 560px), max(380px, calc(100vw - 96px))); z-index: 10; background: var(--card);
       box-shadow: var(--shadow-panel); border-left: 1px solid var(--line); display: flex; flex-direction: column;
     }
+    /* The resize handle: a 10 px strip astride the left edge, a 2 px accent line when hovered or dragged */
+    .pResize { position: absolute; left: -5px; top: 0; bottom: 0; width: 10px; z-index: 3; cursor: col-resize; touch-action: none; outline: none; }
+    .pResize::after { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--accent); opacity: 0; transition: opacity 0.12s ease 0.08s; }
+    .pResize:hover::after, .pResize:focus-visible::after, body.resizing .pResize::after { opacity: 1; transition-delay: 0s; }
+    .pResize:focus-visible::before { content: ""; position: absolute; left: -1px; top: 50%; width: 12px; height: 36px; margin-top: -18px; border-radius: 6px; border: 2px solid var(--accent); background: var(--card); }
+    body.resizing, body.resizing * { cursor: col-resize !important; user-select: none !important; }
+    /* Expanded: the ticket nearly full screen, its text in a readable column */
+    aside.panel.expanded { top: 14px; right: 14px; bottom: 14px; left: 14px; width: auto; border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 24px 80px rgba(16, 18, 27, 0.28); overflow: hidden; }
+    aside.panel.expanded .pResize { display: none; }
+    aside.panel.expanded .pHead, aside.panel.expanded .pBody, aside.panel.expanded .replyBar { padding-left: max(18px, calc((100% - 880px) / 2)); padding-right: max(18px, calc((100% - 880px) / 2)); }
+    body:has(aside.panel.expanded:not([hidden])) .scrim { background: rgba(10, 10, 14, 0.34); }
     .pHead { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+    .pTools { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+    .pHead .pTools .pDone, .pHead .pTools .x { margin-left: 0; }
+    .pTools .pDone { margin-right: 4px; }
+    .pIcon { display: inline-grid; place-items: center; border: 0; background: none; width: 30px; height: 30px; border-radius: 8px; color: var(--muted); padding: 0; }
+    .pIcon:hover { background: var(--chip); color: var(--text); }
+    .pIcon:focus-visible, .pHead .x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .pIcon svg { display: block; }
     .pHead .pkey { font-size: 12.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
     .pHead .x { margin-left: auto; border: 0; background: none; width: 30px; height: 30px; border-radius: 8px; color: var(--muted); font-size: 18px; }
     .pHead .x:hover { background: var(--chip); }
@@ -246,7 +265,30 @@
     .ctx .tag { display: inline-block; line-height: 20px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
     .fields > * { min-width: 0; }
     .sect { margin: 18px 0 8px; font-size: 12px; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 8px; }
-    .sect button { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
+    .sect > button { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
+    .sect .mdActs { margin-left: auto; }
+    .sect .mdActs + button { margin-left: 2px; }
+    /* Copy / read wide, on the description and on each comment: shown on hover or focus (always on touch) */
+    .mdActs { display: inline-flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.12s ease; }
+    .mdHost:hover .mdActs, .mdHost:focus-within .mdActs, .mdActs:has(.ok, .fail) { opacity: 1; }
+    .mdAct {
+      display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 5px; border: 0; border-radius: 7px;
+      background: none; color: var(--faint); font-size: 12px; font-weight: 500; text-transform: none; letter-spacing: 0; line-height: 1;
+    }
+    .mdAct:hover { background: var(--chip); color: var(--text); }
+    .mdAct:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
+    .mdAct svg { display: block; flex: none; }
+    .mdAct.ok, .mdAct.ok:hover { color: var(--ok); background: var(--ok-soft); padding: 0 8px 0 6px; }
+    .mdAct.fail, .mdAct.fail:hover { color: var(--danger); background: var(--danger-soft); padding: 0 8px 0 6px; }
+    .ev .evHead { padding-right: 62px; min-height: 22px; }
+    .ev.comment > .evHead > .mdActs { position: absolute; right: 0; top: -2px; }
+    @media (hover: none), (pointer: coarse) {
+      .mdActs { opacity: 1; }
+      .mdAct { height: 34px; min-width: 34px; }
+      .ev .evHead { padding-right: 76px; }
+      .ev.comment > .evHead > .mdActs { top: -7px; }
+    }
+    @media (prefers-reduced-motion: reduce) { .mdActs, .pResize::after { transition: none; } }
     .md { font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
     .md a { color: var(--accent); }
     .md.empty-body { color: var(--faint); }
@@ -268,6 +310,45 @@
     .md th { background: rgba(0,0,0,0.03); }
     :root[data-theme="dark"] .md th { background: rgba(255,255,255,0.04); }
     @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .md th { background: rgba(255,255,255,0.04); } }
+    .md > :first-child { margin-top: 0; }
+    .md > :last-child { margin-bottom: 0; }
+    .md li > ul, .md li > ol { margin: 3px 0; }
+    .md p { margin: 0 0 0.75em; }
+    /* The reading view: one text, wide, rendered or as its raw markdown (both selectable) */
+    .help.reader { top: 4vh; width: min(1000px, calc(100vw - 32px)); height: 92vh; max-height: none; padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+    .readerHead { flex: none; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 18px; border-bottom: 1px solid var(--line); }
+    .help.reader .readerHead h3 { margin: 0; flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .help.reader .readerHead h3 span { color: var(--faint); font-weight: 500; }
+    .help.reader .readerHead .x { margin-left: 0; }
+    .readerHead .mdActs { opacity: 1; }
+    .readerHead .mdAct { height: 30px; min-width: 30px; color: var(--muted); }
+    .readerBody { flex: 1; overflow: auto; padding: 26px clamp(16px, 5vw, 56px) 48px; overscroll-behavior: contain; }
+    .readerBody .md { font-size: 15px; line-height: 1.65; max-width: 760px; margin: 0 auto; }
+    .readerBody .md h1 { font-size: 1.6em; margin-top: 0.9em; }
+    .readerBody .md h2 { font-size: 1.32em; margin-top: 1.1em; }
+    .readerBody .md h3 { font-size: 1.12em; margin-top: 1em; }
+    .readerBody .md li { margin: 4px 0; }
+    .readerBody .md > :first-child { margin-top: 0; }
+    .readerRaw { margin: 0 auto; max-width: 860px; font-family: var(--mono); font-size: 13px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; user-select: text; -webkit-user-select: text; color: var(--text); outline: none; }
+    .readerFoot { flex: none; padding: 8px 18px; border-top: 1px solid var(--line); font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; display: flex; gap: 12px; }
+    @media (max-width: 900px) {
+      .help.reader { top: 0; left: 0; transform: none; width: 100vw; height: 100vh; height: 100dvh; border: 0; border-radius: 0; }
+      .readerHead { padding: calc(8px + env(safe-area-inset-top, 0px)) 8px 8px 14px; flex-wrap: wrap; row-gap: 6px; }
+      .help.reader .readerHead h3 { flex: 1 1 calc(100% - 48px); }
+      .help.reader .readerHead .x { order: 1; }
+      .readerHead .seg { order: 2; }
+      .readerHead .mdActs { order: 3; margin-left: auto; }
+      .readerHead .seg button { padding: 0 9px; }
+      .readerBody { padding: 18px 16px calc(36px + env(safe-area-inset-bottom, 0px)); }
+      .readerBody .md { font-size: 15.5px; }
+      .readerFoot { display: none; }
+    }
+    /* Length of a long text, shown when it nears the limit; past it, what to do */
+    .limit { font-size: 12px; color: var(--faint); text-align: right; font-variant-numeric: tabular-nums; margin-top: -2px; }
+    .limit.over { color: var(--danger); text-align: left; font-weight: 500; }
+    textarea.over, textarea.over:focus { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+    .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    .btn[disabled]:hover { border-color: var(--line-strong); color: inherit; }
     textarea { width: 100%; min-height: 110px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--card); padding: 9px 10px; resize: vertical; line-height: 1.5; }
     .links { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
     .links a { color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -617,6 +698,11 @@
       .row .when { grid-column: 2; grid-row: 2; }
       .group .hideS { display: none; }
       aside.panel { width: 100vw; border-left: 0; }
+      /* The panel already fills the phone: no handle, no expand button */
+      .pResize, .pTools .pExp { display: none; }
+      aside.panel.expanded { inset: 0; border: 0; border-radius: 0; box-shadow: none; }
+      aside.panel.expanded .pHead, aside.panel.expanded .pBody { padding-left: 18px; padding-right: 18px; }
+      aside.panel.expanded .replyBar { padding-left: 14px; padding-right: 14px; }
       .fields { grid-template-columns: 84px minmax(0, 1fr); }
     }
   </style>
@@ -970,7 +1056,30 @@
         return s.replace(/\u0000(\d+)\u0000/g, (_, i) => kept[Number(i)] ?? '');
       }
 
-      /** Safe markdown subset: headings, lists, blockquotes, code blocks, tables, links, bold/italic/code. */
+      // A list item: indentation, a bullet (- * +) or a number (1. or 1)), then its text.
+      const LIST_ITEM = /^(\s*)([-*+]|\d{1,9}[.)])\s+(.*)$/;
+      /** Items [{ indent, ordered, num, text }] in reading order → nested <ul>/<ol>, numbering kept. */
+      function listHtml(items) {
+        const stack = []; // open lists: { indent, tag }
+        let html = '';
+        const close = () => { html += `</li></${stack.pop().tag}>`; };
+        for (const it of items) {
+          const tag = it.ordered ? 'ol' : 'ul';
+          while (stack.length && it.indent < stack[stack.length - 1].indent) close();
+          const top = stack[stack.length - 1];
+          if (top && it.indent <= top.indent && top.tag === tag) html += '</li><li>';
+          else {
+            if (top && it.indent <= top.indent) close(); // same level, other kind of list
+            stack.push({ indent: it.indent, tag });
+            html += `<${tag}${tag === 'ol' && it.num > 1 ? ` start="${it.num}"` : ''}><li>`;
+          }
+          html += it.text.split('\n').map((x) => inlineHtml(x)).join('<br>');
+        }
+        while (stack.length) close();
+        return html;
+      }
+
+      /** Safe markdown subset: headings, nested lists, blockquotes, code blocks, tables, links, bold/italic/code. */
       function md(s) {
         const lines = String(s || '').replace(/\r\n/g, '\n').split('\n');
         const out = [];
@@ -1036,21 +1145,31 @@
             continue;
           }
 
-          // Lists.
-          const bullet = l.match(/^\s*([-*+])\s+(.*)$/);
-          const ordered = l.match(/^\s*(\d+)\.\s+(.*)$/);
-          if (bullet || ordered) {
-            const tag = ordered ? 'ol' : 'ul';
+          // Lists, nested by indentation: "1. a / 3 spaces - b / 2. c" is one ordered list whose first
+          // item holds a bullet list, and keeps counting (2., not a new 1.).
+          if (LIST_ITEM.test(l)) {
             const items = [];
             while (i < lines.length) {
-              const b = lines[i].match(/^\s*([-*+])\s+(.*)$/);
-              const o = lines[i].match(/^\s*(\d+)\.\s+(.*)$/);
-              if (tag === 'ul' && !b) break;
-              if (tag === 'ol' && !o) break;
-              items.push(inlineHtml((b ? b[2] : o[2]) || ''));
-              i++;
+              const m = lines[i].match(LIST_ITEM);
+              if (m) {
+                items.push({ indent: m[1].replace(/\t/g, '    ').length, ordered: /\d/.test(m[2]), num: parseInt(m[2], 10), text: m[3] || '' });
+                i++;
+                continue;
+              }
+              // An indented line under an item continues it; blank lines between items do not end the list.
+              if (items.length && lines[i].trim() && /^(\s{2,}|\t)/.test(lines[i]) && !/^\s*```/.test(lines[i])) {
+                items[items.length - 1].text += '\n' + lines[i].trim();
+                i++;
+                continue;
+              }
+              if (!lines[i].trim()) {
+                let j = i;
+                while (j < lines.length && !lines[j].trim()) j++;
+                if (j < lines.length && LIST_ITEM.test(lines[j])) { i = j; continue; }
+              }
+              break;
             }
-            out.push(`<${tag}>${items.map((x) => `<li>${x}</li>`).join('')}</${tag}>`);
+            out.push(listHtml(items));
             continue;
           }
 
@@ -1060,8 +1179,7 @@
             !/^```/.test(lines[i]) &&
             !/^(#{1,6})\s+/.test(lines[i]) &&
             !/^\s*>\s?/.test(lines[i]) &&
-            !/^\s*([-*+])\s+/.test(lines[i]) &&
-            !/^\s*(\d+)\.\s+/.test(lines[i])
+            !LIST_ITEM.test(lines[i])
           ) {
             para.push(lines[i]);
             i++;
@@ -1544,6 +1662,208 @@
         favicon(nW);
       }
 
+      // ---- panel width, expanded ticket, copy, reading view, length limits (0.5.10) --------------
+      // Per-browser conveniences only: storage may be missing (private window, blocked), so every access is guarded.
+      const prefs = {
+        get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+        set(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch {} },
+      };
+      const PANEL_DEFAULT = 560;
+      const PANEL_MIN = 380;
+      const PANEL_GAP = 96; // always some board left to click on, to close the panel
+      const PANEL_KEY = 'alvearium.panel-width';
+      const panelMax = () => Math.max(PANEL_MIN, window.innerWidth - PANEL_GAP);
+      const clampPanel = (w) => Math.round(Math.min(Math.max(Number(w) || PANEL_DEFAULT, PANEL_MIN), panelMax()));
+      let panelWidth = (() => {
+        const w = Number(prefs.get(PANEL_KEY));
+        return Number.isFinite(w) && w >= PANEL_MIN ? Math.round(w) : PANEL_DEFAULT;
+      })();
+      /** The panel at `w` px (CSS clamps it to the window); `save` remembers it in this browser. */
+      function applyPanelWidth(w, save = false) {
+        panelWidth = w;
+        $('panel').style.setProperty('--panel-w', w + 'px');
+        const h = $('panel').querySelector('.pResize');
+        if (h) {
+          h.setAttribute('aria-valuenow', String(clampPanel(w)));
+          h.setAttribute('aria-valuemax', String(panelMax()));
+        }
+        if (save) prefs.set(PANEL_KEY, w === PANEL_DEFAULT ? null : String(w));
+      }
+      applyPanelWidth(panelWidth);
+      const resizeHandle = () =>
+        `<div class="pResize" role="separator" aria-orientation="vertical" aria-label="Resize the ticket panel" aria-valuemin="${PANEL_MIN}" aria-valuemax="${panelMax()}" aria-valuenow="${clampPanel(panelWidth)}" tabindex="0" title="Drag to resize · double-click to reset"></div>`;
+      let drag = null;
+      document.addEventListener('pointerdown', (e) => {
+        const h = e.target.closest?.('.pResize');
+        if (!h || e.button !== 0) return;
+        e.preventDefault();
+        drag = { x: e.clientX, w: $('panel').getBoundingClientRect().width, id: e.pointerId };
+        try { h.setPointerCapture(e.pointerId); } catch {}
+        document.body.classList.add('resizing');
+      });
+      window.addEventListener('pointermove', (e) => {
+        if (drag && e.pointerId === drag.id) applyPanelWidth(clampPanel(drag.w + drag.x - e.clientX));
+      });
+      const endDrag = (e) => {
+        if (!drag || (e && e.pointerId !== undefined && e.pointerId !== drag.id)) return;
+        drag = null;
+        document.body.classList.remove('resizing');
+        applyPanelWidth(panelWidth, true);
+      };
+      window.addEventListener('pointerup', endDrag);
+      window.addEventListener('pointercancel', endDrag);
+      window.addEventListener('blur', () => endDrag());
+      window.addEventListener('resize', () => applyPanelWidth(panelWidth));
+      document.addEventListener('dblclick', (e) => {
+        if (e.target.closest?.('.pResize')) applyPanelWidth(PANEL_DEFAULT, true);
+      });
+      // The handle is a focusable separator: arrows resize (Shift: bigger steps), Home/End to the bounds, Enter resets.
+      document.addEventListener('keydown', (e) => {
+        if (!e.target?.classList?.contains('pResize') || e.ctrlKey || e.metaKey || e.altKey) return;
+        const cur = clampPanel(panelWidth);
+        const step = e.shiftKey ? 96 : 24;
+        const next = { ArrowLeft: cur + step, ArrowRight: cur - step, Home: PANEL_MIN, End: panelMax(), Enter: PANEL_DEFAULT }[e.key];
+        if (next === undefined) return;
+        e.preventDefault();
+        applyPanelWidth(clampPanel(next), true);
+      });
+
+      const ICON_FULL = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const ICON_SIDE = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const ICON_COPY = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.8" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 3.4v-.2a1.7 1.7 0 0 0-1.7-1.7H3.2a1.7 1.7 0 0 0-1.7 1.7v5.6a1.7 1.7 0 0 0 1.7 1.7h.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+      const ICON_READ = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5 9.2 6.8M2.5 13.5l4.3-4.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const isExpanded = () => $('panel').classList.contains('expanded');
+      const expandButton = () => `<button type="button" class="pIcon pExp" data-act="expand">${ICON_FULL}</button>`;
+      /** Nearly full screen, or back to the side panel. The state lives on the panel, so it survives a redraw. */
+      function setExpanded(on) {
+        $('panel').classList.toggle('expanded', !!on);
+        syncExpandButton();
+      }
+      function syncExpandButton() {
+        const b = $('panel').querySelector('.pExp');
+        if (!b) return;
+        const on = isExpanded();
+        b.innerHTML = on ? ICON_SIDE : ICON_FULL;
+        b.setAttribute('aria-pressed', String(on));
+        b.setAttribute('aria-label', on ? 'Back to the side panel' : 'Expand the ticket');
+        b.title = on ? 'Back to the side panel (Esc)' : 'Expand';
+      }
+
+      /** Copy and read-wide buttons for one markdown text (the description, a comment). */
+      const mdActs = (what) =>
+        `<span class="mdActs"><button type="button" class="mdAct" data-md="copy" aria-label="Copy the ${esc(what)} as markdown" title="Copy as markdown">${ICON_COPY}</button><button type="button" class="mdAct" data-md="read" aria-label="Read the ${esc(what)} in a wide view" title="Read in a wide view">${ICON_READ}</button></span>`;
+      /** The raw markdown behind a button: the open ticket's body or one of its comments, or the text in the reading view. */
+      function mdSource(btn) {
+        if (btn.closest('#help')) return reader;
+        const host = btn.closest('[data-md-src]');
+        const t = $('panel').__ticket;
+        if (!host || !t) return null;
+        const src = host.dataset.mdSrc;
+        if (src === 'body') return { text: t.body || '', heading: `${t.key} · Description`, sub: plain(t.title) };
+        const ev = (t.events || [])[Number(src.slice(3))];
+        return ev && ev.type === 'comment' ? { text: ev.text || '', heading: `${t.key} · Comment by ${actorName(ev.actor)}`, sub: when(ev.at) } : null;
+      }
+      async function mdAction(btn) {
+        const src = mdSource(btn);
+        if (!src) return;
+        if (btn.dataset.md === 'read') return openReader(src);
+        flashCopied(btn, await copyText(src.text));
+      }
+      /** Clipboard API where the page is a secure context, else the old hidden-textarea copy (plain HTTP). */
+      async function copyText(text) {
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+            return true;
+          }
+        } catch {}
+        const prev = document.activeElement;
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+        document.body.append(ta);
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch {}
+        ta.remove();
+        prev?.focus?.({ preventScroll: true });
+        return ok;
+      }
+      function flashCopied(btn, ok) {
+        clearTimeout(btn.__undo);
+        btn.__html ??= btn.innerHTML;
+        btn.__label ??= btn.getAttribute('aria-label');
+        btn.classList.remove('ok', 'fail');
+        btn.classList.add(ok ? 'ok' : 'fail');
+        btn.innerHTML = ok ? `${CHECK}<span>Copied</span>` : '<span>Copy failed</span>';
+        btn.setAttribute('aria-label', ok ? 'Copied' : 'Copy failed: open the reading view and select the markdown');
+        btn.__undo = setTimeout(() => {
+          btn.classList.remove('ok', 'fail');
+          btn.innerHTML = btn.__html;
+          btn.setAttribute('aria-label', btn.__label);
+        }, 1600);
+      }
+
+      // The reading view: one text, wide, rendered or as its markdown source; remembers the last choice.
+      const READER_KEY = 'alvearium.reader-mode';
+      let reader = null; // { text, heading, sub, raw }
+      function openReader(src) {
+        reader = { ...src, raw: prefs.get(READER_KEY) === 'raw' };
+        openHelp(renderReader, `Reading view: ${src.heading}`, 'reader');
+      }
+      function renderReader() {
+        const r = reader;
+        if (!r) return;
+        const words = (r.text.match(/\S+/g) || []).length;
+        $('help').innerHTML = `
+          <div class="readerHead">
+            <h3 title="${esc(r.heading)}${r.sub ? ' · ' + esc(r.sub) : ''}">${esc(r.heading)}${r.sub ? ` <span>· ${esc(r.sub)}</span>` : ''}</h3>
+            <div class="seg" role="group" aria-label="Show the text"><button type="button" data-act="readerRendered" aria-pressed="${!r.raw}">Rendered</button><button type="button" data-act="readerRaw" aria-pressed="${r.raw}">Markdown</button></div>
+            <span class="mdActs"><button type="button" class="mdAct" data-md="copy" aria-label="Copy as markdown" title="Copy as markdown">${ICON_COPY}</button></span>
+            <button type="button" class="x" id="helpClose" data-act="helpClose" aria-label="Close">×</button>
+          </div>
+          <div class="readerBody" tabindex="-1" autofocus>${r.raw ? `<pre class="readerRaw" aria-label="Markdown source">${esc(r.text)}</pre>` : `<div class="md">${md(r.text)}</div>`}</div>
+          <div class="readerFoot"><span>${groupDigits(r.text.length)} characters · ${groupDigits(words)} words</span><span style="margin-left:auto">Esc to close</span></div>`;
+      }
+
+      // Long texts: a comment or a description holds at most MAX_TEXT characters, like the server
+      // (lib/core.mjs MAX_TEXT_CHARS; a test keeps the two equal). The count shows near the limit;
+      // past it the text box says what to do and the send button waits. Nothing is ever cut.
+      const MAX_TEXT = 64000;
+      const NEAR_TEXT = 56000;
+      const groupDigits = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+      /** Updates the note under a limited text box; true when its text may be sent. */
+      function limitCheck(ta) {
+        if (!ta?.dataset?.limit) return true;
+        const comment = ta.dataset.limit === 'comment';
+        const n = (comment ? ta.value.trim() : ta.value).length;
+        const over = n > MAX_TEXT;
+        let note = ta.nextElementSibling?.classList?.contains('limit') ? ta.nextElementSibling : null;
+        ta.classList.toggle('over', over);
+        if (ta.id === 'comment') {
+          const b = $('panel').querySelector('[data-act="comment"]');
+          if (b) b.disabled = over;
+        }
+        if (n < NEAR_TEXT) {
+          if (note) note.hidden = true;
+          return true;
+        }
+        if (!note) {
+          note = document.createElement('div');
+          note.className = 'limit';
+          note.id = 'limit-' + (ta.id || ta.name || 'text');
+          ta.setAttribute('aria-describedby', note.id);
+          ta.after(note);
+        }
+        note.hidden = false;
+        note.classList.toggle('over', over);
+        note.textContent = over
+          ? `${groupDigits(n)} / ${groupDigits(MAX_TEXT)} characters: ${groupDigits(n - MAX_TEXT)} too many. ${comment ? 'Shorten it, or split it into several comments.' : 'Shorten it, or move the rest to a comment.'} Nothing is cut.`
+          : `${groupDigits(n)} / ${groupDigits(MAX_TEXT)} characters`;
+        return !over;
+      }
+
       // ---- detail panel -------------------------------------------------------------------------
       let panelDirty = false;
       async function openPanel(key, push = true) {
@@ -1560,6 +1880,7 @@
         state.ticket = '';
         panelDirty = false;
         mentionClose();
+        setExpanded(false);
         $('panel').hidden = true;
         $('scrim').hidden = true;
         writeUrl(push);
@@ -1574,10 +1895,10 @@
       function fromTo(e) {
         return who(e.actor) + (e.target ? `<span class="arrow">→</span>${who(e.target)}` : '');
       }
-      function eventLine(e) {
+      function eventLine(e, i) {
         const by = fromTo(e);
         const at = `<time title="${esc(new Date(e.at).toLocaleString())}">${esc(when(e.at))}</time>`;
-        if (e.type === 'comment') return `<div class="ev comment">${by} commented${at}<div class="said">${md(e.text)}</div></div>`;
+        if (e.type === 'comment') return `<div class="ev comment mdHost" data-md-src="ev:${Number(i) || 0}"><div class="evHead">${by} commented${at}${mdActs('comment')}</div><div class="said md">${md(e.text)}</div></div>`;
         if (e.type === 'created') return `<div class="ev">${who(e.actor)} created it${e.to_status ? ' as ' + esc(STATUS[e.to_status] || e.to_status) : ''}${e.target ? `<span class="arrow">→</span>${who(e.target)}` : ''}${at}</div>`;
         if (e.type === 'status' || e.type === 'reopened') return `<div class="ev">${by} ${e.type === 'reopened' ? 'reopened it' : 'moved it'}: ${esc(STATUS[e.from_status] || e.from_status)} → <b>${esc(STATUS[e.to_status] || e.to_status)}</b>${at}${e.text ? `<div class="said">${md(e.text)}</div>` : ''}</div>`;
         if (e.type === 'assigned') return `<div class="ev">${who(e.actor)} handed it over<span class="arrow">→</span>${who(e.target || e.text)}${at}</div>`;
@@ -1610,7 +1931,8 @@
         const links = (t.links || []).map((l) => (httpsUrl(l.url) ? `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title || (l.type === 'pr' ? 'Pull request ' + l.url.replace(/^https:\/\/[^/]+\//, '') : l.type === 'session' ? 'Cloud session' : l.url))} ↗</a>` : `<span class="mono">${esc(l.url)}</span>`)).join('');
         const kids = (t.children || []).map((c) => `<div class="kid" data-open="${esc(c.key)}"><span class="dot" data-s="${esc(c.status)}"></span><span class="k">${esc(c.key)}</span><span class="tt">${ttl(c.title)}</span><span class="pill" data-s="${esc(c.status)}">${esc(STATUS[c.status])}</span></div>`).join('');
         $('panel').innerHTML = `
-          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span>${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)">${CHECK}<span>Done</span><kbd>d</kbd></button>` : ''}<button type="button" class="x" data-act="close" aria-label="Close">×</button></div>
+          ${resizeHandle()}
+          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)">${CHECK}<span>Done</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="Close">×</button></div></div>
           <form class="pBody" id="tform" autocomplete="off">
             <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
             ${askBox(t)}
@@ -1625,11 +1947,13 @@
               ${t.parent_key ? `<span class="lab">Parent</span><div class="ctx"><button type="button" class="tag" data-open="${esc(t.parent_key)}">${esc(t.parent_key)} ${esc((t.parent_title || '').slice(0, 50))}</button></div>` : ''}
               <span class="lab">Created</span><span>${t.created_by ? who(t.created_by) + ' · ' : ''}${esc(when(t.created_at))} · updated ${ago(t.updated_at, now)} ago</span>
             </div>
-            ${t.kind === 'feedback' && t.status !== 'done' && t.status !== 'cancelled' ? `<div class="resolve"><textarea id="resolution" placeholder="Resolution: what was done, or why not (kept in the history)"></textarea><div class="acts"><button type="button" class="btn" data-act="fbCancel">Won't do</button><button type="button" class="btn primary" data-act="fbDone">Mark handled</button></div></div>` : ''}
+            ${t.kind === 'feedback' && t.status !== 'done' && t.status !== 'cancelled' ? `<div class="resolve"><textarea id="resolution" data-limit="comment" placeholder="Resolution: what was done, or why not (kept in the history)"></textarea><div class="acts"><button type="button" class="btn" data-act="fbCancel">Won't do</button><button type="button" class="btn primary" data-act="fbDone">Mark handled</button></div></div>` : ''}
             <div class="formActs" id="saveBar" hidden><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="revert">Discard</button><button type="submit" class="btn primary" title="${esc(sendHint('save'))}">Save</button></div>
-            <div class="sect">Description <button type="button" class="clear" data-act="editBody">Edit</button></div>
-            <div class="md${t.body ? '' : ' empty-body'}" id="bodyView">${t.body ? (bodyRest(t) ? md(bodyRest(t)) : '<span class="empty-body">Everything is in the box above.</span>') : 'No description.'}</div>
-            <textarea name="body" id="bodyEdit" hidden>${esc(t.body || '')}</textarea>
+            <div class="mdHost" data-md-src="body">
+              <div class="sect">Description ${t.body ? mdActs('description') : ''}<button type="button" class="clear" data-act="editBody">Edit</button></div>
+              <div class="md${t.body ? '' : ' empty-body'}" id="bodyView">${t.body ? (bodyRest(t) ? md(bodyRest(t)) : '<span class="empty-body">Everything is in the box above.</span>') : 'No description.'}</div>
+              <textarea name="body" id="bodyEdit" data-limit="body" hidden>${esc(t.body || '')}</textarea>
+            </div>
             ${links ? `<div class="sect">Links</div><div class="links">${links}</div>` : ''}
             ${kids ? `<div class="sect">Sub-tickets</div><div class="kids">${kids}</div>` : ''}
             ${t.kind === 'feedback' ? '' : `<div class="sect">Dependencies ${t.blocked ? '<span class="tag blocked">⛔ blocked</span>' : ''}</div>
@@ -1639,20 +1963,23 @@
             </div>`}
             <div class="sect">History</div>
             <div class="timeline">${(t.events || []).map(eventLine).join('')}</div>
-            <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" placeholder="Add a comment…" aria-label="Comment"></textarea><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts"><button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
+            <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" data-limit="comment" placeholder="Add a comment…" aria-label="Comment"></textarea><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts"><button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
           </form>${replyBar(t)}`;
         $('panel').hidden = false;
         $('scrim').hidden = false;
         $('panel').dataset.key = t.key;
         $('panel').__ticket = t;
+        syncExpandButton();
         autosize($('panel').querySelector('.pTitle'));
       }
       function renderCreate(prefill = {}) {
         state.ticket = '';
         mentionClose();
+        setExpanded(false);
         writeUrl(false);
         const f = state.f;
         $('panel').innerHTML = `
+          ${resizeHandle()}
           <div class="pHead"><span class="pkey">New ticket${prefill.parent ? ' under ' + esc(prefill.parent) : ''}</span><button type="button" class="x" data-act="close" aria-label="Close">×</button></div>
           <form class="pBody" id="cform" autocomplete="off">
             <textarea class="pTitle" name="title" rows="1" maxlength="200" placeholder="What needs doing?" aria-label="Title" required></textarea>
@@ -1663,7 +1990,7 @@
               <label>Labels</label><input name="labels" value="${esc(f.label || '')}" placeholder="comma, separated">
               <label>Repo</label><input name="repo" value="${esc(prefill.repo || (f.repo && f.repo.includes('/') ? f.repo : ''))}" placeholder="owner/name (optional)">
             </div>
-            <textarea name="body" placeholder="Details (markdown)"></textarea>
+            <textarea name="body" data-limit="body" placeholder="Details (markdown)"></textarea>
             <div class="formActs" style="margin-top:12px"><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="close">Cancel</button><button type="submit" class="btn primary" title="${esc(sendHint('create'))}">Create</button></div>
           </form>`;
         $('panel').dataset.parent = prefill.parent || '';
@@ -1779,6 +2106,12 @@
         const pick = e.target.closest?.('[data-m]');
         if (pick && mention.open) { e.preventDefault(); e.stopPropagation(); return mentionPick(pick.dataset.m); }
         if (mention.open && !e.target.closest?.('.mentionBox') && e.target?.id !== 'comment') mentionClose();
+        const mdBtn = e.target.closest?.('[data-md]');
+        if (mdBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          return mdAction(mdBtn);
+        }
         const el = e.target.closest('[data-done],[data-ask],[data-undep],[data-filter],[data-unfilter],[data-view],[data-act],[data-open],[data-stop],[data-actor]');
         if (!el) return;
         if (el.dataset.stop) return;
@@ -1823,6 +2156,13 @@
         const act = el.dataset.act;
         if (act === 'helpClose') return closeHelp();
         if (act === 'close') return closePanel();
+        if (act === 'expand') return setExpanded(!isExpanded());
+        if ((act === 'readerRendered' || act === 'readerRaw') && reader) {
+          reader.raw = act === 'readerRaw';
+          prefs.set(READER_KEY, reader.raw ? 'raw' : null);
+          renderReader();
+          return $('help').querySelector(`[data-act="${act}"]`)?.focus();
+        }
         if (act === 'new') return renderCreate();
         if (act === 'editActor') {
           e.preventDefault();
@@ -1897,6 +2237,7 @@
           return;
         }
         if ((act === 'fbDone' || act === 'fbCancel') && t) {
+          if (!limitCheck($('resolution'))) return $('resolution').focus();
           const note = $('resolution').value.trim();
           try {
             await api(`tickets/${encodeURIComponent(t.key)}`, { status: act === 'fbDone' ? 'done' : 'cancelled', ...(note ? { comment: note } : {}) });
@@ -1908,6 +2249,7 @@
         if (act === 'comment' && t) {
           const text = $('comment').value.trim();
           if (!text) return;
+          if (!limitCheck($('comment'))) return $('comment').focus();
           try {
             await api(`tickets/${encodeURIComponent(t.key)}/comments`, { text });
             await openPanel(t.key, false);
@@ -1922,9 +2264,10 @@
 
       let helpPrevFocus = null;
       /** The help overlay doubles as the one modal of the page (help, actor dialog, avatar crop). */
-      function openHelp(render = renderHelp, label = 'Keyboard shortcuts') {
+      function openHelp(render = renderHelp, label = 'Keyboard shortcuts', cls = '') {
         if (!$('help').hidden) closeHelp();
         helpPrevFocus = document.activeElement;
+        $('help').className = 'help' + (cls ? ' ' + cls : '');
         render();
         $('help').setAttribute('aria-label', label);
         $('helpScrim').hidden = false;
@@ -1943,6 +2286,8 @@
         closeAvatarCrop();
         $('helpScrim').hidden = true;
         $('help').hidden = true;
+        $('help').className = 'help';
+        reader = null;
         const prev = helpPrevFocus;
         helpPrevFocus = null;
         prev?.focus?.();
@@ -1967,7 +2312,7 @@
           { keys: 'b', desc: 'Board view' },
           { keys: 'l', desc: 'List view' },
           { keys: '?', desc: 'Show this help' },
-          { keys: 'Esc', desc: 'Close panel / help' },
+          { keys: 'Esc', desc: 'Leave the expanded ticket, then close the panel / help' },
         ];
         const inForm = [
           { keys: `${modLabel()}+↵`, desc: 'Send the comment (in the comment box)' },
@@ -1984,6 +2329,7 @@
             <div>
               ${inForm.map(row).join('')}
               <p class="helpNote">Global shortcuts are disabled while you type in a text field.</p>
+              <p class="helpNote">Drag the left edge of an open ticket to resize it (arrows on the focused edge too); double-click it to go back to the default width. The width is kept in this browser.</p>
             </div>
           </div>`;
       }
@@ -2008,11 +2354,11 @@
       }
 
       // Which shortcut a key press means, from the key and where the focus is. Pure, so it is tested.
-      // ctx: { helpOpen, panelOpen, typing, targetId, formId, onTicket }
+      // ctx: { helpOpen, panelOpen, panelExpanded, typing, targetId, formId, onTicket }
       function shortcut(e, ctx) {
         const mod = e.ctrlKey || e.metaKey;
         if (e.key === 'Enter' && !mod && (ctx.targetId === 'addBlocker' || ctx.targetId === 'addBlocked')) return 'addDep';
-        if (e.key === 'Escape') return ctx.helpOpen ? 'closeHelp' : ctx.panelOpen ? 'closePanel' : null;
+        if (e.key === 'Escape') return ctx.helpOpen ? 'closeHelp' : ctx.panelExpanded ? 'collapsePanel' : ctx.panelOpen ? 'closePanel' : null;
         // Ctrl/Cmd+Enter works while typing: send the comment, or save / create the ticket.
         if (e.key === 'Enter' && mod && !e.shiftKey && !e.altKey && ctx.panelOpen) {
           if (ctx.targetId === 'comment') return 'sendComment';
@@ -2043,6 +2389,7 @@
         const a = shortcut(e, {
           helpOpen: !$('help').hidden,
           panelOpen: !$('panel').hidden,
+          panelExpanded: !$('panel').hidden && isExpanded(),
           typing: isTyping(t),
           targetId: t?.id || '',
           formId: t?.closest?.('form')?.id || '',
@@ -2062,6 +2409,7 @@
         if (a === 'addDep') return document.querySelector(`[data-act="${t.id}"]`).click();
         if (a === 'closeHelp') return closeHelp();
         if (a === 'closePanel') return closePanel();
+        if (a === 'collapsePanel') return setExpanded(false);
         if (a === 'sendComment') return document.querySelector('[data-act="comment"]')?.click();
         if (a === 'submitForm') return t.closest('form').requestSubmit();
         if (a === 'search') return $('q').focus();
@@ -2079,6 +2427,7 @@
         if (k) return setFilter(k, e.target.value);
       });
       $('panel').addEventListener('input', (e) => {
+        if (e.target.dataset?.limit) limitCheck(e.target);
         if (e.target.classList.contains('pTitle')) autosize(e.target);
         if (e.target.id === 'comment') return mentionUpdate(e.target);
         if (['addBlocker', 'addBlocked', 'resolution'].includes(e.target.id) || !$('panel').__ticket || $('panel').querySelector('#cform')) return;
@@ -2094,6 +2443,7 @@
         if (e.target.id === 'tform') return save(e.target);
         const v = formValues(e.target);
         if (!v.title) return;
+        if (!limitCheck(e.target.querySelector('[name="body"]'))) return void ($('saveMsg').textContent = 'The details are too long: see under the text box.');
         const body = { title: v.title, body: v.body, status: v.status, assignee: v.assignee, labels: v.labels };
         if (v.priority) body.priority = v.priority;
         if (v.repo) body.repo = v.repo;
@@ -2117,6 +2467,11 @@
         if ((v.priority || null) !== (t.priority || null)) body.priority = v.priority || null;
         if (v.labels.join(',') !== (t.labels || []).join(',')) body.labels = v.labels;
         if (!$('bodyEdit').hidden && v.body !== (t.body || '')) body.body = v.body;
+        if (body.body !== undefined && !limitCheck($('bodyEdit'))) {
+          $('saveMsg').textContent = 'The description is too long: see under the text box.';
+          $('saveBar').hidden = false;
+          return;
+        }
         if (!Object.keys(body).length) return renderPanel(t);
         try {
           const next = await api(`tickets/${encodeURIComponent(t.key)}`, body);
@@ -2142,7 +2497,7 @@
         renderFilters();
         refresh();
         if (state.ticket) openPanel(state.ticket, false);
-        else { $('panel').hidden = true; $('scrim').hidden = true; }
+        else { setExpanded(false); $('panel').hidden = true; $('scrim').hidden = true; }
       });
 
       // ---- chrome -------------------------------------------------------------------------------

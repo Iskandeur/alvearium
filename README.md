@@ -143,6 +143,41 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
   oldest. Session, question and feedback tickets are not work and stay out. Same filters as the list
   (repo, session, actor, assignee, label…), plus the number of blocked tickets left aside.
 
+## Reading and writing long tickets (0.5.10)
+
+- **A wider ticket.** Drag the left edge of the open ticket to resize it (between 380 px and the
+  width of the window minus 96 px, so there is always some board left to click). The width is kept
+  in this browser; double-click the edge to go back to 560 px. The edge is also a focusable
+  separator: arrows resize it (Shift for bigger steps), Home and End go to the bounds, Enter resets.
+  The **expand** button next to *Done* opens the ticket nearly full screen, its text in a readable
+  column; Esc goes back to the side panel, a second Esc closes it. On a phone the ticket already
+  fills the screen: no edge, no button.
+- **Copy and read wide.** The description and every comment carry two small buttons, shown on hover
+  or focus with a mouse and always on a touch screen: **copy** puts the raw markdown on the
+  clipboard (not the rendered text; "Copied" for a moment), **read wide** opens that text alone in a
+  large reading view, with a switch between *Rendered* and *Markdown* (both selectable, the choice is
+  kept in this browser), its length, and a copy button. On plain HTTP, where browsers have no
+  clipboard API, the copy falls back to the older method.
+- **Markdown** renders nested lists (by indentation, numbering kept across a nested list or a blank
+  line: `2.` no longer restarts at 1), and comments get the same styles as the description (lists,
+  code, quotes, tables).
+- **Nothing is cut any more.** A comment and a ticket body hold up to **64 000 characters**
+  (`MAX_TEXT_CHARS` in `lib/core.mjs`). Until 0.5.9 a comment silently lost everything past 4 000
+  characters and a body past 8 000. Above the limit the write is refused, whole, with `413` and a
+  message (`comment too long: 70 123 characters, the limit is 64 000. Nothing was saved: shorten it
+  or split it into several comments.`): through the API, the MCP tools (`ticket_comment`,
+  `ticket_create`, `ticket_update`, `board_feedback`, checked before anything is sent) and the page,
+  where a counter appears near the limit and the *Comment* button waits past it. An update that
+  carries a comment that is too long changes nothing at all. The ticket routes accept requests up to
+  439 KiB (a body and a comment of 64 000 three-byte characters); every other route keeps 64 KiB, and
+  a request above its limit now gets its `413` answer instead of a reset connection. Titles stay one
+  line of 200 characters, shortened visibly with `…` as before.
+
+![The ticket expanded](docs/screenshots/ticket-expanded-desktop-light.png)
+
+([resizing](docs/screenshots/panel-resize-desktop-light.png), [reading view](docs/screenshots/reader-desktop-light.png),
+[reading view at 390 px](docs/screenshots/reader-mobile-light.png), [a comment over the limit](docs/screenshots/comment-limit-desktop-light.png).)
+
 ## What we need from you, in the ticket (0.5.9)
 
 The 0.5.8 buttons were too many and too big on the cards, and most decisions need the context of the
@@ -260,6 +295,7 @@ the hooks and the MCP server of a session:
 | `SESSION_BOARD_ACTOR_NAME` | its display name |
 | `SESSION_BOARD_THREAD` | one stable name for a conversation that lives across several short sessions (a bot, a tmux loop, CI): all those sessions share **one** session ticket, which follows the latest session and is not closed at `SessionEnd` |
 | `SESSION_BOARD_SESSION_TICKETS=0` | no automatic tickets at all for this session (session, questions, task mirror, subagent lines): for routine or scripted sessions. Tickets created explicitly through MCP still attach to the session |
+| `SESSION_BOARD_FEEDBACK_ASSIGNEE` | who the tickets filed by `board_feedback` are assigned to (an actor id: `user`, `claude`, `ci-bot`…). Default `user`, the owner of the board. Set it when an agent triages the feedback inbox for you; a value that is not an actor id makes `board_feedback` fail with an error naming the variable rather than file the feedback elsewhere |
 | `SESSION_BOARD_PERMISSION_TICKETS` | `1` / `0` / `auto` (default). Whether a permission request opens a "waiting on you" ticket. `auto`: yes, except in a non-interactive `claude -p` session (`CLAUDE_CODE_ENTRYPOINT=sdk-cli`), where nobody can answer the prompt: the request is auto-denied, and the ticket would open and close within seconds in the list of a human who never saw the prompt. Set `1` for a headless session that a human really does answer (a remote-control session, a custom permission-prompt tool) |
 
 ### Agent tokens (0.4.0)
@@ -380,7 +416,8 @@ optional `about` and `priority`) files a ticket of kind `feedback`, with its con
 soon as a tool, an instruction or the board itself makes it lose time, or when it sees an
 improvement.
 
-Feedback stays out of the board and the lists (ask for it with `kind=feedback`). The page has its
+Feedback is assigned to `user`, the owner of the board, unless the session sets
+`SESSION_BOARD_FEEDBACK_ASSIGNEE` (see *Actors and threads*). Feedback stays out of the board and the lists (ask for it with `kind=feedback`). The page has its
 own **Feedback** view, with the open count in the header, filters by type, actor and repo, and a
 resolution box: *Mark handled* (`done`) or *Won't do* (`cancelled`), with a comment kept in the
 history.

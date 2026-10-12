@@ -566,3 +566,9 @@ test('jobs waiting: only a human, or an agent the deployment names, can claim th
   bare.createTicket({ title: 'agent', assignee: 'user', status: 'waiting_on_user', kind: 'decision', labels: ['blocks-job'] }, { actor: 'ops' });
   assert.equal(bare.ticketBoard({}).columns.waiting[0].unlocks, 0);
 });
+
+test('ask block: snake_case and a lone * keep their characters; only paired emphasis is stripped (0.5.10)', () => {
+  const a = parseAskBlock('Ask: Add `REFRESH_LOCK_TTL=5000` to the **staging** secrets, 2 * 3 = 6\nIf no answer: I keep _the_ default');
+  assert.equal(a.question, 'Add REFRESH_LOCK_TTL=5000 to the staging secrets, 2 * 3 = 6');
+  assert.equal(a.sansReponse, 'I keep the default');
+});
