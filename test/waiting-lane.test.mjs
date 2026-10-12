@@ -264,3 +264,42 @@ test('page: no external dependency, no inline handler, same CSP', () => {
   const server = readFileSync(join(import.meta.dirname, '..', 'server', 'server.mjs'), 'utf8');
   assert.match(server, /'content-security-policy': "default-src 'none'; sandbox"/);
 });
+
+test('lane: his "to do" that ask a gesture are in it too; traces, sessions and other people\'s work are not', async () => {
+  let at = Date.UTC(2026, 5, 1);
+  const store = await openStore(':memory:', { now: () => (at += 1000) });
+  const mk = (title, o = {}) => store.createTicket({ title, assignee: 'user', status: 'todo', ...o }, { actor: 'planner' });
+  const decision = mk('Pick a name', { kind: 'decision', body: 'A) Fern\nB) Moss' });
+  const action = mk('Call the plumber', { kind: 'action' });
+  const question = mk('Should we move the launch?', { kind: 'question' });
+  const note = mk('Meeting notes', { kind: 'note' });
+  const task = mk('Refactor the importer', { kind: 'task' });
+  const agentsAction = store.createTicket({ title: 'Agent action', kind: 'action', assignee: 'claude', status: 'todo' }, { actor: 'planner' });
+  const session = store.createTicket({ title: 'Session mirror', kind: 'session', assignee: 'user', status: 'todo' }, { actor: 'planner' });
+  const hooked = store.createTicket({ title: 'Hook question', kind: 'question', assignee: 'user', status: 'todo' }, { actor: 'planner' });
+  store.q('UPDATE tickets SET source = ? WHERE id = ?').run('hook', hooked.id);
+  const board = () => store.ticketBoard({});
+  const keys = (name) => board().columns[name].map((t) => t.key).sort();
+  const gestures = [decision, action, question].map((t) => t.key).sort();
+  assert.deepEqual(keys('waiting'), gestures);
+  assert.equal(board().counts.waiting, 3);
+  assert.deepEqual(keys('todo'), [note, task, agentsAction, session, hooked].map((t) => t.key).sort());
+  assert.ok(!keys('waiting').includes(hooked.key) && !keys('waiting').includes(session.key));
+  assert.equal(board().columns.waiting.find((t) => t.key === decision.key).ask.type, 'choice');
+  assert.equal(board().columns.waiting.find((t) => t.key === action.key).ask.type, 'done');
+  assert.equal(columnOf({ status: 'todo', assignee: 'user', kind: 'action' }), 'waiting');
+  assert.equal(columnOf({ status: 'todo', assignee: 'user', kind: 'task' }), 'todo');
+  assert.equal(columnOf({ status: 'todo', assignee: 'user', kind: 'action', source: 'hook' }), 'todo');
+  for (const t of board().columns.waiting) assert.equal(t.column, 'waiting', 'the card agrees with its lane');
+
+  // Done from the lane closes it; Later parks it in To do until its date; counts follow.
+  store.answerTicket(action.key, { answer: 'done' }, { actor: 'user' });
+  assert.equal(board().counts.waiting, 2);
+  store.answerTicket(question.key, { answer: 'later', days: 1 }, { actor: 'user' });
+  assert.deepEqual([board().counts.waiting, keys('todo').includes(question.key)], [1, true]);
+  at += 2 * DAY;
+  assert.deepEqual(keys('waiting'), [decision.key, question.key].sort());
+  // Answering a decision hands it over and it leaves the lane.
+  store.answerTicket(decision.key, { answer: 'option', choice: 'B' }, { actor: 'user' });
+  assert.ok(!keys('waiting').includes(decision.key));
+});

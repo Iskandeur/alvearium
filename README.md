@@ -68,7 +68,8 @@ whom. A **session** is a context: a session has zero, one or many tickets, and y
 
 Statuses: `todo`, `in_progress`, `waiting_on_user`, `review`, `done`, `cancelled`, `failed`. The
 board's columns are derived: **Waiting on you** = waiting on you, in review or failed, assigned to
-you; **In progress**; **To do**; **Done** folded away. Done tickets older than 30 days leave the
+you, plus the *to do* assigned to you whose kind asks a gesture of you (`decision`, `action`,
+`question`; never a session, a hook ticket or a trace such as a `note`); **In progress**; **To do**; **Done** folded away. Done tickets older than 30 days leave the
 default views (they are never deleted; *Show archived* brings them back).
 
 Tickets come from three places:
@@ -144,7 +145,7 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
 
 ## The "Waiting on you" lane answers in one tap (0.5.8)
 
-Each card of the lane shows the buttons its kind calls for, and the lane is ordered by what your
+Each card of the lane (a `todo` decision, action or question assigned to you is in it, wherever it was created) shows the buttons its kind calls for, and the lane is ordered by what your
 answer unblocks.
 
 - **A decision** gets one button per option, read from the ticket body (`A) …`, `B) …`; plain bullets

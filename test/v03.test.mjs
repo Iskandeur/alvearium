@@ -141,7 +141,8 @@ test('dependencies: cycles refused, blocked tickets badged and out of next, unbl
 test('next: priority, then manual rank, then age; filters by repo, session and actor; move reorders', async () => {
   let clock = 1_000_000;
   const s = await openStore(':memory:', { now: () => (clock += 1000) });
-  const mk = (title, extra = {}) => s.createTicket({ title, repo: 'acme/web', ...extra });
+  // kind 'task': an action assigned to the owner would sit in his "Waiting on you" lane, not in To do.
+  const mk = (title, extra = {}) => s.createTicket({ title, repo: 'acme/web', kind: 'task', ...extra });
   const low = mk('Polish the footer', { priority: 'P3' });
   const none = mk('Rename a variable');
   const old1 = mk('Fix login', { priority: 'P1' });
@@ -150,7 +151,7 @@ test('next: priority, then manual rank, then age; filters by repo, session and a
   mk('Elsewhere', { repo: 'acme/other', priority: 'P0' });
   s.createTicket({ title: 'Done already', repo: 'acme/web', priority: 'P0', status: 'done' });
   s.createTicket({ title: 'A question', repo: 'acme/web', kind: 'question', priority: 'P0' });
-  const mine = s.createTicket({ title: 'Agent work', repo: 'acme/web', priority: 'P2' }, { actor: 'ci-bot' });
+  const mine = s.createTicket({ title: 'Agent work', repo: 'acme/web', kind: 'task', priority: 'P2' }, { actor: 'ci-bot' });
 
   const keys = (r) => r.tickets.map((t) => t.key);
   assert.deepEqual(keys(s.nextTickets(parseFilters({ repo: 'acme/web' }))), [top.key, old1.key, new1.key, mine.key, low.key, none.key]);
