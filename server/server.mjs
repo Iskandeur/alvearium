@@ -30,6 +30,8 @@
 //   GET  /api/tickets/:key          one ticket with history and sub-tickets
 //   POST|PATCH /api/tickets/:key    update (status, title, body, labels, …, optional `comment`)
 //   POST /api/tickets/:key/comments { text }
+//   POST /api/tickets/:key/answer   { answer: option|yes|no|done|later|decline, choice, days }: a button of the
+//                                   "Waiting on you" lane = a comment from you + a reversible move
 //   GET  /api/facets                values to filter on (repos, sessions, machines, labels, kinds)
 //   GET  /api/sessions              sessions, most recent first (?repo)
 //   POST /api/import                { board, machine, sessions, tickets }: a machine's local board.db,
@@ -616,7 +618,7 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
         const out = store.deleteSession(sm[1]);
         return send(res, out.session || out.tickets ? 200 : 404, out);
       }
-      const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move)?$/);
+      const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move|\/answer)?$/);
       if (tm) {
         const key = tm[1];
         if (m !== 'GET' && mustWrite()) return;
@@ -624,6 +626,10 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
           const body = await jsonBody(req);
           return send(res, 200, store.moveTicket(key, { after: body.after || null, before: body.before || null }, { actor: actorOf(req, store) }));
+        }
+        if (tm[2] === '/answer') {
+          if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
+          return send(res, 200, store.answerTicket(key, await jsonBody(req), { actor: actorOf(req, store) }));
         }
         if (tm[2]) {
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });

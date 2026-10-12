@@ -142,6 +142,31 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
   oldest. Session, question and feedback tickets are not work and stay out. Same filters as the list
   (repo, session, actor, assignee, label…), plus the number of blocked tickets left aside.
 
+## The "Waiting on you" lane answers in one tap (0.5.8)
+
+Each card of the lane shows the buttons its kind calls for, and the lane is ordered by what your
+answer unblocks.
+
+- **A decision** gets one button per option, read from the ticket body (`A) …`, `B) …`; plain bullets
+  and numbered lines count too when the kind is `decision`). The default is highlighted when the body
+  marks it (`(default)`, `(recommended)`) or says it (`Default: B`, `I recommend B`, `if you do not
+  answer I will go with option 2`). A decision without options, or a question that reads as one
+  (`Should we …?`), gets **Yes / No**. An action or task gets **Done**. A permission or a session
+  question has no button: it is answered in the session.
+- **Later** (tomorrow, in a week, in a month) puts the ticket in *To do* until that date, then it
+  comes back to your lane by itself; the ticket carries `snoozed_until` meanwhile, so a reminder bot
+  can stay quiet. **Not for me** hands it back to whoever opened it (Claude when you did).
+- A tap posts a comment as you (`Answer: B — <the option>`, `Answer: yes`, `Answer: done`,
+  `Later: not before 2026-01-17, …`, `Not for me: handed back to <actor>`) and moves the ticket:
+  an answered decision goes to the creator as `in_progress`, *Done* closes it. Everything is
+  reversible: the toast offers **Undo**, which restores status, assignee and date. `POST
+  /api/tickets/SB-5/answer { answer: option | yes | no | done | later | decline, choice, days }`
+  does the same thing for any client and returns `{ ticket, previous }`.
+- **Order**: first the tickets whose answer unblocks something (most first), then `P0` to `P3`, then
+  the oldest wait. A card says **unblocks N**: open tickets it blocks, plus its open sub-tickets,
+  plus jobs waiting on it (label `blocks-job`, or `blocks-jobs:3` for several). Each lane card
+  carries `unlocks` and `ask` in `GET /api/tickets/board`.
+
 ## Actors and threads
 
 An **actor** is whoever acts on the board: `{ id, type: human | agent | subagent | system, name }`.
