@@ -13,7 +13,7 @@ const MAIN = 'm'.repeat(32);
 const AGENT = 'a'.repeat(32);
 const OTHER = 'o'.repeat(32);
 const agents = [
-  { actor: 'lupi', token: AGENT },
+  { actor: 'agent-a', token: AGENT },
   { actor: 'ci-bot', token: OTHER },
 ];
 
@@ -38,7 +38,7 @@ test('agent token without an actor header: never attributed to the user', async 
   await withServer(await openStore(':memory:'), async (base) => {
     const { status, body } = await json(await call(base, 'POST', '/api/tickets', { title: 'Pay the invoice' }, h(AGENT)));
     assert.equal(status, 201);
-    assert.equal(body.created_by, 'lupi');
+    assert.equal(body.created_by, 'agent-a');
     assert.equal(body.source, 'claude', 'a ticket opened by an agent is not a human ticket');
     await call(base, 'POST', `/api/tickets/${body.key}`, { status: 'done', comment: 'paid' }, h(AGENT));
     await call(base, 'POST', `/api/tickets/${body.key}/comments`, { text: 'receipt filed' }, h(AGENT));
@@ -46,30 +46,30 @@ test('agent token without an actor header: never attributed to the user', async 
     const t = await detail(base, body.key);
     assert.ok(t.events.length >= 4);
     assert.ok(!authors(t).includes('user'), `authors: ${authors(t).join(', ')}`);
-    assert.ok(authors(t).every((a) => a === 'lupi'));
+    assert.ok(authors(t).every((a) => a === 'agent-a'));
   });
 });
 
 test('agent token: the header can name a sub-actor, never someone else', async () => {
   await withServer(await openStore(':memory:'), async (base) => {
     const cases = [
-      ['user', 'lupi'],
-      ['USER', 'lupi'],
-      ['claude', 'lupi'],
-      ['hook', 'lupi'],
-      ['ci-bot', 'lupi'],
-      ['lupix', 'lupi'],
-      ['lupi', 'lupi'],
-      ['lupi/job-42', 'lupi/job-42'],
-      ['lupi/job-42/Explore', 'lupi/job-42/Explore'],
-      ['../user', 'lupi'],
-      ['', 'lupi'],
+      ['user', 'agent-a'],
+      ['USER', 'agent-a'],
+      ['claude', 'agent-a'],
+      ['hook', 'agent-a'],
+      ['ci-bot', 'agent-a'],
+      ['agent-ax', 'agent-a'],
+      ['agent-a', 'agent-a'],
+      ['agent-a/job-42', 'agent-a/job-42'],
+      ['agent-a/job-42/Explore', 'agent-a/job-42/Explore'],
+      ['../user', 'agent-a'],
+      ['', 'agent-a'],
     ];
     for (const [header, want] of cases) {
       const { body } = await json(await call(base, 'POST', '/api/tickets', { title: `as ${header || 'nothing'}` }, h(AGENT, { 'x-session-board-actor': header })));
       assert.equal(body.created_by, want, `header ${JSON.stringify(header)}`);
     }
-    const ci = await json(await call(base, 'POST', '/api/tickets', { title: 'from CI' }, h(OTHER, { 'x-session-board-actor': 'lupi' })));
+    const ci = await json(await call(base, 'POST', '/api/tickets', { title: 'from CI' }, h(OTHER, { 'x-session-board-actor': 'agent-a' })));
     assert.equal(ci.body.created_by, 'ci-bot', 'one agent cannot write as another');
   });
 });
@@ -78,12 +78,12 @@ test('agent token: a display name that reads as the person is dropped', async ()
   const store = await openStore(':memory:');
   await withServer(store, async (base) => {
     await call(base, 'POST', '/api/tickets', { title: 'x' }, h(AGENT, { 'x-session-board-actor-name': 'You' }));
-    await call(base, 'POST', '/api/tickets', { title: 'y' }, h(AGENT, { 'x-session-board-actor': 'lupi/job-1', 'x-session-board-actor-name': 'Job 1' }));
+    await call(base, 'POST', '/api/tickets', { title: 'y' }, h(AGENT, { 'x-session-board-actor': 'agent-a/job-1', 'x-session-board-actor-name': 'Job 1' }));
     const actors = (await (await fetch(`${base}/api/actors`, { headers: h(MAIN) })).json()).actors;
-    const lupi = actors.find((a) => a.id === 'lupi');
-    assert.ok(lupi, 'the agent is known');
-    assert.notEqual(String(lupi.name).toLowerCase(), 'you');
-    assert.equal(actors.find((a) => a.id === 'lupi/job-1')?.name, 'Job 1');
+    const agentA = actors.find((a) => a.id === 'agent-a');
+    assert.ok(agentA, 'the agent is known');
+    assert.notEqual(String(agentA.name).toLowerCase(), 'you');
+    assert.equal(actors.find((a) => a.id === 'agent-a/job-1')?.name, 'Job 1');
   });
 });
 
@@ -97,7 +97,7 @@ test('agent token: hook events belong to the agent, even when they claim the use
     assert.ok(list.length >= 1);
     for (const t of list) assert.ok(!authors(await detail(base, t.key)).includes('user'), `${t.key} has a user-authored line`);
     const actors = (await (await fetch(`${base}/api/actors`, { headers: h(MAIN) })).json()).actors;
-    assert.ok(actors.some((a) => a.id === 'lupi'), 'the session is the agent');
+    assert.ok(actors.some((a) => a.id === 'agent-a'), 'the session is the agent');
   });
 });
 
@@ -124,7 +124,7 @@ test('main token: unchanged (no header = the user, `claude` = Claude), reads ope
 });
 
 test('authOf: an agent token wins even if it equals the main token', () => {
-  assert.deepEqual(authOf(`Bearer ${AGENT}`, { token: MAIN, agents }), { kind: 'agent', actor: 'lupi' });
+  assert.deepEqual(authOf(`Bearer ${AGENT}`, { token: MAIN, agents }), { kind: 'agent', actor: 'agent-a' });
   assert.deepEqual(authOf(`Bearer ${MAIN}`, { token: MAIN, agents }), { kind: 'user' });
   assert.equal(authOf(`Bearer nope`, { token: MAIN, agents }), null);
   assert.equal(authOf(undefined, { token: MAIN, agents }), null);
@@ -132,29 +132,29 @@ test('authOf: an agent token wins even if it equals the main token', () => {
 });
 
 test('scopeActor and agentDisplayName', () => {
-  assert.equal(scopeActor('lupi/dream-3', 'lupi'), 'lupi/dream-3');
-  assert.equal(scopeActor('lupi-evil', 'lupi'), 'lupi');
-  assert.equal(scopeActor(undefined, 'lupi'), 'lupi');
+  assert.equal(scopeActor('agent-a/job-3', 'agent-a'), 'agent-a/job-3');
+  assert.equal(scopeActor('agent-a-evil', 'agent-a'), 'agent-a');
+  assert.equal(scopeActor(undefined, 'agent-a'), 'agent-a');
   assert.equal(agentDisplayName('you'), null);
   assert.equal(agentDisplayName(' User '), null);
-  assert.equal(agentDisplayName('Lupi'), 'Lupi');
+  assert.equal(agentDisplayName('Agent A'), 'Agent A');
 });
 
 test('parseAgentTokens: strict, refuses the user and the hooks', () => {
-  assert.deepEqual(parseAgentTokens(`# agents\n\nlupi ${AGENT}\n  ci-bot   ${OTHER}  \n`), agents);
+  assert.deepEqual(parseAgentTokens(`# agents\n\nagent-a ${AGENT}\n  ci-bot   ${OTHER}  \n`), agents);
   assert.throws(() => parseAgentTokens(`user ${AGENT}`), /cannot be an agent/);
   assert.throws(() => parseAgentTokens(`hook ${AGENT}`), /cannot be an agent/);
-  assert.throws(() => parseAgentTokens('lupi short'), /at least 24/);
-  assert.throws(() => parseAgentTokens(`lupi ${AGENT} extra`), /expected/);
+  assert.throws(() => parseAgentTokens('agent-a short'), /at least 24/);
+  assert.throws(() => parseAgentTokens(`agent-a ${AGENT} extra`), /expected/);
   assert.throws(() => parseAgentTokens(AGENT), /expected/);
-  assert.throws(() => parseAgentTokens(`lupi ${AGENT}\nci ${AGENT}`), /already listed/);
+  assert.throws(() => parseAgentTokens(`agent-a ${AGENT}\nci ${AGENT}`), /already listed/);
   assert.throws(() => parseAgentTokens(`-bad ${AGENT}`), /expected/);
 });
 
 test('readAgentTokens: the default file is optional, an explicit one is not', () => {
   const dir = mkdtempSync(join(tmpdir(), 'sb-agents-'));
   assert.deepEqual(readAgentTokens({}, dir), []);
-  writeFileSync(join(dir, 'agent-tokens'), `lupi ${AGENT}\n`);
-  assert.deepEqual(readAgentTokens({}, dir), [{ actor: 'lupi', token: AGENT }]);
+  writeFileSync(join(dir, 'agent-tokens'), `agent-a ${AGENT}\n`);
+  assert.deepEqual(readAgentTokens({}, dir), [{ actor: 'agent-a', token: AGENT }]);
   assert.throws(() => readAgentTokens({ SESSION_BOARD_AGENT_TOKENS_FILE: join(dir, 'missing') }, dir), /cannot read/);
 });

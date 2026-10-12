@@ -29,7 +29,8 @@
 //   POST /api/tickets               create
 //   GET  /api/tickets/:key          one ticket with history and sub-tickets
 //   POST|PATCH /api/tickets/:key    update (status, title, body, labels, …, optional `comment`)
-//   POST /api/tickets/:key/comments { text }
+//   POST /api/tickets/:key/comments { text }  (a comment or a body above MAX_TEXT_CHARS = 64 000
+//                                   characters is refused with 413 and a message, never cut)
 //   POST /api/tickets/:key/answer   { answer: option|yes|no|done|later|decline|undo, choice, days }: a button of the
 //                                   "Waiting on you" lane = a comment from you + a reversible move
 //   GET  /api/facets                values to filter on (repos, sessions, machines, labels, kinds)
@@ -42,7 +43,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { VERSION, normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
+import { MAX_TEXT_CHARS, VERSION, normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
 import { openStore } from '../lib/store.mjs';
 import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
 import { inviteRoutes } from './invites.mjs';
@@ -50,6 +51,17 @@ import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MAX_BODY = 64 * 1024;
+// Creating or updating a ticket may carry a body and a comment of MAX_TEXT_CHARS each. The real limit
+// is in characters, checked by the store after parsing with a clear 413 ("comment too long: …"); this
+// byte bound only has to let every legal text through. Worst case, JSON spends 6 bytes on one
+// character (a control character is written \u00XX; a lone surrogate too), so: body + comment at 6
+// bytes each, plus MAX_BODY for the other fields. Only the ticket write routes take it; every other
+// route keeps MAX_BODY.
+export const MAX_TICKET_REQUEST = 2 * MAX_TEXT_CHARS * 6 + MAX_BODY;
+// Past its limit a request is still read, and dropped, for this many bytes, so that a sender slightly
+// over gets the 413 and its message; beyond that the connection is cut. Fixed and small for every
+// route (an import's 4 MiB limit must not mean reading 16 MiB more).
+export const DRAIN_AFTER_LIMIT = 256 * 1024;
 const MAX_IMPORT_BODY = 4 * 1024 * 1024;
 
 export function readToken(env = process.env) {
@@ -71,7 +83,7 @@ const RESERVED_AGENT_ACTORS = ['user', 'hook'];
 /**
  * Agent tokens, for agents and bots that run sessions unattended (a daemon, CI). One per line:
  * `<actor> <token>`; blank lines and `#` comments are skipped. The actor is the agent's root id:
- * what it writes is attributed to it, or to one of its sub-actors (`lupi` → `lupi/job-42`), never
+ * what it writes is attributed to it, or to one of its sub-actors (`agent-a` → `agent-a/job-42`), never
  * to `user`. Throws on a line it cannot read: a typo must not leave an agent with the main token.
  */
 export function parseAgentTokens(text) {
@@ -114,7 +126,7 @@ export function authOf(header, { token, agents = [] }) {
   return bearerOk(header, token) ? { kind: 'user' } : null;
 }
 
-/** An actor id an agent may use: its root, or a sub-actor under it (`lupi/job-42`); else the root. */
+/** An actor id an agent may use: its root, or a sub-actor under it (`agent-a/job-42`); else the root. */
 export function scopeActor(requested, root) {
   const id = normalizeActorId(requested);
   return id && (id === root || id.startsWith(root + '/')) ? id : root;
@@ -140,15 +152,41 @@ function readBody(req, max = MAX_BODY) {
   return readRaw(req, max).then((b) => b.toString('utf8'));
 }
 
-function readRaw(req, max = MAX_BODY) {
+/** Bytes of request bodies this process has read (tests prove with it that a refusal reads little or nothing). */
+export const bodyStats = { read: 0 };
+
+/**
+ * A request refused before its body is read (no credential, bad CSRF, too many failures) closes the
+ * connection after the answer: otherwise Node would read and discard the whole unread body to keep the
+ * connection alive, up to the 814 KiB of a ticket route for a sender nobody knows.
+ */
+function refuseUnread(req, res, status, body) {
+  if (Number(req.headers['content-length']) > 0 || req.headers['transfer-encoding']) res.setHeader('connection', 'close');
+  return send(res, status, body);
+}
+
+export function readRaw(req, max = MAX_BODY) {
   return new Promise((resolve, reject) => {
     let size = 0;
+    let over = false;
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
+      bodyStats.read += c.length;
+      if (over) {
+        // Read and drop the rest, so that the client gets the 413 and its message instead of a reset
+        // connection (until 0.5.9 the socket was destroyed at once and the answer never arrived); a
+        // sender that keeps going more than DRAIN_AFTER_LIMIT past the limit is cut off.
+        if (size > max + DRAIN_AFTER_LIMIT) {
+          req.removeAllListeners('data');
+          req.destroy();
+        }
+        return;
+      }
       if (size > max) {
+        over = true;
+        chunks.length = 0;
         reject(Object.assign(new Error('too large'), { status: 413 }));
-        req.destroy();
       } else chunks.push(c);
     });
     req.on('end', () => resolve(Buffer.concat(chunks)));
@@ -156,13 +194,13 @@ function readRaw(req, max = MAX_BODY) {
   });
 }
 
-async function jsonBody(req, max) {
+async function jsonBody(req, max = MAX_BODY) {
   try {
     const v = JSON.parse((await readBody(req, max)) || '{}');
     if (!v || typeof v !== 'object') throw new Error('bad');
     return v;
   } catch (e) {
-    throw Object.assign(new Error(e.status === 413 ? 'too large' : 'bad body'), { status: e.status || 400 });
+    throw Object.assign(new Error(e.status === 413 ? `request too large (max ${Math.floor(max / 1024)} KiB)` : 'bad body'), { status: e.status || 400 });
   }
 }
 
@@ -505,15 +543,16 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
       if (extraRoutes?.public && (await extraRoutes.public(req, res, url, ctx))) return;
       const key = clientKey(req, trustProxy);
       const auth = resolveAuth(req);
+      // Authentication (and CSRF below) is settled before any route reads a body.
       if (!auth) {
         const over = limiter.hit(key);
-        return send(res, over ? 429 : 401, { error: over ? 'too many failed attempts, wait a few minutes' : 'unauthorized' });
+        return refuseUnread(req, res, over ? 429 : 401, { error: over ? 'too many failed attempts, wait a few minutes' : 'unauthorized' });
       }
       // The cookie rides along with any request the browser makes: a change needs the CSRF token
       // too, and a cross-site request is refused outright. Bearer requests are not exposed.
       if (auth.via === 'cookie' && m !== 'GET' && m !== 'HEAD') {
         const site = req.headers['sec-fetch-site'];
-        if ((site && site !== 'same-origin') || !accounts.csrfOk(auth.csrf, req.headers['x-csrf-token'])) return send(res, 403, { error: 'missing or bad CSRF token' });
+        if ((site && site !== 'same-origin') || !accounts.csrfOk(auth.csrf, req.headers['x-csrf-token'])) return refuseUnread(req, res, 403, { error: 'missing or bad CSRF token' });
       }
       const actorOf = (r, s) => actorOfAuth(r, s, auth, accounts);
       const mustWrite = () => (can(auth, 'write') ? false : (forbidden(res, 'change the board', auth), true));
@@ -556,8 +595,13 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
         if (!url.searchParams.get('limit')) f.limit = 50;
         return send(res, 200, store.nextTickets(f));
       }
-      if (path === '/api/tickets' && m === 'POST') return mustWrite() || send(res, 201, store.createTicket(await jsonBody(req), { actor: actorOf(req, store) }));
-      if (path === '/api/actors' && m === 'GET') return send(res, 200, { actors: store.listActors() });
+      if (path === '/api/tickets' && m === 'POST') return mustWrite() || send(res, 201, store.createTicket(await jsonBody(req, MAX_TICKET_REQUEST), { actor: actorOf(req, store) }));
+      if (path === '/api/actors' && m === 'GET') {
+        // `complete`: the listing holds every actor of the board (it is capped on a busy one), so a
+        // client may take an absence as proof (board_feedback checks its configured assignee with it).
+        const actors = store.listActors();
+        return send(res, 200, { actors, complete: actors.length >= store.countActors() });
+      }
       const avm = path.match(/^\/api\/actors\/(.{1,200})\/avatar$/);
       if (avm) {
         let id;
@@ -633,14 +677,14 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
         }
         if (tm[2]) {
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
-          const body = await jsonBody(req);
+          const body = await jsonBody(req, MAX_TICKET_REQUEST);
           return send(res, 201, store.comment(key, String(body.text ?? ''), { actor: actorOf(req, store), to: body.to }));
         }
         if (m === 'GET') {
           const t = store.getTicket(key);
           return t ? send(res, 200, t) : send(res, 404, { error: 'ticket not found' });
         }
-        if (m === 'POST' || m === 'PATCH') return send(res, 200, store.updateTicket(key, await jsonBody(req), { actor: actorOf(req, store) }));
+        if (m === 'POST' || m === 'PATCH') return send(res, 200, store.updateTicket(key, await jsonBody(req, MAX_TICKET_REQUEST), { actor: actorOf(req, store) }));
         return send(res, 405, { error: 'method not allowed' });
       }
       return send(res, 404, { error: 'not found' });

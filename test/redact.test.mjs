@@ -59,7 +59,7 @@ test('redact: an ordinary command is left as it is', () => {
 });
 
 test('hook: the permission ticket and the heartbeat never carry the secret', () => {
-  const input = { tool_name: 'Bash', tool_input: { command: `for id in a b; do curl -s -H "X-Api-Key: ${KEY}" "http://localhost:3000/api/files/lupi/$id"; done` } };
+  const input = { tool_name: 'Bash', tool_input: { command: `for id in a b; do curl -s -H "X-Api-Key: ${KEY}" "http://localhost:3000/api/files/agent-a/$id"; done` } };
   const perm = classify('PermissionRequest', input);
   assert.ok(!leaks(perm.detail, KEY), perm.detail);
   assert.match(perm.detail, /^Permission: Bash: for id in a b; do curl -s -H "X-Api-Key: \[redacted\]"/);

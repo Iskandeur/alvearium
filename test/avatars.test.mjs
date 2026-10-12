@@ -10,12 +10,12 @@ import { fakeJpegHeader, fakeWebpHeader, makePng } from './helpers/png.mjs';
 
 const MAIN = 'm'.repeat(32);
 const AGENT = 'a'.repeat(32);
-const agents = [{ actor: 'lupi', token: AGENT }];
+const agents = [{ actor: 'agent-a', token: AGENT }];
 
 async function withServer(fn) {
   const store = await openStore(':memory:');
-  store.touchActor({ id: 'lupi', type: 'agent' });
-  store.touchActor({ id: 'lupi/job-1', type: 'subagent', parent: 'lupi' });
+  store.touchActor({ id: 'agent-a', type: 'agent' });
+  store.touchActor({ id: 'agent-a/job-1', type: 'subagent', parent: 'agent-a' });
   store.touchActor({ id: 'ci-bot', type: 'agent' });
   const server = createServer(createApp({ token: MAIN, agents, store, page: '<html>board</html>' }));
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -48,22 +48,22 @@ test('sniffing: PNG, JPEG and WebP by their bytes; SVG, GIF and HTML are not ima
 test('upload, then served as stored: its own type, nosniff, sandbox CSP, etag and 304', async () => {
   await withServer(async (base) => {
     const png = makePng(16, 16);
-    const r = await put(base, 'lupi', png, MAIN, 'text/html');
+    const r = await put(base, 'agent-a', png, MAIN, 'text/html');
     assert.equal(r.status, 200);
     const body = await r.json();
     assert.equal(body.mime, 'image/png', 'the declared type is ignored, the bytes decide');
     assert.ok(body.avatar);
-    const g = await get(base, 'lupi');
+    const g = await get(base, 'agent-a');
     assert.equal(g.status, 200);
     assert.equal(g.headers.get('content-type'), 'image/png');
     assert.equal(g.headers.get('x-content-type-options'), 'nosniff');
     assert.match(g.headers.get('content-security-policy'), /default-src 'none'; sandbox/);
     assert.match(g.headers.get('cache-control'), /private/);
     assert.ok(Buffer.from(await g.arrayBuffer()).equals(png));
-    const again = await get(base, 'lupi', { 'if-none-match': g.headers.get('etag') });
+    const again = await get(base, 'agent-a', { 'if-none-match': g.headers.get('etag') });
     assert.equal(again.status, 304);
     const list = await (await fetch(`${base}/api/actors`, { headers: { authorization: `Bearer ${MAIN}` } })).json();
-    assert.equal(list.actors.find((a) => a.id === 'lupi').avatar, body.avatar);
+    assert.equal(list.actors.find((a) => a.id === 'agent-a').avatar, body.avatar);
     assert.equal(list.actors.find((a) => a.id === 'ci-bot').avatar, null);
   });
 });
@@ -71,15 +71,15 @@ test('upload, then served as stored: its own type, nosniff, sandbox CSP, etag an
 test('refused: SVG (even sent as image/png), GIF, HTML, too large, too many pixels, empty', async () => {
   await withServer(async (base) => {
     const svg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><script>alert(document.cookie)</script></svg>');
-    assert.equal((await put(base, 'lupi', svg, MAIN, 'image/png')).status, 415);
-    assert.equal((await put(base, 'lupi', svg, MAIN, 'image/svg+xml')).status, 415);
-    assert.equal((await put(base, 'lupi', Buffer.from('GIF89a\x01\x00\x01\x00\x00\x00\x00;', 'latin1'))).status, 415);
-    assert.equal((await put(base, 'lupi', Buffer.from('<html><script>alert(1)</script></html>'))).status, 415);
+    assert.equal((await put(base, 'agent-a', svg, MAIN, 'image/png')).status, 415);
+    assert.equal((await put(base, 'agent-a', svg, MAIN, 'image/svg+xml')).status, 415);
+    assert.equal((await put(base, 'agent-a', Buffer.from('GIF89a\x01\x00\x01\x00\x00\x00\x00;', 'latin1'))).status, 415);
+    assert.equal((await put(base, 'agent-a', Buffer.from('<html><script>alert(1)</script></html>'))).status, 415);
     const big = Buffer.concat([makePng(8, 8), Buffer.alloc(AVATAR_MAX_BYTES)]);
-    assert.equal((await put(base, 'lupi', big)).status, 413);
-    assert.equal((await put(base, 'lupi', makePng(1500, 1))).status, 422);
-    assert.equal((await put(base, 'lupi', Buffer.alloc(0))).status, 400);
-    assert.equal((await get(base, 'lupi')).status, 404, 'nothing was stored');
+    assert.equal((await put(base, 'agent-a', big)).status, 413);
+    assert.equal((await put(base, 'agent-a', makePng(1500, 1))).status, 422);
+    assert.equal((await put(base, 'agent-a', Buffer.alloc(0))).status, 400);
+    assert.equal((await get(base, 'agent-a')).status, 404, 'nothing was stored');
   });
 });
 
@@ -98,13 +98,13 @@ test('JPEG and WebP accepted; delete; unknown actor 404', async () => {
 
 test('an agent sets its own picture and its sub-actors, never another actor', async () => {
   await withServer(async (base) => {
-    assert.equal((await put(base, 'lupi', makePng(), AGENT)).status, 200);
-    assert.equal((await put(base, 'lupi/job-1', makePng(), AGENT)).status, 200);
+    assert.equal((await put(base, 'agent-a', makePng(), AGENT)).status, 200);
+    assert.equal((await put(base, 'agent-a/job-1', makePng(), AGENT)).status, 200);
     assert.equal((await put(base, 'ci-bot', makePng(), AGENT)).status, 403);
     assert.equal((await put(base, 'user', makePng(), AGENT)).status, 403);
     const d = await fetch(`${base}/api/actors/ci-bot/avatar`, { method: 'DELETE', headers: { authorization: `Bearer ${AGENT}` } });
     assert.equal(d.status, 403);
-    assert.equal((await put(base, 'lupi', makePng(), 'x'.repeat(32))).status, 401);
+    assert.equal((await put(base, 'agent-a', makePng(), 'x'.repeat(32))).status, 401);
   });
 });
 

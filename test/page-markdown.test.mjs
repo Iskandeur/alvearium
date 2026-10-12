@@ -10,7 +10,7 @@ const from = page.indexOf('// ---- markdown');
 const to = page.indexOf('/** One line that says what a ticket needs from you. */');
 assert.ok(from > 0 && to > from, 'markdown block found in page.html');
 // The renderer reads the global actors list to render @mentions as pills.
-const { md, plain } = new Function(`${escLine}\nconst actors = new Map([["ferao", { id: "ferao", type: "agent", name: "Ferao" }]]);\nconst actorName = (id) => actors.get(id)?.name || String(id);\n${page.slice(from, to)}\nreturn { md, plain };`)();
+const { md, plain } = new Function(`${escLine}\nconst actors = new Map([["fern", { id: "fern", type: "agent", name: "Fern" }]]);\nconst actorName = (id) => actors.get(id)?.name || String(id);\n${page.slice(from, to)}\nreturn { md, plain };`)();
 
 test('md: headings, emphasis, code, lists, quotes, tables', () => {
   const h = md('### Title\n\n**bold** and _it_ and `x < y`\n\n- a\n- b\n\n1. one\n\n> quote\n\n| A | B |\n|---|---|\n| 1 | 2 |');
@@ -24,8 +24,8 @@ test('md: headings, emphasis, code, lists, quotes, tables', () => {
 });
 
 test('md: @mentions become pills', () => {
-  const h = md('hi @ferao');
-  assert.match(h, /<span class="mention"[^>]*>@ferao<\/span>/);
+  const h = md('hi @fern');
+  assert.match(h, /<span class="mention"[^>]*>@fern<\/span>/);
 });
 
 test('md: a markdown link and a bare URL each become exactly one anchor', () => {
@@ -82,4 +82,18 @@ test('plain: previews never show markers', () => {
   assert.equal(plain('[label](https://x.test) keeps snake_case and 2 * 3'), 'label keeps snake_case and 2 * 3');
   assert.equal(plain('```\nhidden\n```\nshown'), 'shown');
   assert.equal(plain('| A | B |\n|---|---|\n| 1 | 2 |'), '| A | B | | 1 | 2 |');
+});
+
+test('md: nested lists by indentation, numbering kept across a nested list and blank lines (0.5.10)', () => {
+  assert.equal(
+    md('1. Add a lock\n   - key: `k`\n   - TTL\n     - shorter\n2. Retry\n3. Test'),
+    '<ol><li>Add a lock<ul><li>key: <code>k</code></li><li>TTL<ul><li>shorter</li></ul></li></ul></li><li>Retry</li><li>Test</li></ol>',
+  );
+  // Until 0.5.9 the sub-bullets flattened and "2." restarted a new list at 1.
+  assert.equal(md('1. a\n\n2. b\n   continued'), '<ol><li>a</li><li>b<br>continued</li></ol>');
+  assert.equal(md('* x\n  1) y\n  2) z\n* w'), '<ul><li>x<ol><li>y</li><li>z</li></ol></li><li>w</li></ul>');
+  assert.equal(md('3. three\n4. four'), '<ol start="3"><li>three</li><li>four</li></ol>');
+  assert.equal(md('- a\n- b\n\n1. one'), '<ul><li>a</li><li>b</li></ul><ol><li>one</li></ol>', 'another kind of list is another list');
+  assert.equal(md('- **bold** item\n\nAfter.'), '<ul><li><strong>bold</strong> item</li></ul><p>After.</p>');
+  assert.doesNotMatch(md('- <img src=x onerror=alert(1)>\n  - <script>x</script>'), /<img|<script/);
 });

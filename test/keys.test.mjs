@@ -77,3 +77,40 @@ test('page: a hint under the comment box, the help lists every key, focus is vis
   assert.match(page, /role="dialog" aria-modal="true" aria-label="Keyboard shortcuts"/);
   for (const c of ['card', 'row', 'nrow']) assert.match(page, new RegExp(`\\.${c}:focus-visible \\{ outline: 2px solid var\\(--accent\\)`));
 });
+
+test('keys: Esc first leaves the expanded ticket, then closes the panel; a dialog over it closes first (0.5.10)', () => {
+  assert.equal(shortcut(key('Escape'), at({ panelOpen: true, panelExpanded: true })), 'collapsePanel');
+  assert.equal(shortcut(key('Escape'), at({ panelOpen: true, panelExpanded: true, typing: true })), 'collapsePanel');
+  assert.equal(shortcut(key('Escape'), at({ panelOpen: true, panelExpanded: false })), 'closePanel');
+  // The reading view lives in the dialog: Esc closes it and leaves the ticket as it was.
+  assert.equal(shortcut(key('Escape'), at({ helpOpen: true, panelOpen: true, panelExpanded: true })), 'closeHelp');
+});
+
+test('panel: resize handle, width kept per browser behind a guard, expand button (0.5.10)', () => {
+  // The handle is a focusable separator on the left edge, hidden on a phone where the panel fills the screen.
+  assert.match(page, /class="pResize" role="separator" aria-orientation="vertical" aria-label="Resize the ticket panel"/);
+  assert.match(page, /\.pResize, \.pTools \.pExp \{ display: none; \}/);
+  assert.match(page, /width: clamp\(380px, var\(--panel-w, 560px\), max\(380px, calc\(100vw - 96px\)\)\)/);
+  // Storage may throw (private window, blocked): the new keys go through the guarded helper only.
+  assert.match(page, /get\(k\) \{ try \{ return localStorage\.getItem\(k\); \} catch \{ return null; \} \}/);
+  for (const k of ['PANEL_KEY', 'READER_KEY']) assert.doesNotMatch(page, new RegExp(`localStorage\\.\\w+\\(${k}`), k);
+  assert.match(page, /if \(e\.target\.closest\?\.\('\.pResize'\)\) applyPanelWidth\(PANEL_DEFAULT, true\)/, 'double-click resets');
+  assert.match(page, /if \(act === 'expand'\) return setExpanded\(!isExpanded\(\)\);/);
+  assert.match(page, /if \(a === 'collapsePanel'\) return setExpanded\(false\);/);
+});
+
+test('markdown texts: copy and read-wide buttons on the description and on every comment (0.5.10)', () => {
+  assert.match(page, /<div class="mdHost" data-md-src="body">/);
+  assert.match(page, /<div class="ev comment mdHost" data-md-src="ev:\$\{Number\(i\) \|\| 0\}"><div class="evHead">\$\{by\} commented\$\{at\}\$\{mdActs\('comment'\)\}<\/div><div class="said md">/);
+  assert.match(page, /data-md="copy"/);
+  assert.match(page, /data-md="read"/);
+  // The copy is the raw markdown (the ticket's body, the comment's text), never the rendered HTML.
+  assert.match(page, /if \(src === 'body'\) return \{ text: t\.body \|\| ''/);
+  assert.match(page, /\? \{ text: ev\.text \|\| ''/);
+  // Visible on hover or focus, always on a touch screen.
+  assert.match(page, /\.mdHost:hover \.mdActs, \.mdHost:focus-within \.mdActs/);
+  assert.match(page, /@media \(hover: none\), \(pointer: coarse\) \{\n\s*\.mdActs \{ opacity: 1; \}/);
+  // The reading view toggles between the rendered text and its markdown source.
+  assert.match(page, /data-act="readerRendered"/);
+  assert.match(page, /<pre class="readerRaw" aria-label="Markdown source">\$\{esc\(r\.text\)\}<\/pre>/);
+});
