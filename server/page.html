@@ -468,6 +468,17 @@
     .pDone kbd { font: inherit; font-size: 11px; color: var(--faint); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 4px; line-height: 16px; }
     .pHead .pDone + .x { margin-left: 0; }
     .pHead .pDone { margin-left: auto; }
+    /* 0.5.11: ticket actions declared by the installation (a click runs a webhook on the server) */
+    .pActs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 2px 0 12px; }
+    .pAct { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px 0 10px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--card); color: var(--muted); font-size: 12.5px; font-weight: 500; cursor: pointer; }
+    .pAct:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .pAct:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .pAct[aria-busy="true"] { opacity: 0.6; cursor: progress; }
+    .pAct .ic { font-size: 13px; line-height: 1; }
+    .pActMsg { flex-basis: 100%; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+    .pActMsg:empty { display: none; }
+    .pActMsg.err { color: var(--danger); }
+    .pActMsg a { color: var(--accent); }
 
     /* 0.3: actors, priority, dependencies, next, feedback, live updates */
     .av { flex: none; display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 10.5px; font-weight: 600; color: #fff; background: hsl(var(--h, 230) 52% 52%); letter-spacing: 0; line-height: 1; }
@@ -1943,6 +1954,7 @@
           <form class="pBody" id="tform" autocomplete="off">
             <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
             ${askBox(t)}
+            ${actionBar(t)}
             <div class="fields">
               <label>Status</label>${sel('status', t.status, Object.entries(STATUS))}
               <label>Assignee</label>${sel('assignee', t.assignee, assigneeOpts(t.assignee))}
@@ -1979,6 +1991,83 @@
         syncExpandButton();
         autosize($('panel').querySelector('.pTitle'));
       }
+      // ---- ticket actions (0.5.11): buttons declared by the installation, run by the server --------
+      let ticketActions = { list: [], canRun: false };
+      /** The last outcome shown under the buttons, kept across a re-render of the same ticket. */
+      let actionNote = null;
+      async function loadActions() {
+        try {
+          const res = await fetch('api/actions', { headers: headers(), cache: 'no-store' });
+          if (!res.ok) return; // a server before 0.5.11: no actions
+          const data = await res.json();
+          ticketActions = { list: Array.isArray(data.actions) ? data.actions : [], canRun: data.can_run === true };
+        } catch {}
+      }
+      function actionBar(t) {
+        if (!ticketActions.canRun || !ticketActions.list.length) return '';
+        const note = actionNote?.key === t.key ? actionNote : null;
+        const btns = ticketActions.list.map((a) => `<button type="button" class="pAct" data-action="${esc(a.id)}" data-key="${esc(t.key)}">${a.icon ? `<span class="ic" aria-hidden="true">${esc(a.icon)}</span>` : ''}<span>${esc(a.label)}</span></button>`).join('');
+        return `<div class="pActs" role="group" aria-label="Actions on ${esc(t.key)}">${btns}<div class="pActMsg${note?.err ? ' err' : ''}" id="actMsg" role="status" aria-live="polite">${note ? note.html : ''}</div></div>`;
+      }
+      /** The page's own check of a link an action returns: https, default port, no credentials, a listed host. */
+      function actionUrl(url, hosts) {
+        if (typeof url !== 'string' || url.length > 2048) return null;
+        let u;
+        try { u = new URL(url); } catch { return null; }
+        if (u.protocol !== 'https:' || u.username || u.password || u.port) return null;
+        return (hosts || []).includes(u.hostname.toLowerCase()) ? u.href : null;
+      }
+      function actionMsg(key, html, err = false) {
+        actionNote = { key, html, err };
+        const m = $('actMsg');
+        if (!m || $('panel').dataset.key !== key) return;
+        m.classList.toggle('err', err);
+        m.innerHTML = html;
+      }
+      async function runAction(btn) {
+        const a = ticketActions.list.find((x) => x.id === btn.dataset.action);
+        const key = btn.dataset.key;
+        if (!a || btn.getAttribute('aria-busy') === 'true') return;
+        // The tab opens now, inside the click: one opened when the answer comes back would be blocked as a
+        // popup. It starts blank and cut from this page (opener = null, what noopener does), and gets the
+        // link once the server has checked it; the page checks it again here.
+        const win = a.allow_hosts?.length ? window.open('about:blank', '_blank') : null;
+        if (win) {
+          try {
+            win.opener = null;
+            // No Referer on the way to the link: this page's address stays here.
+            const meta = win.document.createElement('meta');
+            meta.name = 'referrer';
+            meta.content = 'no-referrer';
+            win.document.head.appendChild(meta);
+            win.document.title = a.label;
+            win.document.body.textContent = 'Opening…';
+          } catch {}
+        }
+        btn.setAttribute('aria-busy', 'true');
+        actionMsg(key, `${esc(a.label)}…`);
+        try {
+          const out = await apiCall('POST', `tickets/${encodeURIComponent(key)}/actions/${encodeURIComponent(a.id)}`);
+          const url = out.open_url ? actionUrl(out.open_url, a.allow_hosts) : null;
+          if (out.open_url && !url) throw new Error('the action answered with a link this page will not open');
+          const link = url ? ` <a href="${esc(url)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${win && !win.closed ? 'Open again' : 'Open it'} ↗</a>` : '';
+          if (url && win && !win.closed) { win.location.replace(url); actionMsg(key, esc(out.message || 'Opened in a new tab.') + link); }
+          else if (url) actionMsg(key, esc(out.message || 'Ready.') + ' The browser blocked the new tab:' + link);
+          else { if (win && !win.closed) win.close(); actionMsg(key, esc(out.message || 'Done.')); }
+        } catch (err) {
+          if (win && !win.closed) win.close();
+          if (err.message !== 'locked') actionMsg(key, esc(err.message), true);
+        } finally {
+          btn.removeAttribute('aria-busy');
+        }
+      }
+      document.addEventListener('click', (e) => {
+        const btn = e.target.closest?.('.pAct[data-action]');
+        if (!btn || !$('panel').contains(btn)) return;
+        e.preventDefault();
+        runAction(btn);
+      });
+
       function renderCreate(prefill = {}) {
         state.ticket = '';
         mentionClose();
@@ -3306,7 +3395,7 @@
         favicon(0);
         isLocked = false;
         await loadMe();
-        await Promise.all([loadFacets(), refresh()]);
+        await Promise.all([loadFacets(), refresh(), loadActions()]);
         if (state.ticket) openPanel(state.ticket, false);
         connectStream();
       }

@@ -180,6 +180,92 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
 ([resizing](docs/screenshots/panel-resize-desktop-light.png), [reading view](docs/screenshots/reader-desktop-light.png),
 [reading view at 390 px](docs/screenshots/reader-mobile-light.png), [a comment over the limit](docs/screenshots/comment-limit-desktop-light.png).)
 
+## Ticket actions (0.5.11)
+
+An installation can add its own buttons to the ticket detail: *Open a coding session*, *Deploy a
+preview*, *Create a branch*. A click calls a webhook **from the server**, which answers with an
+optional link to open and an optional message. The board knows nothing about what the action does.
+
+![A ticket with its actions](docs/screenshots/ticket-actions-desktop-light.png)
+
+([at 390 px, dark](docs/screenshots/ticket-actions-mobile-dark.png).)
+
+**Declaring them.** Point `SESSION_BOARD_ACTIONS_FILE` at a JSON array (8 actions at most):
+
+```json
+[
+  {
+    "id": "open-session",
+    "label": "Open a coding session",
+    "icon": "🖥️",
+    "url": "https://hooks.example.com/board/open-session",
+    "token_env": "OPEN_SESSION_HOOK_TOKEN",
+    "allow_hosts": ["sessions.example.com"],
+    "timeout_ms": 40000
+  }
+]
+```
+
+| Field | |
+| :- | :- |
+| `id` | 1 to 32 lowercase letters, digits, `-` or `_`; unique |
+| `label`, `icon` | the button: up to 40 characters, and an emoji (optional) |
+| `url` | the webhook, without credentials. `https`, or plain `http` only on this machine or a private network: `localhost`, `127.0.0.0/8`, `::1`, `host.docker.internal`, `10/8`, `172.16/12`, `192.168/16` (the token must not cross the internet in clear). Redirects are not followed |
+| `token_env` | the **name** of the environment variable that holds the webhook's token (at least 16 characters), sent as `Authorization: Bearer <token>`. The token itself never goes in the file |
+| `allow_hosts` | the only hosts a returned link may point to (https, default port). Empty: the action opens nothing |
+| `timeout_ms` | how long the server waits for the webhook, 1 000 to 120 000 (default 10 000) |
+
+An unreadable file, a mistake in it or a missing token stops the server at startup, with a message
+that names the action and the field: a typo never leaves a button that silently does nothing. With
+Docker, mount the file read-only and pass the token through the environment, in a
+`docker-compose.override.yml` next to the compose file:
+
+```yaml
+services:
+  session-board:
+    environment:
+      SESSION_BOARD_ACTIONS_FILE: /run/session-board/actions.json
+      OPEN_SESSION_HOOK_TOKEN: ${OPEN_SESSION_HOOK_TOKEN}
+    volumes:
+      - ./actions.json:/run/session-board/actions.json:ro
+    # only if the webhook runs on the Docker host itself:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+```
+
+**What the webhook receives**: `POST` with `{ "ticket": "ALV-12", "actor": "user", "action":
+"open-session" }`. The key, who clicked and which action, **never the ticket's title, body or
+comments**: a webhook that needs them reads the ticket through the API with a token of its own (an
+agent token, say), so what it can see is decided by that token. **What it answers**: `{ "open_url":
+"https://…", "message": "…" }`, both optional, JSON, at most 16 KiB. A non-2xx answer shows its
+`error` or `message` to the person who clicked (plain text, 300 characters at most); a 2xx answer
+speaks through `message` only. A webhook that stalls while answering, or answers more than 16 KiB,
+counts as a failure (`504` or `502`), never as a success.
+
+**Who and how often.**
+
+- Only the **owner and admins** run actions (the `runAction` right); members, viewers and agent
+  tokens get `403`. Only they get the list too (`GET /api/actions`: id, label, icon and allowed
+  hosts, never the URL nor the variable); anyone else gets an empty list, and no buttons.
+- From the page, a click is an ordinary change: session cookie **and** CSRF token, cross-site refused.
+- One click every 10 seconds per person (`429` with `Retry-After`), one action at a time per ticket
+  (`409` while one runs).
+- Every run is in the **audit log** (`action.run`: who, which ticket, which action, the outcome
+  `ok` or `ko` with its reason, and for a link its host only).
+- The link is checked **twice**: by the server (https, default port, no credentials, a host of
+  `allow_hosts`, else `502` and nothing is opened) and again by the page before it opens it.
+
+**In the page.** The tab opens at the click itself, blank and cut from the board (`opener` set to
+null, what `noopener` does), because a tab opened when the answer comes back would be blocked as a
+popup; it receives the link once both checks pass, or closes if the action fails. It sends no
+`Referer` (`no-referrer`, on the tab and on the fallback link). If the browser blocked it anyway,
+the message under the buttons carries the link to open by hand.
+
+| Route | Who | |
+| :- | :- | :- |
+| `GET /api/actions` | anyone | owner, admin: `{ actions: [{ id, label, icon, allow_hosts }], can_run: true }`; others: `{ actions: [], can_run: false }` |
+| `POST /api/tickets/<key>/actions/<id>` | owner, admin | runs it: `{ open_url?, message? }`, or `{ error }` with `403`, `404`, `409`, `429`, `502` or `504` |
+
 ## What we need from you, in the ticket (0.5.9)
 
 The 0.5.8 buttons were too many and too big on the cards, and most decisions need the context of the
@@ -337,7 +423,7 @@ role on every route, whatever the page shows.
 | Role | Can | Why this role exists |
 | :- | :- | :- |
 | `owner` | everything, including members, invitations and every token | one person answers for the board. The owner is the actor `user` of the whole history and whoever holds the server token (`SESSION_BOARD_TOKEN`): an existing install changes nothing, and ownership moves only by handing over that token, never through the API |
-| `admin` | everything except touching the owner: change roles, revoke members and their tokens, invite, import, delete sessions, read the audit log | so the owner is not the only one who can let a colleague in or lock someone out |
+| `admin` | everything except touching the owner: change roles, revoke members and their tokens, invite, import, delete sessions, read the audit log, run ticket actions | so the owner is not the only one who can let a colleague in or lock someone out |
 | `member` | create, comment on, reorder and change tickets; report sessions from its own Claude Code | the everyday collaborator |
 | `viewer` | read only (board, tickets, live updates) | someone who follows without changing anything |
 | `agent` | an agent token (see *Agent tokens*): read and write tickets as its actor or a sub-actor, nothing else | unattended bots and daemons |
@@ -370,7 +456,7 @@ then `429`); a valid token is never slowed down. Behind a proxy you run, set
 | `PATCH /api/members/<id>` | owner, admin; yourself for `name` | `{ role }` (`admin`, `member`, `viewer`), `{ name }` |
 | `DELETE /api/members/<id>` | owner, admin | revoke (never the owner) |
 | `GET`, `POST /api/tokens`, `DELETE /api/tokens/<id>` | humans | your tokens (`{ label }`); admins may revoke anyone's but the owner's |
-| `GET /api/audit` | owner, admin | who invited, renamed, changed a role, revoked, created a token, and when |
+| `GET /api/audit` | owner, admin | who invited, renamed, changed a role, revoked, created a token, ran a ticket action, and when |
 
 ### Inviting someone
 
@@ -578,6 +664,7 @@ as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without 
 | `GET /api/tickets/SB-12` | one ticket with its history and sub-tickets |
 | `POST` or `PATCH /api/tickets/SB-12` | update any field, `blocked_by_add` / `blocked_by_remove`, optional `comment` (and `to`) in the same call |
 | `POST /api/tickets/SB-12/comments` | `{ text, to? }` |
+| `GET /api/actions`, `POST /api/tickets/SB-12/actions/<id>` | ticket actions declared by the installation (see *Ticket actions*) |
 | `GET /api/facets` | repos, sessions, branches, machines, kinds, labels and actors with counts, and the open feedback count |
 | `GET /api/sessions` | sessions, most recent first (`?repo=`) |
 | `DELETE /api/sessions/<id>` | remove a session and its tickets |

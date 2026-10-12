@@ -11,6 +11,7 @@
 //   HOST                      listen address                        (default 0.0.0.0)
 //   BOARD_KEY_PREFIX          ticket key prefix, 2 to 8 letters    (default ALV; SB on a board from before 0.5.3)
 //   SESSION_BOARD_TRUST_PROXY=1  rate limits key on CF-Connecting-IP / X-Forwarded-For (only behind a proxy you run)
+//   SESSION_BOARD_ACTIONS_FILE   ticket actions, a JSON array (server/actions.mjs); unreadable = no start
 //
 // Routes (all /api/* need `Authorization: Bearer <token>`, the main token or an agent token; a
 // request made with an agent token acts as that agent and never as the user, see `authOf`):
@@ -38,6 +39,8 @@
 //   POST /api/import                { board, machine, sessions, tickets }: a machine's local board.db,
 //                                   idempotent per (board, ticket id); the plugin sends it once
 //   DELETE /api/sessions/:id        a session and its tickets (cleanup, tests)
+//   GET  /api/actions               ticket actions declared by this installation (owner, admin; empty for others)
+//   POST /api/tickets/:key/actions/:id  owner, admin: run one (the server calls its webhook, see server/actions.mjs)
 import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -47,6 +50,7 @@ import { MAX_TEXT_CHARS, VERSION, normalizeActorId, parseFilters, sanitizeEvent 
 import { openStore } from '../lib/store.mjs';
 import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
 import { inviteRoutes } from './invites.mjs';
+import { actionRoutes, loadActions } from './actions.mjs';
 import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib/accounts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -489,7 +493,7 @@ function stream(req, res, store, heartbeatMs, streams, auth) {
   res.on('error', stop);
 }
 
-export function createApp({ token, agents = [], store, page, heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes() }) {
+export function createApp({ token, agents = [], store, page, heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes(), ticketActions = null }) {
   const streams = new Set();
   /** End the live streams of whoever matches (a revoked member, a revoked session). */
   const cutStreams = (match) => {
@@ -557,6 +561,7 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
       const actorOf = (r, s) => actorOfAuth(r, s, auth, accounts);
       const mustWrite = () => (can(auth, 'write') ? false : (forbidden(res, 'change the board', auth), true));
       if (extraRoutes?.private && (await extraRoutes.private(req, res, url, { ...ctx, auth, actorOf }))) return;
+      if (ticketActions?.private && (await ticketActions.private(req, res, url, { ...ctx, auth, actorOf }))) return;
       if ((await accountRoutes(req, res, url, { ...ctx, auth, streams }))) return;
 
       if (path === '/api/event' && m === 'POST') {
@@ -715,12 +720,20 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     process.exit(1);
   }
   if (agents.length) console.log(`alvearium: ${agents.length} agent token(s): ${agents.map((a) => a.actor).join(', ')}`);
+  let actions;
+  try {
+    actions = loadActions(process.env);
+  } catch (e) {
+    console.error(`alvearium: ${e.message}`);
+    process.exit(1);
+  }
+  if (actions.length) console.log(`alvearium: ${actions.length} ticket action(s): ${actions.map((a) => a.id).join(', ')}`);
   const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX, jobActors: String(process.env.BOARD_JOB_ACTORS || '').split(',').map((x) => x.trim()).filter(Boolean) });
   console.log(`alvearium: ticket keys ${store.prefix}-n (any prefix resolves: SB-12 and ALV-12 are the same ticket)`);
   const migrated = store.migrateBoardJson(join(dataDir, 'board.json'));
   if (migrated) console.log(`alvearium: imported ${migrated} session(s) from board.json (kept as board.json.migrated)`);
   const page = readFileSync(join(HERE, 'page.html'), 'utf8');
-  const server = createServer(createApp({ token, agents, store, page, trustProxy: process.env.SESSION_BOARD_TRUST_PROXY === '1' }));
+  const server = createServer(createApp({ token, agents, store, page, trustProxy: process.env.SESSION_BOARD_TRUST_PROXY === '1', ticketActions: actionRoutes({ actions }) }));
   const port = Number(process.env.PORT || 8793);
   server.listen(port, process.env.HOST || '0.0.0.0', () => console.log(`alvearium listening on :${port}`));
   const stop = () => {
