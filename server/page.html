@@ -1158,13 +1158,14 @@
         if (state.ticket === key && !$('panel').hidden) openPanel(key, false);
         const day = (ms) => new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
         const said = a === 'option' ? `answered ${esc(body.choice)}` : a === 'yes' ? 'answered yes' : a === 'no' ? 'answered no' : a === 'done' ? 'done' : a === 'later' ? `back on ${esc(day(r.ticket.snoozed_until))}` : `handed back to ${esc(actorName(r.ticket.assignee))}`;
-        toast(`<b>${esc(key)}</b> ${said}`, { html: true, ms: 7000, action: { label: 'Undo', run: () => undoAsk(key, r.previous) } });
+        toast(`<b>${esc(key)}</b> ${said}`, { html: true, ms: 7000, action: { label: 'Undo', run: () => undoAsk(key, r) } });
       }
       async function undoAsk(key, prev) {
         try {
-          await api(`tickets/${encodeURIComponent(key)}`, { status: prev.status, assignee: prev.assignee, snoozed_until: prev.snoozed_until, comment: 'Previous answer withdrawn: the ticket is back in my lane.' });
+          await api(`tickets/${encodeURIComponent(key)}/answer`, { answer: 'undo', previous: prev.previous, expect: prev.expect });
         } catch (err) {
-          if (err.message !== 'locked') toast(`${key}: ${err.message}`);
+          // Someone (an agent, you in another tab) moved the ticket since the click: leave it as it is.
+          if (err.message !== 'locked') toast(/already taken over/.test(err.message) ? `${key} already taken over, nothing undone` : `${key}: ${err.message}`);
           return;
         }
         changedKeys.add(key);

@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { columnOf, sanitizeTicketInput } from '../lib/core.mjs';
-import { ANSWERS, askOf, compareWaiting, handbackOf, jobsWaiting, parseOptions, planAnswer } from '../lib/triage.mjs';
+import { ANSWERS, askOf, compareWaiting, handbackOf, jobsWaiting, parseOptions, planAnswer, trustedActor } from '../lib/triage.mjs';
 import { openStore } from '../lib/store.mjs';
 import { createApp } from '../server/server.mjs';
 
@@ -103,12 +103,16 @@ test('jobs waiting: the label convention', () => {
   assert.equal(jobsWaiting(['blocks-job']), 1);
   assert.equal(jobsWaiting(['blocks-jobs:3', 'x']), 3);
   assert.equal(jobsWaiting(['blocks-jobs:3', 'blocks-job']), 4);
-  assert.equal(jobsWaiting(['blocks-jobs:x', 'blocks-jobs:100', null]), 0);
+  assert.equal(jobsWaiting(['blocks-jobs:x', 'blocks-jobs:1000', null]), 0);
+  assert.equal(jobsWaiting(['blocks-jobs:50']), 9, 'capped: a label cannot jump the queue');
+  assert.equal(jobsWaiting(['blocks-jobs:8', 'blocks-job', 'blocks-job']), 9);
+  assert.ok(trustedActor('ops', ['ops']) && trustedActor('ops/job-4', ['ops']));
+  assert.ok(!trustedActor('opsy', ['ops']) && !trustedActor('x', []) && !trustedActor('x', undefined));
   assert.equal(jobsWaiting(undefined), 0);
 });
 
-test('board: the lane is read whole, ordered by unlocks, and counts only open dependents and sub-tickets', async () => {
-  const store = await openStore(':memory:');
+test('board: the lane is ordered by unlocks, and counts only open dependents and sub-tickets', async () => {
+  const store = await openStore(':memory:', { jobActors: ['planner'] });
   const mk = (title, o = {}) => store.createTicket({ title, assignee: 'user', status: 'waiting_on_user', kind: 'decision', ...o }, { actor: 'planner' });
   const old = mk('old and quiet');
   const urgent = mk('urgent', { priority: 'P0' });
@@ -155,8 +159,9 @@ test('answer: a comment from him, a move, and what it was before; Later hides th
   assert.ok(ev.some((e) => e.type === 'assigned'));
   assert.deepEqual(col('waiting'), []);
 
-  // Undo = the same fields back through the ordinary update.
-  store.updateTicket(t.key, r.previous, { actor: 'user' });
+  // Undo goes through while nobody has touched the ticket since the click.
+  const u = store.answerTicket(t.key, { answer: 'undo', previous: r.previous, expect: r.expect }, { actor: 'user' });
+  assert.deepEqual([u.ticket.status, u.ticket.assignee], ['waiting_on_user', 'user']);
   assert.deepEqual(col('waiting'), [t.key]);
 
   // Later: out of the lane, into To do, back by itself on the date.
@@ -183,7 +188,7 @@ test('answer: done closes the ticket and it reopens on Undo; snoozed_until valid
   const t = store.createTicket({ title: 'Renew the certificate', kind: 'action', status: 'waiting_on_user', assignee: 'user' }, { actor: 'planner' });
   const r = store.answerTicket(t.key, { answer: 'done' }, { actor: 'user' });
   assert.deepEqual([r.ticket.status, r.ticket.assignee, r.ticket.column], ['done', 'user', 'done']);
-  assert.equal(store.updateTicket(t.key, r.previous).status, 'waiting_on_user');
+  assert.equal(store.answerTicket(t.key, { answer: 'undo', previous: r.previous, expect: r.expect }).ticket.status, 'waiting_on_user');
   assert.deepEqual(sanitizeTicketInput({ snoozed_until: null }, { partial: true }).value, { snoozed_until: null });
   assert.ok(sanitizeTicketInput({ snoozed_until: 'soon' }, { partial: true }).error);
   assert.equal(columnOf({ status: 'waiting_on_user', assignee: 'user', snoozed_until: 2000 }, 1000), 'todo');
@@ -225,6 +230,14 @@ test('api: POST /api/tickets/:key/answer, the page sends no actor so the comment
     const c = full.events.find((e) => e.type === 'comment');
     assert.deepEqual([c.actor, c.text], ['user', 'Answer: yes']);
     assert.equal((await fetch(`${base}/api/tickets/${t.key}/answer`, { headers: auth })).status, 405);
+    // Undo: refused (409) once the agent has moved on, allowed before.
+    await post(base, `/api/tickets/${t.key}`, { comment: 'on it' }, { ...auth, 'x-session-board-actor': 'planner' });
+    const late = await post(base, `/api/tickets/${t.key}/answer`, { answer: 'undo', previous: ok.body.previous, expect: ok.body.expect });
+    assert.deepEqual([late.status, late.body.error], [409, 'already taken over, nothing undone']);
+    const t2 = store.createTicket({ title: 'Ship it?', kind: 'decision', status: 'waiting_on_user', assignee: 'user' }, { actor: 'planner' });
+    const r2 = await post(base, `/api/tickets/${t2.key}/answer`, { answer: 'no' });
+    const back = await post(base, `/api/tickets/${t2.key}/answer`, { answer: 'undo', previous: r2.body.previous, expect: r2.body.expect });
+    assert.deepEqual([back.status, back.body.ticket.status, back.body.ticket.assignee], [200, 'waiting_on_user', 'user']);
   });
 });
 
@@ -302,4 +315,95 @@ test('lane: his "to do" that ask a gesture are in it too; traces, sessions and o
   // Answering a decision hands it over and it leaves the lane.
   store.answerTicket(decision.key, { answer: 'option', choice: 'B' }, { actor: 'user' });
   assert.ok(!keys('waiting').includes(decision.key));
+});
+
+test('undo: refused when the ticket moved since the click, whoever moved it', async () => {
+  let at = Date.UTC(2026, 5, 1);
+  const store = await openStore(':memory:', { now: () => (at += 1000) });
+  const mk = () => store.createTicket({ title: 'Merge it?', kind: 'decision', status: 'waiting_on_user', assignee: 'user' }, { actor: 'planner' });
+  const refused = (key, r) => assert.throws(() => store.answerTicket(key, { answer: 'undo', previous: r.previous, expect: r.expect }), (e) => e.status === 409 && /already taken over, nothing undone/.test(e.message));
+
+  const a = mk();
+  const ra = store.answerTicket(a.key, { answer: 'yes' }, { actor: 'user' });
+  store.updateTicket(a.key, { status: 'done' }, { actor: 'planner' }); // the agent finished it
+  refused(a.key, ra);
+  assert.equal(store.getTicket(a.key).status, 'done', 'left as the agent had it');
+
+  const b = mk();
+  const rb = store.answerTicket(b.key, { answer: 'yes' }, { actor: 'user' });
+  store.comment(b.key, 'on it', { actor: 'planner' }); // a comment moves updated_at
+  refused(b.key, rb);
+
+  const c = mk();
+  const rc = store.answerTicket(c.key, { answer: 'decline' }, { actor: 'user' });
+  store.updateTicket(c.key, { assignee: 'claude' }, { actor: 'planner' });
+  refused(c.key, rc);
+
+  const d = mk();
+  const rd = store.answerTicket(d.key, { answer: 'later', days: 1 }, { actor: 'user' });
+  store.updateTicket(d.key, { snoozed_until: null }, { actor: 'user' });
+  refused(d.key, rd);
+
+  assert.throws(() => store.answerTicket(mk().key, { answer: 'undo' }, { actor: 'user' }), (e) => e.status === 409, 'no proof of the click, no undo');
+  const e = mk();
+  const re = store.answerTicket(e.key, { answer: 'yes' }, { actor: 'user' });
+  assert.throws(() => store.answerTicket(e.key, { answer: 'undo', previous: { status: 'bogus', assignee: 'user' }, expect: re.expect }, { actor: 'user' }), (x) => x.status === 400);
+});
+
+test('lane: rows with a NULL kind or source (old rows, imports) still count as gestures', async () => {
+  assert.equal(columnOf({ status: 'todo', assignee: 'user', kind: null, source: null }), 'waiting');
+  assert.equal(columnOf({ status: 'todo', assignee: 'user', kind: undefined }), 'waiting');
+  const store = await openStore(':memory:');
+  const t = store.createTicket({ title: 'Imported long ago', status: 'todo', assignee: 'user' }, { actor: 'planner' });
+  // The schema says NOT NULL: rebuild the two columns as nullable, as a row from before it would have them.
+  store.db.exec('PRAGMA foreign_keys = OFF');
+  const cols = store.db.prepare("SELECT sql FROM sqlite_master WHERE name = 'tickets'").get().sql;
+  const loose = cols.replace(/kind TEXT NOT NULL DEFAULT 'action'/, 'kind TEXT').replace(/source TEXT NOT NULL DEFAULT 'user'/, 'source TEXT').replace('CREATE TABLE tickets', 'CREATE TABLE tickets_loose');
+  assert.notEqual(loose, cols, 'the schema was rewritten');
+  store.db.exec(loose);
+  store.db.exec('INSERT INTO tickets_loose SELECT * FROM tickets');
+  store.db.exec('DROP TABLE tickets; ALTER TABLE tickets_loose RENAME TO tickets');
+  store.db.exec('UPDATE tickets SET kind = NULL, source = NULL');
+  store.db.exec('PRAGMA foreign_keys = ON');
+  const board = store.ticketBoard({});
+  assert.deepEqual([board.counts.waiting, board.counts.todo], [1, 0], 'in the lane, and not lost from To do either');
+  assert.equal(board.columns.waiting[0].key, t.key);
+});
+
+test('lane: capped like the others, and the most unblocking tickets survive the cap', async () => {
+  const store = await openStore(':memory:');
+  const mk = (title, o = {}) => store.createTicket({ title, assignee: 'user', status: 'waiting_on_user', kind: 'decision', ...o }, { actor: 'planner' });
+  for (let i = 0; i < 230; i++) mk('filler ' + i);
+  const last = mk('the late one that unblocks two', { priority: 'P3' });
+  for (const n of ['w1', 'w2']) store.updateTicket(store.createTicket({ title: n, assignee: 'claude', status: 'todo' }, { actor: 'planner' }).key, { blocked_by_add: [last.key] });
+  const b = store.ticketBoard({});
+  assert.equal(b.counts.waiting, 231);
+  assert.equal(b.columns.waiting.length, 200);
+  assert.deepEqual([b.columns.waiting[0].key, b.columns.waiting[0].unlocks], [last.key, 2]);
+  // Unlocks come from one grouped read: the same statement text whatever the size of the lane.
+  const texts = new Set();
+  const prepare = store.db.prepare.bind(store.db);
+  store.db.prepare = (sql) => (texts.add(sql.replace(/\s+/g, ' ')), prepare(sql));
+  store.ticketBoard({});
+  assert.ok([...texts].some((q) => /LEFT JOIN \(SELECT id, COUNT\(\*\)/.test(q)));
+  assert.equal([...texts].filter((q) => /FROM ticket_deps d JOIN tickets x ON x.id = d.blocked_id WHERE d.blocker_id = \?/.test(q)).length, 0, 'no count per card');
+});
+
+test('jobs waiting: only a human, or an agent the deployment names, can claim them; capped', async () => {
+  const store = await openStore(':memory:', { jobActors: ['ops'] });
+  const mk = (title, actor, labels) => store.createTicket({ title, assignee: 'user', status: 'waiting_on_user', kind: 'decision', labels }, { actor });
+  mk('by a human', 'user', ['blocks-job']);
+  mk('by the named agent', 'ops', ['blocks-jobs:3']);
+  mk('by its sub-actor', 'ops/job-9', ['blocks-job']);
+  mk('by any other writer', 'stranger', ['blocks-jobs:9']);
+  const edited = mk('edited in by a stranger', 'user', []);
+  store.updateTicket(edited.key, { labels: ['blocks-job'] }, { actor: 'stranger' });
+  const flood = mk('a flood', 'user', ['blocks-jobs:99']);
+  const lane = Object.fromEntries(store.ticketBoard({}).columns.waiting.map((t) => [t.title, t.unlocks]));
+  assert.deepEqual(lane, { 'by a human': 1, 'by the named agent': 3, 'by its sub-actor': 1, 'by any other writer': 0, 'edited in by a stranger': 0, 'a flood': 9 });
+  assert.equal(flood.labels[0], 'blocks-jobs:99');
+  // With nobody named, only humans count.
+  const bare = await openStore(':memory:');
+  bare.createTicket({ title: 'agent', assignee: 'user', status: 'waiting_on_user', kind: 'decision', labels: ['blocks-job'] }, { actor: 'ops' });
+  assert.equal(bare.ticketBoard({}).columns.waiting[0].unlocks, 0);
 });

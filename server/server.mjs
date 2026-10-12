@@ -30,7 +30,7 @@
 //   GET  /api/tickets/:key          one ticket with history and sub-tickets
 //   POST|PATCH /api/tickets/:key    update (status, title, body, labels, …, optional `comment`)
 //   POST /api/tickets/:key/comments { text }
-//   POST /api/tickets/:key/answer   { answer: option|yes|no|done|later|decline, choice, days }: a button of the
+//   POST /api/tickets/:key/answer   { answer: option|yes|no|done|later|decline|undo, choice, days }: a button of the
 //                                   "Waiting on you" lane = a comment from you + a reversible move
 //   GET  /api/facets                values to filter on (repos, sessions, machines, labels, kinds)
 //   GET  /api/sessions              sessions, most recent first (?repo)
@@ -671,7 +671,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     process.exit(1);
   }
   if (agents.length) console.log(`alvearium: ${agents.length} agent token(s): ${agents.map((a) => a.actor).join(', ')}`);
-  const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX });
+  const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX, jobActors: String(process.env.BOARD_JOB_ACTORS || '').split(',').map((x) => x.trim()).filter(Boolean) });
   console.log(`alvearium: ticket keys ${store.prefix}-n (any prefix resolves: SB-12 and ALV-12 are the same ticket)`);
   const migrated = store.migrateBoardJson(join(dataDir, 'board.json'));
   if (migrated) console.log(`alvearium: imported ${migrated} session(s) from board.json (kept as board.json.migrated)`);

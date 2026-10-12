@@ -165,8 +165,14 @@ answer unblocks.
   does the same thing for any client and returns `{ ticket, previous }`.
 - **Order**: first the tickets whose answer unblocks something (most first), then `P0` to `P3`, then
   the oldest wait. A card says **unblocks N**: open tickets it blocks, plus its open sub-tickets,
-  plus jobs waiting on it (label `blocks-job`, or `blocks-jobs:3` for several). Each lane card
-  carries `unlocks` and `ask` in `GET /api/tickets/board`.
+  plus jobs waiting on it (label `blocks-job`, or `blocks-jobs:3` for several, at most 9 per ticket).
+  A job label only counts when it was set by a human or by an agent named in `BOARD_JOB_ACTORS`
+  (comma-separated ids; `ops` also covers `ops/job-4`); any other writer's label is ignored, so
+  nobody can climb the lane by labelling. The lane is capped at 200 cards like the other columns, the
+  counts being exact. Each lane card carries `unlocks` and `ask` in `GET /api/tickets/board`.
+- **Undo** only goes through while the ticket is exactly as the tap left it (status, assignee, date
+  and last update); if an agent or another tab touched it since, nothing is undone and the toast says
+  so (`409`, `{ answer: 'undo', previous, expect }` on the same route).
 
 ## Actors and threads
 
