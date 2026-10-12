@@ -68,7 +68,8 @@ whom. A **session** is a context: a session has zero, one or many tickets, and y
 
 Statuses: `todo`, `in_progress`, `waiting_on_user`, `review`, `done`, `cancelled`, `failed`. The
 board's columns are derived: **Waiting on you** = waiting on you, in review or failed, assigned to
-you; **In progress**; **To do**; **Done** folded away. Done tickets older than 30 days leave the
+you, plus the *to do* assigned to you whose kind asks a gesture of you (`decision`, `action`,
+`question`; never a session, a hook ticket or a trace such as a `note`); **In progress**; **To do**; **Done** folded away. Done tickets older than 30 days leave the
 default views (they are never deleted; *Show archived* brings them back).
 
 Tickets come from three places:
@@ -141,6 +142,37 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
   nothing blocks (to do and in progress), most important first, then your manual order, then the
   oldest. Session, question and feedback tickets are not work and stay out. Same filters as the list
   (repo, session, actor, assignee, label…), plus the number of blocked tickets left aside.
+
+## The "Waiting on you" lane answers in one tap (0.5.8)
+
+Each card of the lane (a `todo` decision, action or question assigned to you is in it, wherever it was created) shows the buttons its kind calls for, and the lane is ordered by what your
+answer unblocks.
+
+- **A decision** gets one button per option, read from the ticket body (`A) …`, `B) …`; plain bullets
+  and numbered lines count too when the kind is `decision`). The default is highlighted when the body
+  marks it (`(default)`, `(recommended)`) or says it (`Default: B`, `I recommend B`, `if you do not
+  answer I will go with option 2`). A decision without options, or a question that reads as one
+  (`Should we …?`), gets **Yes / No**. An action or task gets **Done**. A permission or a session
+  question has no button: it is answered in the session.
+- **Later** (tomorrow, in a week, in a month) puts the ticket in *To do* until that date, then it
+  comes back to your lane by itself; the ticket carries `snoozed_until` meanwhile, so a reminder bot
+  can stay quiet. **Not for me** hands it back to whoever opened it (Claude when you did).
+- A tap posts a comment as you (`Answer: B — <the option>`, `Answer: yes`, `Answer: done`,
+  `Later: not before 2026-01-17, …`, `Not for me: handed back to <actor>`) and moves the ticket:
+  an answered decision goes to the creator as `in_progress`, *Done* closes it. Everything is
+  reversible: the toast offers **Undo**, which restores status, assignee and date. `POST
+  /api/tickets/SB-5/answer { answer: option | yes | no | done | later | decline, choice, days }`
+  does the same thing for any client and returns `{ ticket, previous }`.
+- **Order**: first the tickets whose answer unblocks something (most first), then `P0` to `P3`, then
+  the oldest wait. A card says **unblocks N**: open tickets it blocks, plus its open sub-tickets,
+  plus jobs waiting on it (label `blocks-job`, or `blocks-jobs:3` for several, at most 9 per ticket).
+  A job label only counts when it was set by a human or by an agent named in `BOARD_JOB_ACTORS`
+  (comma-separated ids; `ops` also covers `ops/job-4`); any other writer's label is ignored, so
+  nobody can climb the lane by labelling. The lane is capped at 200 cards like the other columns, the
+  counts being exact. Each lane card carries `unlocks` and `ask` in `GET /api/tickets/board`.
+- **Undo** only goes through while the ticket is exactly as the tap left it (status, assignee, date
+  and last update); if an agent or another tab touched it since, nothing is undone and the toast says
+  so (`409`, `{ answer: 'undo', previous, expect }` on the same route).
 
 ## Actors and threads
 

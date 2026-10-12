@@ -30,6 +30,8 @@
 //   GET  /api/tickets/:key          one ticket with history and sub-tickets
 //   POST|PATCH /api/tickets/:key    update (status, title, body, labels, …, optional `comment`)
 //   POST /api/tickets/:key/comments { text }
+//   POST /api/tickets/:key/answer   { answer: option|yes|no|done|later|decline|undo, choice, days }: a button of the
+//                                   "Waiting on you" lane = a comment from you + a reversible move
 //   GET  /api/facets                values to filter on (repos, sessions, machines, labels, kinds)
 //   GET  /api/sessions              sessions, most recent first (?repo)
 //   POST /api/import                { board, machine, sessions, tickets }: a machine's local board.db,
@@ -616,7 +618,7 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
         const out = store.deleteSession(sm[1]);
         return send(res, out.session || out.tickets ? 200 : 404, out);
       }
-      const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move)?$/);
+      const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move|\/answer)?$/);
       if (tm) {
         const key = tm[1];
         if (m !== 'GET' && mustWrite()) return;
@@ -624,6 +626,10 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
           const body = await jsonBody(req);
           return send(res, 200, store.moveTicket(key, { after: body.after || null, before: body.before || null }, { actor: actorOf(req, store) }));
+        }
+        if (tm[2] === '/answer') {
+          if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
+          return send(res, 200, store.answerTicket(key, await jsonBody(req), { actor: actorOf(req, store) }));
         }
         if (tm[2]) {
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
@@ -665,7 +671,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     process.exit(1);
   }
   if (agents.length) console.log(`alvearium: ${agents.length} agent token(s): ${agents.map((a) => a.actor).join(', ')}`);
-  const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX });
+  const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX, jobActors: String(process.env.BOARD_JOB_ACTORS || '').split(',').map((x) => x.trim()).filter(Boolean) });
   console.log(`alvearium: ticket keys ${store.prefix}-n (any prefix resolves: SB-12 and ALV-12 are the same ticket)`);
   const migrated = store.migrateBoardJson(join(dataDir, 'board.json'));
   if (migrated) console.log(`alvearium: imported ${migrated} session(s) from board.json (kept as board.json.migrated)`);

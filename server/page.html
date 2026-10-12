@@ -354,7 +354,7 @@
     .mbAudit time { color: var(--faint); min-width: 110px; }
     .btn.danger { color: var(--danger); }
     .linkBtn { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
-    :root[data-role="viewer"] [data-act="new"], :root[data-role="viewer"] .doneBtn, :root[data-role="viewer"] .compose { display: none !important; }
+    :root[data-role="viewer"] [data-act="new"], :root[data-role="viewer"] .doneBtn, :root[data-role="viewer"] .compose, :root[data-role="viewer"] .asks { display: none !important; }
     @media (max-width: 900px) { .mbRow { grid-template-columns: minmax(0, 1fr) auto; } .mbRow .mbMeta { grid-column: 1 / -1; } .mbBtn .opt { display: none; } }
     .toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 20; display: flex; align-items: center; gap: 4px 12px; max-width: calc(100vw - 28px); box-shadow: 0 6px 24px rgba(16, 18, 27, 0.18); }
     .toast .tmsg { overflow-wrap: anywhere; }
@@ -454,6 +454,36 @@
     .prio.P2 { background: var(--accent-soft); color: var(--accent); }
     .head .prio { margin-top: 1px; }
     .tag.blocked { color: var(--danger); background: var(--danger-soft); font-weight: 500; }
+    /* Direct answers on the "Waiting on you" lane */
+    .asks { margin: 9px 0 0 17px; display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
+    .asks .ask {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; min-width: 0; padding: 6px 12px;
+      border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text);
+      font-size: 13px; font-weight: 500; line-height: 1.25; text-align: left;
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+    .asks .ask:hover { background: var(--accent-soft); border-color: var(--accent); }
+    .asks .ask:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .asks .ask[disabled] { opacity: 0.55; cursor: progress; }
+    .asks .ask.opt { flex: 1 1 100%; justify-content: flex-start; }
+    .asks .ask.opt b { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--chip); font-size: 12px; font-weight: 600; }
+    .asks .ask.opt span { min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+    .asks .ask.quick { flex: 1 1 96px; }
+    .asks .ask.def { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .asks .ask.def b { background: rgba(255, 255, 255, 0.22); }
+    .asks .ask.def:hover { background: var(--accent); filter: brightness(1.08); }
+    .asks .ask em { flex: none; margin-left: auto; padding-left: 8px; font-style: normal; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; opacity: 0.9; }
+    .asks .ask.quick em { margin-left: 0; padding-left: 0; }
+    .asks .ask.soft { flex: 1 1 auto; border-color: transparent; background: var(--chip); color: var(--muted); font-weight: 400; justify-content: center; }
+    .asks .ask.soft:hover { color: var(--text); }
+    .asks .laterHint { flex: 1 1 100%; font-size: 12px; color: var(--muted); }
+    .tag.unlocks { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+    .tag.snoozed { background: var(--chip); color: var(--muted); }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .asks .ask.def { color: #0e0f11; } :root:not([data-theme="light"]) .asks .ask.def b { background: rgba(0, 0, 0, 0.16); } }
+    :root[data-theme="dark"] .asks .ask.def { color: #0e0f11; }
+    :root[data-theme="dark"] .asks .ask.def b { background: rgba(0, 0, 0, 0.16); }
+    @media (max-width: 900px), (pointer: coarse) { .asks { margin-left: 0; gap: 8px; } .asks .ask { min-height: 44px; font-size: 14px; } }
+    @media (prefers-reduced-motion: reduce) { .asks .ask { transition: none; } }
     .card.blocked { background: repeating-linear-gradient(-45deg, var(--card), var(--card) 8px, color-mix(in srgb, var(--danger) 4%, var(--card)) 8px, color-mix(in srgb, var(--danger) 4%, var(--card)) 16px); }
     .card.flash, .row.flash { animation: flash 1.6s ease-out; }
     @keyframes flash { 0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 55%, transparent); } 100% { box-shadow: var(--shadow); } }
@@ -1033,6 +1063,8 @@
 
       function tags(t, now, opts = {}) {
         const out = [];
+        if (t.column === 'waiting' && t.unlocks > 0) out.push(`<span class="tag unlocks" title="Your answer unblocks ${t.unlocks} open ticket${t.unlocks === 1 ? '' : 's'} or job${t.unlocks === 1 ? '' : 's'}">unblocks ${t.unlocks}</span>`);
+        if (t.snoozed_until) out.push(`<span class="tag snoozed" title="Comes back on ${esc(when(t.snoozed_until))}">⏸ until ${esc(new Date(t.snoozed_until).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span><button type="button" class="tag" data-ask="wake" data-key="${esc(t.key)}" aria-label="Bring ${esc(t.key)} back to your lane now">Back now</button>`);
         if (t.repo && !state.f.repo) out.push(`<button type="button" class="tag" data-filter="repo" data-value="${esc(t.repo)}" title="Filter on ${esc(t.repo)}">${esc(repoName(t.repo))}${t.branch && t.branch !== 'HEAD' && t.branch !== 'main' && t.branch !== 'master' ? ' · ' + esc(t.branch) : ''}</button>`);
         if (t.session_id && !state.f.session && !opts.noSession && t.kind !== 'session') out.push(`<button type="button" class="tag sess" data-filter="session" data-value="${esc(t.session_id)}" title="Session: ${esc(sessionName(t))}">${t.origin === 'cloud' ? '☁ ' : '› '}${esc(sessionName(t))}</button>`);
         if (t.blocked) {
@@ -1055,6 +1087,93 @@
       /** The one-click ✓ of an open ticket; `data-from` keeps the status Undo goes back to. */
       const doneBtn = (t) => (isOpen(t) ? `<button type="button" class="doneBtn" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)"><i>${CHECK}</i></button>` : '');
 
+      // ---- direct answers (the buttons of the "Waiting on you" lane) -------------------------------
+      const LATER = [[1, 'Tomorrow'], [7, 'In a week'], [30, 'In a month']];
+      const askBusy = new Set();
+      let askMenu = null; // the key whose "Later" choices are open
+      function asks(t) {
+        const a = t.ask;
+        if (!a || t.column !== 'waiting') return '';
+        const k = esc(t.key);
+        const off = askBusy.has(t.key) ? ' disabled' : '';
+        const out = [];
+        if (a.type === 'choice') {
+          for (const o of a.options) {
+            const d = a.default === o.id;
+            out.push(`<button type="button" class="ask opt${d ? ' def' : ''}" data-ask="option" data-key="${k}" data-choice="${esc(o.id)}"${off} aria-label="Option ${esc(o.id)}: ${esc(o.text)}${d ? ' (default)' : ''}"><b aria-hidden="true">${esc(o.id)}</b><span>${esc(o.text)}</span>${d ? '<em aria-hidden="true">default</em>' : ''}</button>`);
+          }
+        } else if (a.type === 'yesno') {
+          for (const [v, l] of [['yes', 'Yes'], ['no', 'No']]) {
+            const d = a.default === v;
+            out.push(`<button type="button" class="ask quick${d ? ' def' : ''}" data-ask="${v}" data-key="${k}"${off} aria-label="${l}${d ? ' (default)' : ''}">${l}${d ? '<em aria-hidden="true">default</em>' : ''}</button>`);
+          }
+        } else if (a.type === 'done') {
+          out.push(`<button type="button" class="ask quick def" data-ask="done" data-key="${k}"${off} aria-label="Mark ${k} done">Done</button>`);
+        }
+        if (askMenu === t.key) {
+          out.push('<span class="laterHint" id="lh-' + k + '">Remind me…</span>');
+          for (const [d, l] of LATER) out.push(`<button type="button" class="ask quick" data-ask="later" data-days="${d}" data-key="${k}"${off}>${l}</button>`);
+          out.push(`<button type="button" class="ask soft" data-ask="laterCancel" data-key="${k}">Cancel</button>`);
+        } else {
+          out.push(`<button type="button" class="ask soft" data-ask="laterMenu" data-key="${k}"${off} aria-label="Later: put ${k} off">Later</button>`);
+          out.push(`<button type="button" class="ask soft" data-ask="decline" data-key="${k}"${off} aria-label="Not for me: hand ${k} back">Not for me</button>`);
+        }
+        return `<div class="asks" role="group" aria-label="Answer ${k}">${out.join('')}</div>`;
+      }
+      const rerenderBoard = () => { if (lastBoard) renderBoard(lastBoard, lastBoard.now ?? Date.now()); };
+      async function askClick(el) {
+        const key = el.dataset.key;
+        const a = el.dataset.ask;
+        if (!key || askBusy.has(key)) return;
+        const focusAfter = (sel) => document.querySelector(`#main [data-open="${CSS.escape(key)}"] ${sel}`)?.focus();
+        if (a === 'laterMenu' || a === 'laterCancel') {
+          askMenu = a === 'laterMenu' ? key : null;
+          rerenderBoard();
+          return focusAfter(a === 'laterMenu' ? '[data-days]' : '[data-ask="laterMenu"]');
+        }
+        try {
+          if (a === 'wake') {
+            await api(`tickets/${encodeURIComponent(key)}`, { snoozed_until: null });
+            changedKeys.add(key);
+            return await refresh();
+          }
+        } catch (err) { if (err.message !== 'locked') toast(`${key}: ${err.message}`); return; }
+        const body = a === 'option' ? { answer: 'option', choice: el.dataset.choice } : a === 'later' ? { answer: 'later', days: Number(el.dataset.days) } : { answer: a };
+        askBusy.add(key);
+        askMenu = null;
+        rerenderBoard();
+        let r;
+        try {
+          r = await api(`tickets/${encodeURIComponent(key)}/answer`, body);
+        } catch (err) {
+          askBusy.delete(key);
+          rerenderBoard();
+          if (err.message !== 'locked') toast(`${key}: ${err.message}`);
+          return;
+        }
+        askBusy.delete(key);
+        changedKeys.add(key);
+        await refresh();
+        if (document.activeElement === document.body || !document.activeElement) document.querySelector('#col-waiting .card')?.focus();
+        if (state.ticket === key && !$('panel').hidden) openPanel(key, false);
+        const day = (ms) => new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        const said = a === 'option' ? `answered ${esc(body.choice)}` : a === 'yes' ? 'answered yes' : a === 'no' ? 'answered no' : a === 'done' ? 'done' : a === 'later' ? `back on ${esc(day(r.ticket.snoozed_until))}` : `handed back to ${esc(actorName(r.ticket.assignee))}`;
+        toast(`<b>${esc(key)}</b> ${said}`, { html: true, ms: 7000, action: { label: 'Undo', run: () => undoAsk(key, r) } });
+      }
+      async function undoAsk(key, prev) {
+        try {
+          await api(`tickets/${encodeURIComponent(key)}/answer`, { answer: 'undo', previous: prev.previous, expect: prev.expect });
+        } catch (err) {
+          // Someone (an agent, you in another tab) moved the ticket since the click: leave it as it is.
+          if (err.message !== 'locked') toast(/already taken over/.test(err.message) ? `${key} already taken over, nothing undone` : `${key}: ${err.message}`);
+          return;
+        }
+        changedKeys.add(key);
+        await refresh();
+        if (state.ticket === key && !$('panel').hidden) openPanel(key, false);
+        toast(`${key} is back in your lane`);
+      }
+
       function card(t, now) {
         const r = t.column === 'waiting' ? reason(t) : '';
         let note = '';
@@ -1066,6 +1185,7 @@
         return `<article class="card${t.stale || t.status === 'cancelled' ? ' dim' : ''}${t.blocked ? ' blocked' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" data-live="${live}" tabindex="0"${drag}>
           <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${prio(t.priority)}<span class="key">${esc(t.key)}</span>${doneBtn(t)}</div>
           ${r ? `<div class="reason">${r}</div>` : ''}${note ? `<div class="note">${note}</div>` : ''}
+          ${asks(t)}
           <div class="tags">${tags(t, now)}</div>
         </article>`;
       }
@@ -1586,9 +1706,15 @@
         const pick = e.target.closest?.('[data-m]');
         if (pick && mention.open) { e.preventDefault(); e.stopPropagation(); return mentionPick(pick.dataset.m); }
         if (mention.open && !e.target.closest?.('.mentionBox') && e.target?.id !== 'comment') mentionClose();
-        const el = e.target.closest('[data-done],[data-undep],[data-filter],[data-unfilter],[data-view],[data-act],[data-open],[data-stop],[data-actor]');
+        const el = e.target.closest('[data-done],[data-ask],[data-undep],[data-filter],[data-unfilter],[data-view],[data-act],[data-open],[data-stop],[data-actor]');
         if (!el) return;
         if (el.dataset.stop) return;
+        if (el.dataset.ask) {
+          // A button inside a card: answering must not also open the card.
+          e.preventDefault();
+          e.stopPropagation();
+          return askClick(el);
+        }
         if (el.dataset.done) {
           // The ✓ sits inside a card: closing must not also open it.
           e.preventDefault();
