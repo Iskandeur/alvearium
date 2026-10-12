@@ -143,9 +143,55 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
   oldest. Session, question and feedback tickets are not work and stay out. Same filters as the list
   (repo, session, actor, assignee, label…), plus the number of blocked tickets left aside.
 
+## What we need from you, in the ticket (0.5.9)
+
+The 0.5.8 buttons were too many and too big on the cards, and most decisions need the context of the
+ticket anyway. So the answer now lives **in the open ticket**, and a card only offers buttons when
+its author wrote down everything needed to answer without opening it.
+
+**The block** (a format shared with the tools that open tickets for you). In the body of a ticket,
+three lines are recognised, in English or in French, in any case, with or without bold or a bullet,
+a space before the colon or not. Nothing else of the body is interpreted.
+
+```
+Ask: Which payment provider do we integrate for the launch?
+Options: A) Alder — lowest fees, no refunds API ; B) Birch — higher fees, full refunds API (default: B)
+If no answer: I integrate Birch on Friday at noon and tell you.
+```
+
+| English | French | What it is |
+|---|---|---|
+| `Ask:` | `Ce que j'attends de toi :` | one sentence |
+| `Options:` | `Options :` | `A) label — consequence ; B) …`, lettered A, B, C in order, two at least, at most five; `(default: B)` or `défaut : B` at the end, or `(default)` after one option. Absent for a plain action or yes/no. The options may also sit on the lettered lines under `Options:`. |
+| `If no answer:` | `Sans réponse :` | what happens, and when |
+
+`GET /api/tickets/board` (lane cards) and `GET /api/tickets/:key` return it as
+`ask: { question, options: [{ id, text, consequence }], defaut, sansReponse, complete } | null`.
+`complete` is true when there is a question, a way to answer (two options or more; or a yes/no or an
+action to mark done, which the ticket kind tells) and a fallback. The buttons themselves are
+described by `gesture` (the old `ask` field of 0.5.8: `{ type: choice | yesno | done | none, options,
+default }`); the block's options win over the ones inferred from the body.
+
+- **Open ticket**: the block is shown highlighted above the details (question, each option with its
+  consequence, the default marked, what happens without an answer), and a **reply bar** is fixed at
+  the bottom of the panel (and at the bottom of the screen on a phone): one button per option, or
+  Yes / No, or Done, then Later and Not for me. Same gestures, same Undo as 0.5.8. The default
+  option has an accent border and an underlined label, nothing filled. A ticket without a block
+  keeps the 0.5.8 inference (options read from the body, Yes / No, Done) in the same bar.
+- **Card of the lane**: title, the `Ask:` line (or the start of the body when there is none), the
+  fallback in small print, `unblocks N`, priority. **Buttons only when the block is complete**;
+  otherwise one discreet *Reply ›* link opens the ticket. Buttons are 36 px tall on a desktop
+  and 44 px on a phone, same look as the other controls of the page.
+- `POST /api/tickets/:key/answer` is unchanged.
+
+![The lane at 390 px](docs/screenshots/waiting-lane-mobile-light.png)
+![An open ticket with its reply bar, at 390 px](docs/screenshots/ticket-reply-mobile-light.png)
+
+([lane, 1280 px](docs/screenshots/waiting-lane-desktop-light.png), [ticket, 1280 px](docs/screenshots/ticket-reply-desktop-light.png).)
+
 ## The "Waiting on you" lane answers in one tap (0.5.8)
 
-Each card of the lane (a `todo` decision, action or question assigned to you is in it, wherever it was created) shows the buttons its kind calls for, and the lane is ordered by what your
+Since 0.5.9 the buttons are in the open ticket and on the cards whose block is complete (see above). Each card of the lane (a `todo` decision, action or question assigned to you is in it, wherever it was created) shows the buttons its kind calls for, and the lane is ordered by what your
 answer unblocks.
 
 - **A decision** gets one button per option, read from the ticket body (`A) …`, `B) …`; plain bullets
@@ -169,7 +215,7 @@ answer unblocks.
   A job label only counts when it was set by a human or by an agent named in `BOARD_JOB_ACTORS`
   (comma-separated ids; `ops` also covers `ops/job-4`); any other writer's label is ignored, so
   nobody can climb the lane by labelling. The lane is capped at 200 cards like the other columns, the
-  counts being exact. Each lane card carries `unlocks` and `ask` in `GET /api/tickets/board`.
+  counts being exact. Each lane card carries `unlocks`, `gesture` (called `ask` in 0.5.8) and `ask` (the block) in `GET /api/tickets/board`.
 - **Undo** only goes through while the ticket is exactly as the tap left it (status, assignee, date
   and last update); if an agent or another tab touched it since, nothing is undone and the toast says
   so (`409`, `{ answer: 'undo', previous, expect }` on the same route).

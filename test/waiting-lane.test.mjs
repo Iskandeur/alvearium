@@ -1,4 +1,4 @@
-// 0.5.8: the "Waiting on you" lane answers in one tap (a choice, yes/no, done, later, not for me)
+// 0.5.8-0.5.9: the "Waiting on you" lane answers in one tap (a choice, yes/no, done, later, not for me)
 // and is ordered by what each answer unblocks.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { columnOf, sanitizeTicketInput } from '../lib/core.mjs';
-import { ANSWERS, askOf, compareWaiting, handbackOf, jobsWaiting, parseOptions, planAnswer, trustedActor } from '../lib/triage.mjs';
+import { ANSWERS, askComplete, askOf, askView, compareWaiting, handbackOf, jobsWaiting, parseAskBlock, parseOptions, planAnswer, trustedActor } from '../lib/triage.mjs';
 import { openStore } from '../lib/store.mjs';
 import { createApp } from '../server/server.mjs';
 
@@ -32,6 +32,78 @@ test('options: lettered lines, bullets only for a decision, never a lone letter,
   assert.deepEqual(parseOptions('A) one\nC) skipped a letter'), [], 'lettered lines must read A, B, C');
   assert.equal(parseOptions('A) one\nB) two\nC) three\nD) four\nE) five\nF) six').length, 5, 'capped');
   assert.deepEqual(parseOptions('```\nA) in code\nB) in code\n```'), []);
+});
+
+// ---- 0.5.9: the block "what we need from you" ----------------------------------------------------------
+
+const BLOCK = `Some context the author wrote.
+
+Ask: Pick the payment provider.
+Options: A) Alder — lowest fees, no refunds API ; B) Birch — higher fees, full refunds API ; C) Cash only — nothing to build (default: B)
+If no answer: I go with B on Friday at noon.
+
+More context.`;
+
+test('ask block: English, every field, the consequence split from the label, the default read', () => {
+  assert.deepEqual(parseAskBlock(BLOCK), {
+    question: 'Pick the payment provider.',
+    options: [
+      { id: 'A', text: 'Alder', consequence: 'lowest fees, no refunds API' },
+      { id: 'B', text: 'Birch', consequence: 'higher fees, full refunds API' },
+      { id: 'C', text: 'Cash only', consequence: 'nothing to build' },
+    ],
+    defaut: 'B',
+    sansReponse: 'I go with B on Friday at noon.',
+  });
+});
+
+test('ask block: French, spaces before the colon, any case, bold, a bullet, défaut without brackets', () => {
+  const fr = parseAskBlock("Ce que j'attends de toi : valider le renouvellement\nOptions : A) oui — je lance ; B) non — on attend défaut : A\nSans réponse : je lance demain à 9 h");
+  assert.deepEqual([fr.question, fr.options.map((o) => o.id), fr.defaut, fr.sansReponse], ['valider le renouvellement', ['A', 'B'], 'A', 'je lance demain à 9 h']);
+  const loud = parseAskBlock('  - **ASK :**   ok to merge?\n  * IF NO ANSWER:  merge tomorrow');
+  assert.deepEqual([loud.question, loud.options, loud.defaut, loud.sansReponse], ['ok to merge?', [], null, 'merge tomorrow']);
+  assert.equal(parseAskBlock('**Options:** A) one ; B) two (défaut: B)').defaut, 'B');
+  assert.equal(parseAskBlock("Ce que j’attends de toi: x").question, 'x', 'typographic apostrophe');
+});
+
+test('ask block: lettered lines on the lines after Options; the marker (default) on an option', () => {
+  const b = parseAskBlock('Ask: which?\nOptions:\nA) first — cheap\nB) second (default) — dear\nIf no answer: A tomorrow');
+  assert.deepEqual(b.options.map((o) => [o.id, o.text, o.consequence]), [['A', 'first', 'cheap'], ['B', 'second', 'dear']]);
+  assert.equal(b.defaut, 'B');
+});
+
+test('ask block: nothing else of the body is interpreted, and prose is not an options line', () => {
+  assert.equal(parseAskBlock(''), null);
+  assert.equal(parseAskBlock(undefined), null);
+  assert.equal(parseAskBlock('Just a body.\nA) one\nB) two'), null, 'lettered lines without the Options: line are not the block');
+  assert.equal(parseAskBlock('Options: use X or Y'), null, 'not a lettered list');
+  assert.equal(parseAskBlock('Options: A) only one'), null, 'two options at least');
+  assert.equal(parseAskBlock('Options: A) one ; C) three'), null, 'A, B, C in order');
+  assert.equal(parseAskBlock('```\nAsk: in code\nIf no answer: in code\n```'), null);
+  assert.equal(parseAskBlock('My ask: not at the start of a line'), null);
+  assert.equal(parseAskBlock('Task: not an ask\nAsking: neither'), null);
+  const one = parseAskBlock('Ask: first\nAsk: second\nIf no answer: x');
+  assert.equal(one.question, 'first', 'the first line of each kind counts');
+  assert.equal(parseAskBlock('Ask: q\nOptions: A) a ; B) b (default: Z)').defaut, null, 'a default that is no option is dropped');
+  assert.equal(parseAskBlock(`Ask: ${'x'.repeat(900)}`).question.length, 300);
+});
+
+test('ask block: complete means a question, a way to answer and a fallback; the gesture follows the block', () => {
+  const choice = T({ body: BLOCK });
+  const v = askView(choice);
+  assert.equal(v.ask.complete, true);
+  assert.deepEqual(v.gesture, { type: 'choice', options: [{ id: 'A', text: 'Alder' }, { id: 'B', text: 'Birch' }, { id: 'C', text: 'Cash only' }], default: 'B' });
+  const yn = askView(T({ title: 'Merge?', body: 'Ask: ok to merge the PR?\nIf no answer: I merge on Friday, I will go ahead.' }));
+  assert.deepEqual([yn.gesture.type, yn.gesture.default, yn.ask.complete], ['yesno', 'yes', true]);
+  const act = askView(T({ kind: 'action', title: 'Renew the certificate', body: 'Ask: renew it on the hosting panel\nIf no answer: it expires on the 21st' }));
+  assert.deepEqual([act.gesture.type, act.ask.complete], ['done', true]);
+  assert.equal(askView(T({ body: 'Ask: which?\nOptions: A) a ; B) b' })).ask.complete, false, 'no fallback');
+  assert.equal(askView(T({ body: 'Options: A) a ; B) b\nIf no answer: A' })).ask.complete, false, 'no question');
+  assert.equal(askView(T({ kind: 'question', title: 'Which region?', body: 'Ask: which region?\nIf no answer: eu' })).ask.complete, false, 'an open question has no button');
+  assert.equal(askView(T({ body: 'Plain old body' })).ask, null);
+  assert.equal(askView(T({ body: 'Plain old body' })).gesture.type, 'yesno', 'no block: the 0.5.8 inference holds');
+  assert.equal(askComplete(null, { type: 'done' }), false);
+  assert.equal(askView(T({ source: 'hook', kind: 'permission', body: BLOCK })).gesture, null);
 });
 
 test('ask: a choice with its default, from a marker, a letter, a number or the text', () => {
@@ -135,7 +207,7 @@ test('board: the lane is ordered by unlocks, and counts only open dependents and
     ['urgent', 0],
     ['old and quiet', 0],
   ]);
-  assert.equal(lane[0].ask.type, 'yesno');
+  assert.equal(lane[0].gesture.type, 'yesno');
   assert.ok(lane.every((t) => t.column === 'waiting'));
   assert.equal(urgent.priority, 'P0');
   assert.equal(old.status, 'waiting_on_user');
@@ -150,7 +222,7 @@ test('answer: a comment from him, a move, and what it was before; Later hides th
   const t = store.createTicket({ title: 'Database', kind: 'decision', status: 'waiting_on_user', assignee: 'user', body: 'A) Keep SQLite\nB) Move to Postgres\nDefault: A' }, { actor: 'planner' });
   const col = (name) => store.ticketBoard({}).columns[name].map((x) => x.key);
 
-  assert.equal(store.ticketBoard({}).columns.waiting[0].ask.default, 'A');
+  assert.equal(store.ticketBoard({}).columns.waiting[0].gesture.default, 'A');
   const r = store.answerTicket(t.key, { answer: 'option', choice: 'B' }, { actor: 'user' });
   assert.deepEqual(r.previous, { status: 'waiting_on_user', assignee: 'user', snoozed_until: null });
   assert.deepEqual([r.ticket.status, r.ticket.assignee, r.ticket.column], ['in_progress', 'planner', 'inProgress']);
@@ -241,6 +313,28 @@ test('api: POST /api/tickets/:key/answer, the page sends no actor so the comment
   });
 });
 
+test('api: cards and the open ticket carry the block (ask) and the gesture the buttons take', async () => {
+  const store = await openStore(':memory:');
+  const full = store.createTicket({ title: 'Provider', kind: 'decision', status: 'waiting_on_user', assignee: 'user', body: BLOCK }, { actor: 'planner' });
+  const plain = store.createTicket({ title: 'Old style', kind: 'decision', status: 'waiting_on_user', assignee: 'user', body: 'A) Keep\nB) Move\nI recommend B.' }, { actor: 'planner' });
+  await withServer(store, async (base) => {
+    const board = await (await fetch(`${base}/api/tickets/board`, { headers: auth })).json();
+    const by = (k) => board.columns.waiting.find((t) => t.key === k);
+    assert.deepEqual(by(full.key).ask, { ...parseAskBlock(BLOCK), complete: true });
+    assert.equal(by(full.key).gesture.default, 'B');
+    assert.equal(by(plain.key).ask, null, 'no block, no ask: the card shows a Reply link, the buttons are in the ticket');
+    assert.equal(by(plain.key).gesture.default, 'B', 'the 0.5.8 inference still feeds the reply bar');
+    const one = await (await fetch(`${base}/api/tickets/${full.key}`, { headers: auth })).json();
+    assert.equal(one.ask.question, 'Pick the payment provider.');
+    assert.equal(one.gesture.type, 'choice');
+    // answering through the block's options posts the label
+    const r = await post(base, `/api/tickets/${full.key}/answer`, { answer: 'option', choice: 'C' });
+    assert.equal(r.status, 200);
+    const ev = (await (await fetch(`${base}/api/tickets/${full.key}`, { headers: auth })).json()).events.find((e) => e.type === 'comment');
+    assert.equal(ev.text, 'Answer: C — Cash only');
+  });
+});
+
 // ---- the page -------------------------------------------------------------------------------------
 
 test('page: the buttons render with a default marked, labelled, and the CSP is untouched', () => {
@@ -248,9 +342,11 @@ test('page: the buttons render with a default marked, labelled, and the CSP is u
   const to = page.indexOf('const rerenderBoard');
   assert.ok(from > 0 && to > from, 'asks() is in the page');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-  const make = new Function('esc', `${page.slice(from, to)}; return { asks, askBusy, open: (k) => { askMenu = k; } };`);
-  const { asks, askBusy, open } = make(esc);
-  const t = { key: 'ALV-7', column: 'waiting', ask: { type: 'choice', default: 'B', options: [{ id: 'A', text: 'Keep <SQLite>' }, { id: 'B', text: 'Move' }] } };
+  const make = new Function('esc', 'plain', 'isOpen', '$', `${page.slice(from, to)}; return { asks, askBusy, replyBar, askBox, bodyRest, open: (k) => { askMenu = k; } };`);
+  const { asks, askBusy, replyBar, askBox, bodyRest, open } = make(esc, (x) => String(x), () => true, () => null);
+  const gesture = { type: 'choice', default: 'B', options: [{ id: 'A', text: 'Keep <SQLite>' }, { id: 'B', text: 'Move' }] };
+  const block = { question: 'Which database?', options: [{ id: 'A', text: 'Keep <SQLite>', consequence: 'nothing to migrate' }, { id: 'B', text: 'Move', consequence: 'one night of work' }], defaut: 'B', sansReponse: 'I keep SQLite on Friday.', complete: true };
+  const t = { key: 'ALV-7', title: 'Database', column: 'waiting', gesture, ask: block };
   const html = asks(t);
   assert.match(html, /role="group" aria-label="Answer ALV-7"/);
   assert.equal((html.match(/data-ask="option"/g) || []).length, 2);
@@ -259,16 +355,37 @@ test('page: the buttons render with a default marked, labelled, and the CSP is u
   assert.equal((html.match(/ def"/g) || []).length, 1);
   assert.match(html, /data-ask="laterMenu"[\s\S]*data-ask="decline"/);
   assert.equal(asks({ ...t, column: 'todo' }), '', 'only on the lane');
-  assert.equal(asks({ ...t, ask: null }), '');
-  assert.match(asks({ ...t, ask: { type: 'yesno', default: 'yes' } }), /data-ask="yes"[^>]*aria-label="Yes \(default\)"[\s\S]*data-ask="no"/);
-  assert.match(asks({ ...t, ask: { type: 'done' } }), /data-ask="done"/);
-  assert.doesNotMatch(asks({ ...t, ask: { type: 'none' } }), /data-ask="(yes|no|done|option)"/);
+  assert.equal(asks({ ...t, gesture: null }), '');
+  // the card carries buttons only when the block is complete; the open ticket always does
+  assert.equal(asks({ ...t, ask: null }), '', 'no block: no button on the card');
+  assert.equal(asks({ ...t, ask: { ...block, complete: false } }), '');
+  assert.match(asks({ ...t, ask: null }, 'bar'), /data-ask="option"/, 'but the reply bar has them');
+  const yn = { ...t, gesture: { type: 'yesno', default: 'yes' } };
+  assert.match(asks(yn), /data-ask="yes"[^>]*aria-label="Yes \(default\)"[\s\S]*data-ask="no"/);
+  assert.match(asks({ ...t, gesture: { type: 'done' } }), /data-ask="done"/);
+  assert.doesNotMatch(asks({ ...t, gesture: { type: 'none' } }, 'bar'), /data-ask="(yes|no|done|option)"/);
+  assert.match(asks({ ...t, gesture: { type: 'none' } }, 'bar'), /data-ask="comment"/);
   askBusy.add('ALV-7');
   assert.match(asks(t), /data-ask="option"[^>]* disabled/);
   open('ALV-7');
   const menu = asks(t);
   assert.deepEqual([...menu.matchAll(/data-days="(\d+)"/g)].map((m) => m[1]), ['1', '7', '30']);
   assert.doesNotMatch(menu, /data-ask="decline"/);
+  open(null);
+  // the bar says what it answers; the box above the details lays the options and the fallback out
+  assert.match(replyBar(t), /class="replyBar"[\s\S]*Which database\?[\s\S]*class="asks at-bar"/);
+  assert.match(replyBar({ ...t, ask: null }), /rbQ" title="Database"/, 'no block: the title is the context');
+  assert.equal(replyBar({ ...t, column: 'todo' }), '');
+  const box = askBox(t);
+  assert.match(box, /Which database\?/);
+  assert.match(box, /<li class="def"><b[^>]*>B<\/b><span>Move<i>default<\/i><em>one night of work<\/em>/);
+  assert.match(box, /If no answer:<\/b> I keep SQLite on Friday\./);
+  assert.match(box, /Keep &lt;SQLite&gt;/);
+  assert.equal(askBox({ ...t, ask: null }), '');
+  // the box replaces the three lines in the description; the rest of the body stays, and Edit keeps the raw text
+  const raw = 'Context.\n\nAsk: Which?\nOptions:\nA) a — x\nB) b — y\nIf no answer: A.\n\nMore context.';
+  assert.equal(bodyRest({ ...t, body: raw }), 'Context.\n\nMore context.');
+  assert.equal(bodyRest({ ...t, ask: null, body: raw }), raw, 'no block read: the body is shown as written');
 });
 
 test('page: no external dependency, no inline handler, same CSP', () => {
@@ -298,8 +415,8 @@ test('lane: his "to do" that ask a gesture are in it too; traces, sessions and o
   assert.equal(board().counts.waiting, 3);
   assert.deepEqual(keys('todo'), [note, task, agentsAction, session, hooked].map((t) => t.key).sort());
   assert.ok(!keys('waiting').includes(hooked.key) && !keys('waiting').includes(session.key));
-  assert.equal(board().columns.waiting.find((t) => t.key === decision.key).ask.type, 'choice');
-  assert.equal(board().columns.waiting.find((t) => t.key === action.key).ask.type, 'done');
+  assert.equal(board().columns.waiting.find((t) => t.key === decision.key).gesture.type, 'choice');
+  assert.equal(board().columns.waiting.find((t) => t.key === action.key).gesture.type, 'done');
   assert.equal(columnOf({ status: 'todo', assignee: 'user', kind: 'action' }), 'waiting');
   assert.equal(columnOf({ status: 'todo', assignee: 'user', kind: 'task' }), 'todo');
   assert.equal(columnOf({ status: 'todo', assignee: 'user', kind: 'action', source: 'hook' }), 'todo');

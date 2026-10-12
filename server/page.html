@@ -354,7 +354,7 @@
     .mbAudit time { color: var(--faint); min-width: 110px; }
     .btn.danger { color: var(--danger); }
     .linkBtn { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; cursor: pointer; }
-    :root[data-role="viewer"] [data-act="new"], :root[data-role="viewer"] .doneBtn, :root[data-role="viewer"] .compose, :root[data-role="viewer"] .asks { display: none !important; }
+    :root[data-role="viewer"] [data-act="new"], :root[data-role="viewer"] .doneBtn, :root[data-role="viewer"] .compose, :root[data-role="viewer"] .asks, :root[data-role="viewer"] .replyBar { display: none !important; }
     @media (max-width: 900px) { .mbRow { grid-template-columns: minmax(0, 1fr) auto; } .mbRow .mbMeta { grid-column: 1 / -1; } .mbBtn .opt { display: none; } }
     .toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; z-index: 20; display: flex; align-items: center; gap: 4px 12px; max-width: calc(100vw - 28px); box-shadow: 0 6px 24px rgba(16, 18, 27, 0.18); }
     .toast .tmsg { overflow-wrap: anywhere; }
@@ -454,35 +454,62 @@
     .prio.P2 { background: var(--accent-soft); color: var(--accent); }
     .head .prio { margin-top: 1px; }
     .tag.blocked { color: var(--danger); background: var(--danger-soft); font-weight: 500; }
-    /* Direct answers on the "Waiting on you" lane */
-    .asks { margin: 9px 0 0 17px; display: flex; flex-wrap: wrap; gap: 6px; align-items: stretch; }
+    /* Direct answers: the buttons of a complete card, and the reply bar of an open ticket. One look for both. */
+    .asks { margin: 9px 0 0 17px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
     .asks .ask {
-      display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 36px; min-width: 0; padding: 6px 12px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; min-width: 0; max-width: 100%; padding: 0 12px;
       border-radius: 8px; border: 1px solid var(--line-strong); background: var(--card); color: var(--text);
-      font-size: 13px; font-weight: 500; line-height: 1.25; text-align: left;
-      transition: background 0.12s ease, border-color 0.12s ease;
+      font-size: 13px; font-weight: 500; line-height: 1; white-space: nowrap;
+      transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
     }
-    .asks .ask:hover { background: var(--accent-soft); border-color: var(--accent); }
+    .asks .ask:hover { border-color: var(--accent); color: var(--accent); }
     .asks .ask:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .asks .ask[disabled] { opacity: 0.55; cursor: progress; }
-    .asks .ask.opt { flex: 1 1 100%; justify-content: flex-start; }
-    .asks .ask.opt b { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--chip); font-size: 12px; font-weight: 600; }
-    .asks .ask.opt span { min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
-    .asks .ask.quick { flex: 1 1 96px; }
-    .asks .ask.def { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .asks .ask.def b { background: rgba(255, 255, 255, 0.22); }
-    .asks .ask.def:hover { background: var(--accent); filter: brightness(1.08); }
-    .asks .ask em { flex: none; margin-left: auto; padding-left: 8px; font-style: normal; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; opacity: 0.9; }
-    .asks .ask.quick em { margin-left: 0; padding-left: 0; }
-    .asks .ask.soft { flex: 1 1 auto; border-color: transparent; background: var(--chip); color: var(--muted); font-weight: 400; justify-content: center; }
-    .asks .ask.soft:hover { color: var(--text); }
-    .asks .laterHint { flex: 1 1 100%; font-size: 12px; color: var(--muted); }
+    .asks .ask b { flex: none; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; background: var(--chip); color: var(--muted); font-size: 11.5px; font-weight: 600; }
+    .asks .ask span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .asks .ask.opt span { max-width: 15em; }
+    /* the option he would pick by default: a quiet accent border, the label underlined, never a filled block */
+    .asks .ask.def { border-color: var(--accent); }
+    .asks .ask.def b { background: var(--accent-soft); color: var(--accent); }
+    .asks .ask.def span, .asks .ask.def.quick u { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+    .asks .ask.soft { border-color: transparent; background: none; color: var(--muted); font-weight: 400; padding: 0 10px; }
+    .asks .ask.soft:hover { background: var(--chip); color: var(--text); border-color: transparent; }
+    .asks .asksAlt { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-left: auto; }
+    .asks.many .asksAlt { flex: 1 1 100%; margin-left: -10px; }
+    .asks .laterHint { font-size: 12px; color: var(--muted); margin-right: 2px; }
     .tag.unlocks { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
     .tag.snoozed { background: var(--chip); color: var(--muted); }
-    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .asks .ask.def { color: #0e0f11; } :root:not([data-theme="light"]) .asks .ask.def b { background: rgba(0, 0, 0, 0.16); } }
-    :root[data-theme="dark"] .asks .ask.def { color: #0e0f11; }
-    :root[data-theme="dark"] .asks .ask.def b { background: rgba(0, 0, 0, 0.16); }
-    @media (max-width: 900px), (pointer: coarse) { .asks { margin-left: 0; gap: 8px; } .asks .ask { min-height: 44px; font-size: 14px; } }
+    .tag.reply { background: none; color: var(--accent); font-weight: 500; padding-left: 2px; }
+    .tag.reply:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .note.askFb { -webkit-line-clamp: 1; font-size: 12px; color: var(--faint); margin-top: 3px; }
+    .note.askFb b { font-weight: 500; color: var(--muted); }
+    /* what we need from you, in the open ticket */
+    .askBox { margin: 2px 0 16px; padding: 12px 14px 12px; border: 1px solid var(--line-strong); border-left: 3px solid var(--accent); border-radius: 10px; background: var(--accent-soft); }
+    .askBox .askK { display: block; margin-bottom: 3px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); }
+    .askBox .askQ { font-size: 14.5px; font-weight: 550; line-height: 1.4; overflow-wrap: anywhere; }
+    .askBox ol { list-style: none; margin: 9px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+    .askBox li { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0 8px; font-size: 13px; line-height: 1.4; }
+    .askBox li > b { display: grid; place-items: center; width: 20px; height: 20px; margin-top: 1px; border-radius: 5px; background: var(--card); color: var(--muted); font-size: 11.5px; font-weight: 600; }
+    .askBox li.def > b { background: var(--accent); color: #fff; }
+    .askBox li span { overflow-wrap: anywhere; }
+    .askBox li em { display: block; font-style: normal; color: var(--muted); }
+    .askBox li i { font-style: normal; font-size: 11px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--accent); margin-left: 6px; }
+    .askBox .askFb { margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--line-strong); font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+    .askBox .askFb b { font-weight: 600; color: var(--text); }
+    .replyBar { flex: none; padding: 9px 18px calc(10px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--line-strong); background: var(--card); box-shadow: 0 -6px 18px rgba(16, 18, 27, 0.06); }
+    .replyBar .rbQ { margin: 0 0 7px; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .replyBar .asks { margin: 0; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .askBox li.def > b { color: #0e0f11; } }
+    :root[data-theme="dark"] .askBox li.def > b { color: #0e0f11; }
+    @media (max-width: 900px), (pointer: coarse) {
+      .asks { margin-left: 0; gap: 8px; }
+      .asks .ask, .asks.at-card .ask { height: 44px; font-size: 14px; }
+      .asks .ask.opt span { max-width: 11em; }
+      .replyBar { padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px)); }
+      .replyBar .asks.many .asksAlt, .replyBar .asksAlt { flex: 1 1 100%; margin-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .replyBar .asksAlt .ask.soft { border-color: var(--line-strong); }
+      .replyBar .asksAlt .laterHint { grid-column: 1 / -1; }
+    }
     @media (prefers-reduced-motion: reduce) { .asks .ask { transition: none; } }
     .card.blocked { background: repeating-linear-gradient(-45deg, var(--card), var(--card) 8px, color-mix(in srgb, var(--danger) 4%, var(--card)) 8px, color-mix(in srgb, var(--danger) 4%, var(--card)) 16px); }
     .card.flash, .row.flash { animation: flash 1.6s ease-out; }
@@ -1064,6 +1091,7 @@
       function tags(t, now, opts = {}) {
         const out = [];
         if (t.column === 'waiting' && t.unlocks > 0) out.push(`<span class="tag unlocks" title="Your answer unblocks ${t.unlocks} open ticket${t.unlocks === 1 ? '' : 's'} or job${t.unlocks === 1 ? '' : 's'}">unblocks ${t.unlocks}</span>`);
+        if (t.column === 'waiting' && t.gesture && !t.ask?.complete && !opts.noReply) out.push(`<button type="button" class="tag reply" data-open="${esc(t.key)}" aria-label="Reply to ${esc(t.key)}">Reply ›</button>`);
         if (t.snoozed_until) out.push(`<span class="tag snoozed" title="Comes back on ${esc(when(t.snoozed_until))}">⏸ until ${esc(new Date(t.snoozed_until).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span><button type="button" class="tag" data-ask="wake" data-key="${esc(t.key)}" aria-label="Bring ${esc(t.key)} back to your lane now">Back now</button>`);
         if (t.repo && !state.f.repo) out.push(`<button type="button" class="tag" data-filter="repo" data-value="${esc(t.repo)}" title="Filter on ${esc(t.repo)}">${esc(repoName(t.repo))}${t.branch && t.branch !== 'HEAD' && t.branch !== 'main' && t.branch !== 'master' ? ' · ' + esc(t.branch) : ''}</button>`);
         if (t.session_id && !state.f.session && !opts.noSession && t.kind !== 'session') out.push(`<button type="button" class="tag sess" data-filter="session" data-value="${esc(t.session_id)}" title="Session: ${esc(sessionName(t))}">${t.origin === 'cloud' ? '☁ ' : '› '}${esc(sessionName(t))}</button>`);
@@ -1091,41 +1119,91 @@
       const LATER = [[1, 'Tomorrow'], [7, 'In a week'], [30, 'In a month']];
       const askBusy = new Set();
       let askMenu = null; // the key whose "Later" choices are open
-      function asks(t) {
-        const a = t.ask;
+      /**
+       * The buttons a ticket takes (its `gesture`): `where` is 'card' (only when the block of the ticket is
+       * complete, see askComplete) or 'bar' (the reply bar of the open ticket, any ticket of the lane).
+       */
+      function asks(t, where = 'card') {
+        const a = t.gesture;
         if (!a || t.column !== 'waiting') return '';
+        if (where === 'card' && !t.ask?.complete) return '';
         const k = esc(t.key);
         const off = askBusy.has(t.key) ? ' disabled' : '';
         const out = [];
         if (a.type === 'choice') {
           for (const o of a.options) {
             const d = a.default === o.id;
-            out.push(`<button type="button" class="ask opt${d ? ' def' : ''}" data-ask="option" data-key="${k}" data-choice="${esc(o.id)}"${off} aria-label="Option ${esc(o.id)}: ${esc(o.text)}${d ? ' (default)' : ''}"><b aria-hidden="true">${esc(o.id)}</b><span>${esc(o.text)}</span>${d ? '<em aria-hidden="true">default</em>' : ''}</button>`);
+            out.push(`<button type="button" class="ask opt${d ? ' def' : ''}" data-ask="option" data-key="${k}" data-choice="${esc(o.id)}"${off} title="${esc(o.text)}" aria-label="Option ${esc(o.id)}: ${esc(o.text)}${d ? ' (default)' : ''}"><b aria-hidden="true">${esc(o.id)}</b><span>${esc(o.text)}</span></button>`);
           }
         } else if (a.type === 'yesno') {
           for (const [v, l] of [['yes', 'Yes'], ['no', 'No']]) {
             const d = a.default === v;
-            out.push(`<button type="button" class="ask quick${d ? ' def' : ''}" data-ask="${v}" data-key="${k}"${off} aria-label="${l}${d ? ' (default)' : ''}">${l}${d ? '<em aria-hidden="true">default</em>' : ''}</button>`);
+            out.push(`<button type="button" class="ask quick${d ? ' def' : ''}" data-ask="${v}" data-key="${k}"${off} aria-label="${l}${d ? ' (default)' : ''}"><u>${l}</u></button>`);
           }
         } else if (a.type === 'done') {
-          out.push(`<button type="button" class="ask quick def" data-ask="done" data-key="${k}"${off} aria-label="Mark ${k} done">Done</button>`);
+          out.push(`<button type="button" class="ask quick def" data-ask="done" data-key="${k}"${off} aria-label="Mark ${k} done"><u>Done</u></button>`);
+        } else if (where === 'bar') {
+          out.push(`<button type="button" class="ask quick" data-ask="comment" data-key="${k}">Reply in a comment</button>`);
         }
+        const alt = [];
         if (askMenu === t.key) {
-          out.push('<span class="laterHint" id="lh-' + k + '">Remind me…</span>');
-          for (const [d, l] of LATER) out.push(`<button type="button" class="ask quick" data-ask="later" data-days="${d}" data-key="${k}"${off}>${l}</button>`);
-          out.push(`<button type="button" class="ask soft" data-ask="laterCancel" data-key="${k}">Cancel</button>`);
+          alt.push('<span class="laterHint" id="lh-' + k + '">Remind me…</span>');
+          for (const [d, l] of LATER) alt.push(`<button type="button" class="ask soft" data-ask="later" data-days="${d}" data-key="${k}"${off}>${l}</button>`);
+          alt.push(`<button type="button" class="ask soft" data-ask="laterCancel" data-key="${k}">Cancel</button>`);
         } else {
-          out.push(`<button type="button" class="ask soft" data-ask="laterMenu" data-key="${k}"${off} aria-label="Later: put ${k} off">Later</button>`);
-          out.push(`<button type="button" class="ask soft" data-ask="decline" data-key="${k}"${off} aria-label="Not for me: hand ${k} back">Not for me</button>`);
+          alt.push(`<button type="button" class="ask soft" data-ask="laterMenu" data-key="${k}"${off} aria-label="Later: put ${k} off">Later</button>`);
+          alt.push(`<button type="button" class="ask soft" data-ask="decline" data-key="${k}"${off} aria-label="Not for me: hand ${k} back">Not for me</button>`);
         }
-        return `<div class="asks" role="group" aria-label="Answer ${k}">${out.join('')}</div>`;
+        out.push(`<span class="asksAlt">${alt.join('')}</span>`);
+        return `<div class="asks at-${where}${a.type === 'choice' && a.options.length > 2 ? ' many' : ''}" role="group" aria-label="Answer ${k}">${out.join('')}</div>`;
       }
-      const rerenderBoard = () => { if (lastBoard) renderBoard(lastBoard, lastBoard.now ?? Date.now()); };
+      /** The reply bar at the foot of an open ticket: one line of context, then the same buttons. */
+      function replyBar(t) {
+        const b = asks(t, 'bar');
+        if (!b) return '';
+        const q = t.ask?.question || plain(t.title);
+        return `<div class="replyBar" id="replyBar"><div class="rbQ" title="${esc(q)}">${esc(q)}</div>${b}</div>`;
+      }
+      /** What we need from you, highlighted above the details of an open ticket. */
+      function askBox(t) {
+        const a = t.ask;
+        if (!a || !isOpen(t)) return '';
+        const opts = (a.options || []).map((o) => `<li${a.defaut === o.id ? ' class="def"' : ''}><b aria-hidden="true">${esc(o.id)}</b><span>${esc(o.text)}${a.defaut === o.id ? '<i>default</i>' : ''}${o.consequence ? `<em>${esc(o.consequence)}</em>` : ''}</span></li>`).join('');
+        return `<section class="askBox" aria-label="What we need from you"><span class="askK">Needs your answer</span>${a.question ? `<div class="askQ">${esc(a.question)}</div>` : ''}${opts ? `<ol>${opts}</ol>` : ''}${a.sansReponse ? `<div class="askFb"><b>If no answer:</b> ${esc(a.sansReponse)}</div>` : ''}</section>`;
+      }
+      /** The description without the lines the "Needs your answer" box already shows. */
+      const ASK_LINE = /^\s*(?:[-*>•]\s+)?[*_]{0,2}\s*(?:ask|ce que j['’]attends de toi|options?|if no (?:answer|reply|response)|sans r[ée]ponse)\s*:/i;
+      function bodyRest(t) {
+        if (!t.ask || !isOpen(t) || !askBox(t)) return t.body || '';
+        const keep = [];
+        let afterOptions = false;
+        for (const l of String(t.body || '').split('\n')) {
+          const isOpt = /^\s*(?:\*\*)?[A-Ea-e](?:\*\*)?\s*[.)]\s+\S/.test(l);
+          if (ASK_LINE.test(l)) { afterOptions = /^\s*(?:[-*>•]\s+)?[*_]{0,2}\s*options?\s*:/i.test(l); continue; }
+          if (afterOptions && isOpt) continue;
+          afterOptions = false;
+          keep.push(l);
+        }
+        return keep.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+      }
+      const rerenderReply = () => {
+        const t = $('panel').__ticket;
+        const bar = $('panel').querySelector('.replyBar');
+        if (!t || !bar) return;
+        const keep = document.activeElement?.dataset?.ask;
+        const tpl = document.createElement('template');
+        tpl.innerHTML = replyBar(t);
+        if (tpl.content.firstElementChild) bar.replaceWith(tpl.content.firstElementChild);
+        return keep;
+      };
+      const rerenderBoard = () => { if (lastBoard) renderBoard(lastBoard, lastBoard.now ?? Date.now()); rerenderReply(); };
       async function askClick(el) {
         const key = el.dataset.key;
         const a = el.dataset.ask;
         if (!key || askBusy.has(key)) return;
-        const focusAfter = (sel) => document.querySelector(`#main [data-open="${CSS.escape(key)}"] ${sel}`)?.focus();
+        const inBar = Boolean(el.closest('.replyBar'));
+        const focusAfter = (sel) => document.querySelector(inBar ? `#replyBar ${sel}` : `#main [data-open="${CSS.escape(key)}"] ${sel}`)?.focus();
+        if (a === 'comment') { const c = $('comment'); c?.scrollIntoView({ block: 'center' }); return c?.focus(); }
         if (a === 'laterMenu' || a === 'laterCancel') {
           askMenu = a === 'laterMenu' ? key : null;
           rerenderBoard();
@@ -1175,7 +1253,10 @@
       }
 
       function card(t, now) {
-        const r = t.column === 'waiting' ? reason(t) : '';
+        const ask = t.column === 'waiting' ? t.ask : null;
+        // The lane shows the question the author asked; the start of the body only when there is none.
+        const askLine = ask?.question && t.status !== 'failed' ? `<span class="k">Ask</span>${esc(plain(ask.question))}` : '';
+        const r = askLine || (t.column === 'waiting' ? reason(t) : '');
         let note = '';
         if (!r && t.stale) note = 'No activity for a while';
         else if (!r && t.status === 'in_progress' && t.kind === 'session' && t.session?.activity === 'waiting') note = 'Waiting for you in the session';
@@ -1184,7 +1265,7 @@
         const drag = t.column === 'todo' ? ' draggable="true"' : '';
         return `<article class="card${t.stale || t.status === 'cancelled' ? ' dim' : ''}${t.blocked ? ' blocked' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" data-live="${live}" tabindex="0"${drag}>
           <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${prio(t.priority)}<span class="key">${esc(t.key)}</span>${doneBtn(t)}</div>
-          ${r ? `<div class="reason">${r}</div>` : ''}${note ? `<div class="note">${note}</div>` : ''}
+          ${r ? `<div class="reason">${r}</div>` : ''}${note ? `<div class="note">${note}</div>` : ''}${ask?.complete ? `<div class="note askFb"><b>No answer:</b> ${esc(plain(ask.sansReponse))}</div>` : ''}
           ${asks(t)}
           <div class="tags">${tags(t, now)}</div>
         </article>`;
@@ -1541,6 +1622,7 @@
           <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span>${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)">${CHECK}<span>Done</span><kbd>d</kbd></button>` : ''}<button type="button" class="x" data-act="close" aria-label="Close">×</button></div>
           <form class="pBody" id="tform" autocomplete="off">
             <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
+            ${askBox(t)}
             <div class="fields">
               <label>Status</label>${sel('status', t.status, Object.entries(STATUS))}
               <label>Assignee</label>${sel('assignee', t.assignee, assigneeOpts(t.assignee))}
@@ -1555,7 +1637,7 @@
             ${t.kind === 'feedback' && t.status !== 'done' && t.status !== 'cancelled' ? `<div class="resolve"><textarea id="resolution" placeholder="Resolution: what was done, or why not (kept in the history)"></textarea><div class="acts"><button type="button" class="btn" data-act="fbCancel">Won't do</button><button type="button" class="btn primary" data-act="fbDone">Mark handled</button></div></div>` : ''}
             <div class="formActs" id="saveBar" hidden><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="revert">Discard</button><button type="submit" class="btn primary" title="${esc(sendHint('save'))}">Save</button></div>
             <div class="sect">Description <button type="button" class="clear" data-act="editBody">Edit</button></div>
-            <div class="md${t.body ? '' : ' empty-body'}" id="bodyView">${t.body ? md(t.body) : 'No description.'}</div>
+            <div class="md${t.body ? '' : ' empty-body'}" id="bodyView">${t.body ? (bodyRest(t) ? md(bodyRest(t)) : '<span class="empty-body">Everything is in the box above.</span>') : 'No description.'}</div>
             <textarea name="body" id="bodyEdit" hidden>${esc(t.body || '')}</textarea>
             ${links ? `<div class="sect">Links</div><div class="links">${links}</div>` : ''}
             ${kids ? `<div class="sect">Sub-tickets</div><div class="kids">${kids}</div>` : ''}
@@ -1567,7 +1649,7 @@
             <div class="sect">History</div>
             <div class="timeline">${(t.events || []).map(eventLine).join('')}</div>
             <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" placeholder="Add a comment…" aria-label="Comment"></textarea><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts"><button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
-          </form>`;
+          </form>${replyBar(t)}`;
         $('panel').hidden = false;
         $('scrim').hidden = false;
         $('panel').dataset.key = t.key;
