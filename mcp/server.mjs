@@ -229,13 +229,16 @@ export function feedbackAssignee(env = process.env) {
   return id;
 }
 
-/** The actors listing of the server is capped (ACTORS_LISTED, most recent first): below it, absence is proof. */
-const ACTORS_LISTED = 300;
+/**
+ * A server without the `complete` flag on its actors listing (before 0.5.10) caps it somewhere we do
+ * not know: a listing is taken as complete only well below any plausible cap.
+ */
+const ACTORS_SURELY_COMPLETE = 100;
 /**
  * A feedback assignee set by SESSION_BOARD_FEEDBACK_ASSIGNEE must be an actor the board knows, or the
- * feedback would go to nobody. Checked when it is cheap and certain: exactly in local mode, from the
- * actors listing of a server when that listing is not capped. If the board cannot say (an older
- * server, a full listing), the feedback goes through.
+ * feedback would go to nobody. Checked when it is cheap and certain: exactly in local mode; from the
+ * actors listing of a server when it says it is complete (or, from an older server, when it is short).
+ * If the board cannot say, the feedback goes through.
  */
 async function assertFeedbackAssignee(backend, id) {
   if (id === 'user' || id === 'claude') return;
@@ -243,8 +246,13 @@ async function assertFeedbackAssignee(backend, id) {
   try {
     if (typeof backend.actorKnown === 'function') known = await backend.actorKnown(id);
     else if (typeof backend.actors === 'function') {
-      const list = (await backend.actors())?.actors;
-      if (Array.isArray(list) && (list.some((a) => a?.id === id) || list.length < ACTORS_LISTED)) known = list.some((a) => a?.id === id);
+      const r = await backend.actors();
+      const list = r?.actors;
+      if (Array.isArray(list)) {
+        const found = list.some((a) => a?.id === id);
+        const complete = typeof r.complete === 'boolean' ? r.complete : list.length < ACTORS_SURELY_COMPLETE;
+        if (found || complete) known = found;
+      }
     }
   } catch {
     return; // the board could not tell: do not lose the feedback over a check

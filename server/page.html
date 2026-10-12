@@ -1005,10 +1005,11 @@
           l = l.replace(/^\s*[-*+]\s+/, '· ');
           l = l.replace(/^\s*\d+\.\s+/, '');
           if (/^\s*\|?\s*:?-{3,}/.test(l) && /^[\s|:-]+$/.test(l)) continue; // table separator
-          // Links: [label](url) -> label
-          l = l.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1');
+          // Links: [label](url) -> label. Every pattern here is linear (no scan past the next marker or
+          // bracket): a card preview must not freeze the tab on a long hostile line.
+          l = l.replace(/\[([^\[\]]+)\]\([^()]*\)/g, '$1');
           // Paired markers only: snake_case and a lone * survive.
-          l = l.replace(/(\*\*|__|~~)(\S(?:.*?\S)?)\1/g, '$2');
+          l = l.replace(/\*\*([^\s*](?:[^*]*[^\s*])?)\*\*/g, '$1').replace(/__([^\s_](?:[^_]*[^\s_])?)__/g, '$1').replace(/~~([^\s~](?:[^~]*[^\s~])?)~~/g, '$1');
           l = l.replace(/(^|[\s(])[*_](\S(?:[^*_]*?\S)?)[*_](?=[\s).,!?;:]|$)/g, '$1$2');
           l = l.replace(/`/g, '');
           l = l.replace(/\s+/g, ' ').trim();
@@ -1811,8 +1812,11 @@
       function openReader(src) {
         reader = { ...src, raw: prefs.get(READER_KEY) === 'raw' };
         openHelp(renderReader, `Reading view: ${src.heading}`, 'reader');
-        // The text takes the focus, so that arrows, Page Down and Space scroll it at once.
-        $('help').querySelector('.readerBody')?.focus({ preventScroll: true });
+        // The text takes the focus, so that arrows, Page Down and Space scroll it at once; again on the
+        // next frame, in case anything (the click that opened it, openHelp) moved it meanwhile.
+        const focusText = () => $('help').querySelector('.readerBody')?.focus({ preventScroll: true });
+        focusText();
+        requestAnimationFrame(() => { if (reader && !$('help').querySelector('.readerBody')?.contains(document.activeElement)) focusText(); });
       }
       function renderReader() {
         const r = reader;

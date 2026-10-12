@@ -9,7 +9,8 @@ import { join } from 'node:path';
 import { MAX_BODY_CHARS, MAX_COMMENT_CHARS, MAX_TEXT_CHARS, groupDigits, parseFilters, sanitizeTicketInput, textTooLong } from '../lib/core.mjs';
 import { commentText, openStore } from '../lib/store.mjs';
 import { EventEmitter } from 'node:events';
-import { DRAIN_AFTER_LIMIT, MAX_TICKET_REQUEST, createApp, readRaw } from '../server/server.mjs';
+import { DRAIN_AFTER_LIMIT, MAX_TICKET_REQUEST, bodyStats, createApp, readRaw } from '../server/server.mjs';
+import { clean } from '../lib/triage.mjs';
 import { callTool, feedbackAssignee } from '../mcp/server.mjs';
 
 const TOKEN = 'y'.repeat(32);
@@ -244,8 +245,13 @@ test('request limits: past the limit, at most DRAIN_AFTER_LIMIT more bytes are r
     const slight = await fetch(`${base}/api/event`, { method: 'POST', headers: auth, body: 'x'.repeat(64 * 1024 + 100 * 1024) });
     assert.equal(slight.status, 413);
     assert.match((await slight.json()).error, /request too large/);
+    // Far over (4 MiB on a 64 KiB route): the server reads the limit plus the drain, then cuts.
+    bodyStats.read = 0;
     const far = await fetch(`${base}/api/event`, { method: 'POST', headers: auth, body: 'x'.repeat(4 * 1024 * 1024) }).then((r) => r.status, () => 'cut');
     assert.ok(far === 413 || far === 'cut', String(far));
+    await new Promise((r) => setTimeout(r, 50));
+    assert.ok(bodyStats.read <= 64 * 1024 + DRAIN_AFTER_LIMIT + 64 * 1024, `the server read ${bodyStats.read} bytes`);
+    assert.ok(bodyStats.read > 64 * 1024, 'it did read up to the limit');
     assert.equal((await fetch(`${base}/api/version`, { headers: auth })).status, 200);
   });
   store.close();
@@ -271,9 +277,15 @@ test('board_feedback: an assignee the board does not know is refused when the bo
   const remote = (list) => ({ actors: async () => (list instanceof Error ? Promise.reject(list) : { actors: list }), create: async (b) => (sent.push(b.assignee), { key: 'ALV-1' }) });
   await assert.rejects(callTool('board_feedback', { title: 'a' }, { backend: remote([{ id: 'user' }, { id: 'agent-a' }]), context, env }), /not an actor of this board/);
   await callTool('board_feedback', { title: 'a' }, { backend: remote([{ id: 'triage-bot' }]), context, env });
-  await callTool('board_feedback', { title: 'a' }, { backend: remote(Array.from({ length: 300 }, (_, i) => ({ id: `job-${i}` }))), context, env });
+  // A server older than 0.5.10 does not say whether its listing is complete: only a short one (< 100) is trusted.
+  await callTool('board_feedback', { title: 'a' }, { backend: remote(Array.from({ length: 100 }, (_, i) => ({ id: `job-${i}` }))), context, env });
   await callTool('board_feedback', { title: 'a' }, { backend: remote(new Error('HTTP 404')), context, env });
   assert.deepEqual(sent, ['triage-bot', 'triage-bot', 'triage-bot']);
+  // A 0.5.10 server says it: `complete` decides, whatever the length.
+  const flagged = (list, complete) => ({ actors: async () => ({ actors: list, complete }), create: async (b) => (sent.push(b.assignee), { key: 'ALV-2' }) });
+  await assert.rejects(callTool('board_feedback', { title: 'a' }, { backend: flagged(Array.from({ length: 250 }, (_, i) => ({ id: `job-${i}` })), true), context, env }), /not an actor of this board/);
+  await callTool('board_feedback', { title: 'a' }, { backend: flagged([{ id: 'user' }], false), context, env });
+  assert.equal(sent.length, 4);
 });
 
 test('page helpers match core: digit grouping, and the near-limit count derived from the limit', () => {
@@ -286,4 +298,63 @@ test('page helpers match core: digit grouping, and the near-limit count derived 
   // The reading view gives its text the focus explicitly (an autofocus attribute set by innerHTML does nothing).
   assert.match(page, /\$\('help'\)\.querySelector\('\.readerBody'\)\?\.focus\(\{ preventScroll: true \}\);/);
   assert.doesNotMatch(page, /class="readerBody"[^>]*autofocus/);
+});
+
+test('a server says whether its actors listing is complete', async () => {
+  const store = await openStore(':memory:');
+  await withServer(store, async (base) => {
+    const get = async () => (await fetch(`${base}/api/actors`, { headers: auth })).json();
+    const r = await get();
+    assert.equal(r.complete, true);
+    for (let i = 0; i < 305; i++) store.touchActor({ id: `job-${i}`, type: 'agent' });
+    const big = await get();
+    assert.equal(big.complete, false, 'the listing is capped: an absence proves nothing');
+  });
+  store.close();
+});
+
+test('request limits: authentication and CSRF are settled before any body is read', async () => {
+  const store = await openStore(':memory:');
+  await withServer(store, async (base) => {
+    const t = await (await fetch(`${base}/api/tickets`, { method: 'POST', headers: auth, body: JSON.stringify({ title: 'x' }) })).json();
+    const big = JSON.stringify({ text: 'z'.repeat(800 * 1024) });
+    // No credential: refused, nothing read by the app, and the connection is not kept to drain it.
+    bodyStats.read = 0;
+    const anon = await fetch(`${base}/api/tickets/${t.key}/comments`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: big }).then((r) => r.status, () => 'cut');
+    assert.ok(anon === 401 || anon === 'cut', String(anon));
+    const bad = await fetch(`${base}/api/tickets/${t.key}`, { method: 'POST', headers: { authorization: 'Bearer nope', 'content-type': 'application/json' }, body: big }).then((r) => r.status, () => 'cut');
+    assert.ok(bad === 401 || bad === 'cut', String(bad));
+    // A page session without its CSRF token: refused before reading too.
+    const sess = await fetch(`${base}/api/session`, { method: 'POST', headers: auth });
+    const cookie = sess.headers.get('set-cookie').split(';')[0];
+    const csrfLess = await fetch(`${base}/api/tickets/${t.key}/comments`, { method: 'POST', headers: { cookie, 'content-type': 'application/json' }, body: big }).then((r) => r.status, () => 'cut');
+    assert.ok(csrfLess === 403 || csrfLess === 'cut', String(csrfLess));
+    await new Promise((r) => setTimeout(r, 50));
+    assert.equal(bodyStats.read, 0, 'no route read a byte of these bodies');
+    // A small refused request still gets its answer.
+    const small = await fetch(`${base}/api/tickets/${t.key}/comments`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{"text":"hi"}' });
+    assert.equal(small.status, 401);
+  });
+  store.close();
+});
+
+test('markdown cleaning is linear: a hostile 50 000-character line is handled in under 50 ms', () => {
+  const page = readFileSync(join(import.meta.dirname, '..', 'server', 'page.html'), 'utf8');
+  const escLine = page.match(/^\s*const esc = .*$/m)[0];
+  const { plain } = new Function(`${escLine}\nconst actors = new Map(); const actorName = (i) => i;\n${page.slice(page.indexOf('// ---- markdown'), page.indexOf('/** One line that says what a ticket needs from you. */'))}\nreturn { plain };`)();
+  for (const unit of ['_ ', '_a ', '* ', '*a ', '** ', '**a ', '__a ', '~~a ', '[', '[a](', '*a_ ']) {
+    const line = unit.repeat(Math.ceil(50000 / unit.length)).slice(0, 50000);
+    for (const [name, fn] of [['triage clean', clean], ['page plain', plain]]) {
+      fn(line); // warm up
+      const t0 = performance.now();
+      fn(line);
+      const ms = performance.now() - t0;
+      assert.ok(ms < 50, `${name} on ${JSON.stringify(unit)} x ${line.length}: ${ms.toFixed(1)} ms`);
+    }
+  }
+  // What already worked still works.
+  assert.equal(clean('drop the *cache_v2* table'), 'drop the cache_v2 table');
+  assert.equal(clean('set REFRESH_LOCK_TTL to 5'), 'set REFRESH_LOCK_TTL to 5');
+  assert.equal(clean('_italique_ et __gras__ et **bold** et [lien](https://x.test)'), 'italique et gras et bold et lien');
+  assert.equal(clean('2 * 3 and a_b'), '2 * 3 and a_b');
 });

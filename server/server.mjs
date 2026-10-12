@@ -152,6 +152,19 @@ function readBody(req, max = MAX_BODY) {
   return readRaw(req, max).then((b) => b.toString('utf8'));
 }
 
+/** Bytes of request bodies this process has read (tests prove with it that a refusal reads little or nothing). */
+export const bodyStats = { read: 0 };
+
+/**
+ * A request refused before its body is read (no credential, bad CSRF, too many failures) closes the
+ * connection after the answer: otherwise Node would read and discard the whole unread body to keep the
+ * connection alive, up to the 814 KiB of a ticket route for a sender nobody knows.
+ */
+function refuseUnread(req, res, status, body) {
+  if (Number(req.headers['content-length']) > 0 || req.headers['transfer-encoding']) res.setHeader('connection', 'close');
+  return send(res, status, body);
+}
+
 export function readRaw(req, max = MAX_BODY) {
   return new Promise((resolve, reject) => {
     let size = 0;
@@ -159,6 +172,7 @@ export function readRaw(req, max = MAX_BODY) {
     const chunks = [];
     req.on('data', (c) => {
       size += c.length;
+      bodyStats.read += c.length;
       if (over) {
         // Read and drop the rest, so that the client gets the 413 and its message instead of a reset
         // connection (until 0.5.9 the socket was destroyed at once and the answer never arrived); a
@@ -529,15 +543,16 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
       if (extraRoutes?.public && (await extraRoutes.public(req, res, url, ctx))) return;
       const key = clientKey(req, trustProxy);
       const auth = resolveAuth(req);
+      // Authentication (and CSRF below) is settled before any route reads a body.
       if (!auth) {
         const over = limiter.hit(key);
-        return send(res, over ? 429 : 401, { error: over ? 'too many failed attempts, wait a few minutes' : 'unauthorized' });
+        return refuseUnread(req, res, over ? 429 : 401, { error: over ? 'too many failed attempts, wait a few minutes' : 'unauthorized' });
       }
       // The cookie rides along with any request the browser makes: a change needs the CSRF token
       // too, and a cross-site request is refused outright. Bearer requests are not exposed.
       if (auth.via === 'cookie' && m !== 'GET' && m !== 'HEAD') {
         const site = req.headers['sec-fetch-site'];
-        if ((site && site !== 'same-origin') || !accounts.csrfOk(auth.csrf, req.headers['x-csrf-token'])) return send(res, 403, { error: 'missing or bad CSRF token' });
+        if ((site && site !== 'same-origin') || !accounts.csrfOk(auth.csrf, req.headers['x-csrf-token'])) return refuseUnread(req, res, 403, { error: 'missing or bad CSRF token' });
       }
       const actorOf = (r, s) => actorOfAuth(r, s, auth, accounts);
       const mustWrite = () => (can(auth, 'write') ? false : (forbidden(res, 'change the board', auth), true));
@@ -581,7 +596,12 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
         return send(res, 200, store.nextTickets(f));
       }
       if (path === '/api/tickets' && m === 'POST') return mustWrite() || send(res, 201, store.createTicket(await jsonBody(req, MAX_TICKET_REQUEST), { actor: actorOf(req, store) }));
-      if (path === '/api/actors' && m === 'GET') return send(res, 200, { actors: store.listActors() });
+      if (path === '/api/actors' && m === 'GET') {
+        // `complete`: the listing holds every actor of the board (it is capped on a busy one), so a
+        // client may take an absence as proof (board_feedback checks its configured assignee with it).
+        const actors = store.listActors();
+        return send(res, 200, { actors, complete: actors.length >= store.countActors() });
+      }
       const avm = path.match(/^\/api\/actors\/(.{1,200})\/avatar$/);
       if (avm) {
         let id;
