@@ -106,6 +106,37 @@ test('ask block: complete means a question, a way to answer and a fallback; the 
   assert.equal(askView(T({ source: 'hook', kind: 'permission', body: BLOCK })).gesture, null);
 });
 
+test('ask block: a hostile 100 KB body is read in well under 50 ms, whatever its shape; one parse per body', () => {
+  const K = 100 * 1024;
+  const hostile = {
+    spaces: ' '.repeat(K),
+    longLines: (' '.repeat(3990) + 'x\n').repeat(25),
+    brackets: 'Ask: ' + '['.repeat(K),
+    manyBrackets: ('Ask: ' + '['.repeat(3900) + '\n').repeat(25),
+    askLines: 'Ask:\n'.repeat(K / 5),
+    optionLines: 'Options:\nA) x\n'.repeat(K / 15),
+    semicolons: 'Options: ' + 'A) x ; '.repeat(K / 7),
+    semicolonsAndBlanks: 'Options: A) x ;' + ' '.repeat(K) + ';',
+    fences: '```\n'.repeat(K / 4),
+    openFence: 'a ```' + 'b'.repeat(K),
+    dashes: 'Ask: ' + ' - '.repeat(K / 3),
+    defaults: 'Options: A) a ; B) b ' + '(default: '.repeat(K / 10),
+    stars: '**'.repeat(K / 2) + 'Ask: x',
+    sentences: 'by default. '.repeat(K / 12),
+    tabsAndLabels: ('\t' + ' '.repeat(3000) + 'ask' + ' '.repeat(3000) + '\n').repeat(15),
+  };
+  for (const [name, body] of Object.entries(hostile)) {
+    for (const kind of ['decision', 'action']) {
+      const t0 = performance.now();
+      askView(T({ kind, body: `${body}` }));
+      const ms = performance.now() - t0;
+      assert.ok(ms < 50, `${name} / ${kind}: ${ms.toFixed(1)} ms`);
+    }
+  }
+  // the same body is parsed once: the second read is the very same object
+  assert.equal(parseAskBlock(BLOCK), parseAskBlock(BLOCK));
+});
+
 test('ask: a choice with its default, from a marker, a letter, a number or the text', () => {
   const body = (extra) => `A) Keep SQLite\nB) Move to Postgres\n${extra}`;
   assert.equal(askOf(T({ body: body('') })).default, null);
@@ -382,10 +413,21 @@ test('page: the buttons render with a default marked, labelled, and the CSP is u
   assert.match(box, /If no answer:<\/b> I keep SQLite on Friday\./);
   assert.match(box, /Keep &lt;SQLite&gt;/);
   assert.equal(askBox({ ...t, ask: null }), '');
-  // the box replaces the three lines in the description; the rest of the body stays, and Edit keeps the raw text
+  // the box replaces exactly the lines it shows, nothing else of the body
   const raw = 'Context.\n\nAsk: Which?\nOptions:\nA) a — x\nB) b — y\nIf no answer: A.\n\nMore context.';
-  assert.equal(bodyRest({ ...t, body: raw }), 'Context.\n\nMore context.');
-  assert.equal(bodyRest({ ...t, ask: null, body: raw }), raw, 'no block read: the body is shown as written');
+  const view = (body, extra = {}) => ({ ...t, body, ...askView(T({ body })), ...extra });
+  assert.equal(bodyRest(view(raw)), 'Context.\n\nMore context.');
+  assert.equal(bodyRest({ ...t, ask: null, ask_lines: [], body: raw }), raw, 'no block read: the body is shown as written');
+  // partial blocks: only what the box shows leaves the description
+  const prose = 'Ask: Which?\nOptions: use X or Y, whichever is cheaper\nIf no answer: X';
+  assert.equal(bodyRest(view(prose)), 'Options: use X or Y, whichever is cheaper', 'prose options are not shown, so they stay');
+  const gap = 'Ask: Which?\nOptions: A) a ; C) c\nIf no answer: A';
+  assert.equal(bodyRest(view(gap)), 'Options: A) a ; C) c', 'letters out of order: not a list, not shown, kept');
+  const fenced = '```\nAsk: in code\nIf no answer: in code\n```\nAsk: the real one\nIf no answer: tomorrow';
+  assert.equal(bodyRest(view(fenced)), '```\nAsk: in code\nIf no answer: in code\n```', 'a code fence keeps its lines, the real block goes');
+  assert.equal(bodyRest(view('Ask: ' + 'x'.repeat(500) + '\nIf no answer: A')), 'Ask: ' + 'x'.repeat(500), 'a question cut to 300 characters is not fully shown, so it stays');
+  assert.equal(bodyRest(view('Ask: q\nOptions: A) a ; B) b (default: E)\nIf no answer: A')), 'Options: A) a ; B) b (default: E)', 'a default that is no option is dropped from the box, so the line stays');
+  assert.equal(bodyRest(view('Ask: q\nIf no answer: A\nAsk: a second ask stays\nOptions: just text')), 'Ask: a second ask stays\nOptions: just text');
 });
 
 test('page: no external dependency, no inline handler, same CSP', () => {

@@ -172,6 +172,16 @@ action to mark done, which the ticket kind tells) and a fallback. The buttons th
 described by `gesture` (the old `ask` field of 0.5.8: `{ type: choice | yesno | done | none, options,
 default }`); the block's options win over the ones inferred from the body.
 
+**Migrating from 0.5.8.** The `ask` field of a lane card in 0.5.8 (`{ type, options: [{ id, text }], default }`,
+the description of the buttons) is now called **`gesture`**, with the same shape; `ask` is the block above
+(or `null`). Nothing in this repository read the old field (the MCP server, the CLI, the hooks and the
+statusline do not use it; only the page did, and it follows). A client of yours that read
+`card.ask.type` or `card.ask.default` must read `card.gesture.type` / `card.gesture.default`; on a card
+without a block `ask` is `null`, so the old code fails visibly rather than silently. `ask_lines` lists the
+0-based body lines the block shows in full (the page hides exactly those from the description; a line the box
+does not show, such as prose after `Options:`, stays). The parser reads a body of 200 KB at most, 3000 lines,
+a line of 4000 characters at most, once per distinct body.
+
 - **Open ticket**: the block is shown highlighted above the details (question, each option with its
   consequence, the default marked, what happens without an answer), and a **reply bar** is fixed at
   the bottom of the panel (and at the bottom of the screen on a phone): one button per option, or

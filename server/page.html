@@ -1143,7 +1143,7 @@
         } else if (a.type === 'done') {
           out.push(`<button type="button" class="ask quick def" data-ask="done" data-key="${k}"${off} aria-label="Mark ${k} done"><u>Done</u></button>`);
         } else if (where === 'bar') {
-          out.push(`<button type="button" class="ask quick" data-ask="comment" data-key="${k}">Reply in a comment</button>`);
+          out.push(`<button type="button" class="ask quick" data-ask="comment" data-key="${k}"${off}>Reply in a comment</button>`);
         }
         const alt = [];
         if (askMenu === t.key) {
@@ -1171,20 +1171,11 @@
         const opts = (a.options || []).map((o) => `<li${a.defaut === o.id ? ' class="def"' : ''}><b aria-hidden="true">${esc(o.id)}</b><span>${esc(o.text)}${a.defaut === o.id ? '<i>default</i>' : ''}${o.consequence ? `<em>${esc(o.consequence)}</em>` : ''}</span></li>`).join('');
         return `<section class="askBox" aria-label="What we need from you"><span class="askK">Needs your answer</span>${a.question ? `<div class="askQ">${esc(a.question)}</div>` : ''}${opts ? `<ol>${opts}</ol>` : ''}${a.sansReponse ? `<div class="askFb"><b>If no answer:</b> ${esc(a.sansReponse)}</div>` : ''}</section>`;
       }
-      /** The description without the lines the "Needs your answer" box already shows. */
-      const ASK_LINE = /^\s*(?:[-*>•]\s+)?[*_]{0,2}\s*(?:ask|ce que j['’]attends de toi|options?|if no (?:answer|reply|response)|sans r[ée]ponse)\s*:/i;
+      /** The description without the lines the "Needs your answer" box shows in full (`ask_lines`, from the parser): exactly those. */
       function bodyRest(t) {
-        if (!t.ask || !isOpen(t) || !askBox(t)) return t.body || '';
-        const keep = [];
-        let afterOptions = false;
-        for (const l of String(t.body || '').split('\n')) {
-          const isOpt = /^\s*(?:\*\*)?[A-Ea-e](?:\*\*)?\s*[.)]\s+\S/.test(l);
-          if (ASK_LINE.test(l)) { afterOptions = /^\s*(?:[-*>•]\s+)?[*_]{0,2}\s*options?\s*:/i.test(l); continue; }
-          if (afterOptions && isOpt) continue;
-          afterOptions = false;
-          keep.push(l);
-        }
-        return keep.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+        const gone = new Set(askBox(t) ? t.ask_lines || [] : []);
+        if (!gone.size) return t.body || '';
+        return String(t.body || '').split('\n').filter((_, i) => !gone.has(i)).join('\n').replace(/\n{3,}/g, '\n\n').trim();
       }
       const rerenderReply = () => {
         const t = $('panel').__ticket;
