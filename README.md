@@ -169,9 +169,11 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
   `ticket_create`, `ticket_update`, `board_feedback`, checked before anything is sent) and the page,
   where a counter appears near the limit and the *Comment* button waits past it. An update that
   carries a comment that is too long changes nothing at all. The ticket routes accept requests up to
-  439 KiB (a body and a comment of 64 000 three-byte characters); every other route keeps 64 KiB, and
-  a request above its limit now gets its `413` answer instead of a reset connection. Titles stay one
-  line of 200 characters, shortened visibly with `…` as before.
+  814 KiB, enough for a body and a comment of 64 000 characters even when JSON spends 6 bytes on each
+  (control characters), so the limit is always the one in characters, with its message; every other
+  route keeps 64 KiB. A request over its byte limit now gets its `413` answer instead of a reset
+  connection, as long as it is less than 256 KiB over (further than that, the connection is cut).
+  Titles stay one line of 200 characters, shortened visibly with `…` as before.
 
 ![The ticket expanded](docs/screenshots/ticket-expanded-desktop-light.png)
 

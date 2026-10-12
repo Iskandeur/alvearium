@@ -6,9 +6,10 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MAX_BODY_CHARS, MAX_COMMENT_CHARS, MAX_TEXT_CHARS, groupDigits, sanitizeTicketInput, textTooLong } from '../lib/core.mjs';
+import { MAX_BODY_CHARS, MAX_COMMENT_CHARS, MAX_TEXT_CHARS, groupDigits, parseFilters, sanitizeTicketInput, textTooLong } from '../lib/core.mjs';
 import { commentText, openStore } from '../lib/store.mjs';
-import { MAX_TICKET_REQUEST, createApp } from '../server/server.mjs';
+import { EventEmitter } from 'node:events';
+import { DRAIN_AFTER_LIMIT, MAX_TICKET_REQUEST, createApp, readRaw } from '../server/server.mjs';
 import { callTool, feedbackAssignee } from '../mcp/server.mjs';
 
 const TOKEN = 'y'.repeat(32);
@@ -105,7 +106,7 @@ test('long text: an import never cuts in silence (a cut, if ever needed, says so
 
 test('long text over HTTP: 64 000 accented characters go through, one more is a 413 with the message', async () => {
   // 64 000 "é" are 128 000 bytes of UTF-8: above the old 64 KiB request limit, which answered a bare "too large".
-  assert.ok(MAX_TICKET_REQUEST >= 2 * MAX_TEXT_CHARS * 3, 'a body and a comment of 3-byte characters fit in one update');
+  assert.ok(MAX_TICKET_REQUEST >= 2 * MAX_TEXT_CHARS * 6, 'a body and a comment fit in one update even at 6 JSON bytes a character');
   const store = await openStore(':memory:');
   await withServer(store, async (base) => {
     const post = (path, body) => fetch(base + path, { method: 'POST', headers: auth, body: JSON.stringify(body) });
@@ -161,15 +162,15 @@ async function toolsList() {
 test('board_feedback: assignee from SESSION_BOARD_FEEDBACK_ASSIGNEE, else the board owner (user); a bad value fails loudly', async () => {
   assert.equal(feedbackAssignee({}), 'user');
   assert.equal(feedbackAssignee({ SESSION_BOARD_FEEDBACK_ASSIGNEE: '  ' }), 'user');
-  assert.equal(feedbackAssignee({ SESSION_BOARD_FEEDBACK_ASSIGNEE: 'lupi' }), 'lupi');
-  assert.equal(feedbackAssignee({ SESSION_BOARD_FEEDBACK_ASSIGNEE: 'ops/triage' }), 'ops/triage');
+  assert.equal(feedbackAssignee({ SESSION_BOARD_FEEDBACK_ASSIGNEE: 'agent-a' }), 'agent-a');
+  assert.equal(feedbackAssignee({ SESSION_BOARD_FEEDBACK_ASSIGNEE: 'triage-bot' }), 'triage-bot');
   assert.throws(() => feedbackAssignee({ SESSION_BOARD_FEEDBACK_ASSIGNEE: 'not an id!' }), /SESSION_BOARD_FEEDBACK_ASSIGNEE="not an id!" is not an actor id.*Nothing was saved/);
   const sent = [];
   const backend = { create: async (body) => (sent.push(body), { key: 'ALV-9', title: body.title }) };
   const context = { actor: 'claude', machine: 'm', origin: 'terminal' };
   await callTool('board_feedback', { title: 'a', detail: 'b', type: 'bug' }, { backend, context, env: {} });
-  await callTool('board_feedback', { title: 'a', detail: 'b', type: 'bug' }, { backend, context, env: { SESSION_BOARD_FEEDBACK_ASSIGNEE: 'lupi' } });
-  assert.deepEqual(sent.map((b) => [b.kind, b.assignee]), [['feedback', 'user'], ['feedback', 'lupi']]);
+  await callTool('board_feedback', { title: 'a', detail: 'b', type: 'bug' }, { backend, context, env: { SESSION_BOARD_FEEDBACK_ASSIGNEE: 'agent-a' } });
+  assert.deepEqual(sent.map((b) => [b.kind, b.assignee]), [['feedback', 'user'], ['feedback', 'agent-a']]);
   await assert.rejects(callTool('board_feedback', { title: 'a' }, { backend, context, env: { SESSION_BOARD_FEEDBACK_ASSIGNEE: 'x y' } }), /not an actor id/);
   assert.equal(sent.length, 2);
 });
@@ -185,4 +186,104 @@ test('long text in the page: the same limit as the server, and the UI never cuts
     assert.match(tag, /data-limit="(comment|body)"/, id);
   }
   assert.match(page, /<textarea name="body" data-limit="body" placeholder="Details \(markdown\)">/);
+});
+
+test('request limits: the byte bound never answers before the character limit, even for JSON-heavy text', async () => {
+  // \n, " and \ take 2 bytes in JSON, a control character 6 (\u0001): 64 000 of them are legal.
+  const heavy = ('line\n"quoted" back\\slash \u0001').repeat(Math.ceil(MAX_TEXT_CHARS / 30)).slice(0, MAX_TEXT_CHARS);
+  const controls = '\u0001'.repeat(MAX_TEXT_CHARS);
+  assert.ok(Buffer.byteLength(JSON.stringify({ body: controls, comment: controls })) <= MAX_TICKET_REQUEST);
+  const store = await openStore(':memory:');
+  await withServer(store, async (base) => {
+    const post = (path, body) => fetch(base + path, { method: 'POST', headers: auth, body: JSON.stringify(body) });
+    const t = await (await post('/api/tickets', { title: 'Escapes' })).json();
+    assert.equal((await post(`/api/tickets/${t.key}/comments`, { text: heavy })).status, 201);
+    // Body and comment of 64 000 control characters in one update: about 768 KB of JSON, legal.
+    const upd = await post(`/api/tickets/${t.key}`, { body: controls, comment: `x${controls.slice(1)}` });
+    assert.equal(upd.status, 200, await upd.clone().text().then((x) => x.slice(0, 200)));
+    const got = await (await fetch(`${base}/api/tickets/${t.key}`, { headers: auth })).json();
+    assert.equal(got.body, controls);
+    assert.deepEqual(got.events.filter((e) => e.type === 'comment').map((e) => e.text.length), [heavy.trim().length, MAX_TEXT_CHARS]);
+    // One character more is refused by the character limit, with its message, not by the byte bound.
+    const over = await post(`/api/tickets/${t.key}/comments`, { text: `x${'\u0001'.repeat(MAX_TEXT_CHARS)}` });
+    assert.equal(over.status, 413);
+    assert.match((await over.json()).error, /^comment too long: 64 001 characters/);
+  });
+  store.close();
+});
+
+test('request limits: past the limit, at most DRAIN_AFTER_LIMIT more bytes are read, then the connection is cut', async () => {
+  assert.equal(DRAIN_AFTER_LIMIT, 256 * 1024);
+  const fake = () => Object.assign(new EventEmitter(), { destroyed: false, destroy() { this.destroyed = true; } });
+  const feed = (req, total, chunk = 16 * 1024) => {
+    let sent = 0;
+    while (sent < total && !req.destroyed) {
+      req.emit('data', Buffer.alloc(Math.min(chunk, total - sent)));
+      sent += chunk;
+    }
+    if (!req.destroyed) req.emit('end');
+    return Math.min(sent, total);
+  };
+  // A large import (4 MiB limit) sent 12 MiB over: reading stops 256 KiB past the limit, not 16 MiB.
+  const max = 4 * 1024 * 1024;
+  const big = fake();
+  const p = readRaw(big, max);
+  const read = feed(big, max + 12 * 1024 * 1024);
+  await assert.rejects(p, (e) => e.status === 413);
+  assert.equal(big.destroyed, true);
+  assert.ok(read <= max + DRAIN_AFTER_LIMIT + 16 * 1024, `read ${read} bytes`);
+  // Slightly over: the rest is drained, the connection stays usable for the 413.
+  const small = fake();
+  const q = readRaw(small, 64 * 1024);
+  feed(small, 100 * 1024);
+  await assert.rejects(q, (e) => e.status === 413);
+  assert.equal(small.destroyed, false);
+  // Over HTTP: slightly over gets its 413 and message; far over is cut, and the server keeps serving.
+  const store = await openStore(':memory:');
+  await withServer(store, async (base) => {
+    const slight = await fetch(`${base}/api/event`, { method: 'POST', headers: auth, body: 'x'.repeat(64 * 1024 + 100 * 1024) });
+    assert.equal(slight.status, 413);
+    assert.match((await slight.json()).error, /request too large/);
+    const far = await fetch(`${base}/api/event`, { method: 'POST', headers: auth, body: 'x'.repeat(4 * 1024 * 1024) }).then((r) => r.status, () => 'cut');
+    assert.ok(far === 413 || far === 'cut', String(far));
+    assert.equal((await fetch(`${base}/api/version`, { headers: auth })).status, 200);
+  });
+  store.close();
+});
+
+test('board_feedback: an assignee the board does not know is refused when the board can tell, never sent into the void', async () => {
+  const { LocalBackend } = await import('../lib/runtime.mjs');
+  const context = { actor: 'claude', machine: 'm', origin: 'terminal' };
+  const env = { SESSION_BOARD_FEEDBACK_ASSIGNEE: 'triage-bot' };
+  // Local mode: exact.
+  const store = await openStore(':memory:');
+  const local = new LocalBackend(store);
+  await assert.rejects(callTool('board_feedback', { title: 'a', detail: 'b' }, { backend: local, context, env }), /SESSION_BOARD_FEEDBACK_ASSIGNEE="triage-bot" is not an actor of this board.*Nothing was saved/);
+  assert.equal(store.listTickets(parseFilters({ kind: 'feedback' })).tickets.length, 0);
+  store.touchActor({ id: 'triage-bot', type: 'agent' });
+  assert.match(await callTool('board_feedback', { title: 'a', detail: 'b' }, { backend: local, context, env }), /Feedback recorded/);
+  assert.equal(store.listTickets(parseFilters({ kind: 'feedback' })).tickets[0].assignee, 'triage-bot');
+  // The default needs no check, even on an empty board.
+  assert.match(await callTool('board_feedback', { title: 'c' }, { backend: local, context, env: {} }), /Feedback recorded/);
+  store.close();
+  // A server: its actors listing decides when it is not capped (300); otherwise, or on error, the feedback goes through.
+  const sent = [];
+  const remote = (list) => ({ actors: async () => (list instanceof Error ? Promise.reject(list) : { actors: list }), create: async (b) => (sent.push(b.assignee), { key: 'ALV-1' }) });
+  await assert.rejects(callTool('board_feedback', { title: 'a' }, { backend: remote([{ id: 'user' }, { id: 'agent-a' }]), context, env }), /not an actor of this board/);
+  await callTool('board_feedback', { title: 'a' }, { backend: remote([{ id: 'triage-bot' }]), context, env });
+  await callTool('board_feedback', { title: 'a' }, { backend: remote(Array.from({ length: 300 }, (_, i) => ({ id: `job-${i}` }))), context, env });
+  await callTool('board_feedback', { title: 'a' }, { backend: remote(new Error('HTTP 404')), context, env });
+  assert.deepEqual(sent, ['triage-bot', 'triage-bot', 'triage-bot']);
+});
+
+test('page helpers match core: digit grouping, and the near-limit count derived from the limit', () => {
+  const page = readFileSync(join(import.meta.dirname, '..', 'server', 'page.html'), 'utf8');
+  const line = page.match(/const groupDigits = \(n\) => .*;$/m)?.[0];
+  assert.ok(line, 'groupDigits is in the page');
+  const pageGroup = new Function(`${line}; return groupDigits;`)();
+  for (const n of [0, 7, 999, 1000, 56000, 64000, 64001, 1234567]) assert.equal(pageGroup(n).replace(/ /g, ' '), groupDigits(n), String(n));
+  assert.match(page, /const NEAR_TEXT = MAX_TEXT - 8000;/);
+  // The reading view gives its text the focus explicitly (an autofocus attribute set by innerHTML does nothing).
+  assert.match(page, /\$\('help'\)\.querySelector\('\.readerBody'\)\?\.focus\(\{ preventScroll: true \}\);/);
+  assert.doesNotMatch(page, /class="readerBody"[^>]*autofocus/);
 });

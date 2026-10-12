@@ -51,11 +51,17 @@ import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MAX_BODY = 64 * 1024;
-// Creating or updating a ticket may carry a body and a comment of MAX_TEXT_CHARS each. At up to 3
-// bytes a character in UTF-8 (accents, CJK) plus JSON and the other fields, this is what lets them in,
-// so that the length check of the store (a clear 413 "comment too long: …") answers instead of the
-// byte limit of the request. Only the ticket write routes take it; every other route keeps MAX_BODY.
-export const MAX_TICKET_REQUEST = 2 * MAX_TEXT_CHARS * 3 + MAX_BODY;
+// Creating or updating a ticket may carry a body and a comment of MAX_TEXT_CHARS each. The real limit
+// is in characters, checked by the store after parsing with a clear 413 ("comment too long: …"); this
+// byte bound only has to let every legal text through. Worst case, JSON spends 6 bytes on one
+// character (a control character is written \u00XX; a lone surrogate too), so: body + comment at 6
+// bytes each, plus MAX_BODY for the other fields. Only the ticket write routes take it; every other
+// route keeps MAX_BODY.
+export const MAX_TICKET_REQUEST = 2 * MAX_TEXT_CHARS * 6 + MAX_BODY;
+// Past its limit a request is still read, and dropped, for this many bytes, so that a sender slightly
+// over gets the 413 and its message; beyond that the connection is cut. Fixed and small for every
+// route (an import's 4 MiB limit must not mean reading 16 MiB more).
+export const DRAIN_AFTER_LIMIT = 256 * 1024;
 const MAX_IMPORT_BODY = 4 * 1024 * 1024;
 
 export function readToken(env = process.env) {
@@ -77,7 +83,7 @@ const RESERVED_AGENT_ACTORS = ['user', 'hook'];
 /**
  * Agent tokens, for agents and bots that run sessions unattended (a daemon, CI). One per line:
  * `<actor> <token>`; blank lines and `#` comments are skipped. The actor is the agent's root id:
- * what it writes is attributed to it, or to one of its sub-actors (`lupi` → `lupi/job-42`), never
+ * what it writes is attributed to it, or to one of its sub-actors (`agent-a` → `agent-a/job-42`), never
  * to `user`. Throws on a line it cannot read: a typo must not leave an agent with the main token.
  */
 export function parseAgentTokens(text) {
@@ -120,7 +126,7 @@ export function authOf(header, { token, agents = [] }) {
   return bearerOk(header, token) ? { kind: 'user' } : null;
 }
 
-/** An actor id an agent may use: its root, or a sub-actor under it (`lupi/job-42`); else the root. */
+/** An actor id an agent may use: its root, or a sub-actor under it (`agent-a/job-42`); else the root. */
 export function scopeActor(requested, root) {
   const id = normalizeActorId(requested);
   return id && (id === root || id.startsWith(root + '/')) ? id : root;
@@ -146,7 +152,7 @@ function readBody(req, max = MAX_BODY) {
   return readRaw(req, max).then((b) => b.toString('utf8'));
 }
 
-function readRaw(req, max = MAX_BODY) {
+export function readRaw(req, max = MAX_BODY) {
   return new Promise((resolve, reject) => {
     let size = 0;
     let over = false;
@@ -155,9 +161,12 @@ function readRaw(req, max = MAX_BODY) {
       size += c.length;
       if (over) {
         // Read and drop the rest, so that the client gets the 413 and its message instead of a reset
-        // connection (until 0.5.9 the socket was destroyed and the answer never arrived); a sender
-        // that keeps going far past the limit is cut off.
-        if (size > max * 4) req.destroy();
+        // connection (until 0.5.9 the socket was destroyed at once and the answer never arrived); a
+        // sender that keeps going more than DRAIN_AFTER_LIMIT past the limit is cut off.
+        if (size > max + DRAIN_AFTER_LIMIT) {
+          req.removeAllListeners('data');
+          req.destroy();
+        }
         return;
       }
       if (size > max) {

@@ -94,7 +94,7 @@ const TOOLS = [
       type: 'object',
       properties: {
         title: { type: 'string', description: 'One line, e.g. "ticket_list ignores the label filter"' },
-        detail: { type: 'string', description: 'What happened, what you expected, how to reproduce, what it cost' },
+        detail: { type: 'string', description: `What happened, what you expected, how to reproduce, what it cost. The context lines added below it count too: detail and context together hold ${LIMIT}` },
         type: { type: 'string', enum: FEEDBACK_TYPES, description: 'bug: broken; suggestion: an improvement; friction: works but wastes time. Default: suggestion' },
         about: { type: 'string', description: 'What it is about: a tool name, a command, a doc, "board"…' },
         priority: PRIORITY,
@@ -229,6 +229,31 @@ export function feedbackAssignee(env = process.env) {
   return id;
 }
 
+/** The actors listing of the server is capped (ACTORS_LISTED, most recent first): below it, absence is proof. */
+const ACTORS_LISTED = 300;
+/**
+ * A feedback assignee set by SESSION_BOARD_FEEDBACK_ASSIGNEE must be an actor the board knows, or the
+ * feedback would go to nobody. Checked when it is cheap and certain: exactly in local mode, from the
+ * actors listing of a server when that listing is not capped. If the board cannot say (an older
+ * server, a full listing), the feedback goes through.
+ */
+async function assertFeedbackAssignee(backend, id) {
+  if (id === 'user' || id === 'claude') return;
+  let known;
+  try {
+    if (typeof backend.actorKnown === 'function') known = await backend.actorKnown(id);
+    else if (typeof backend.actors === 'function') {
+      const list = (await backend.actors())?.actors;
+      if (Array.isArray(list) && (list.some((a) => a?.id === id) || list.length < ACTORS_LISTED)) known = list.some((a) => a?.id === id);
+    }
+  } catch {
+    return; // the board could not tell: do not lose the feedback over a check
+  }
+  if (known === false) {
+    throw new Error(`SESSION_BOARD_FEEDBACK_ASSIGNEE=${JSON.stringify(id)} is not an actor of this board (it has never acted on it). Nothing was saved: fix the variable, or unset it to send feedback to the board owner.`);
+  }
+}
+
 /** The same limits as the board, checked before sending: a clear refusal, with the tool's name, and no round trip. */
 function mustFit(tool, text, max, what, { trim = false } = {}) {
   if (typeof text !== 'string') return;
@@ -298,12 +323,14 @@ export async function callTool(name, args = {}, { backend, context, env = proces
       ].filter(Boolean);
       const body = [String(args.detail || '').trim(), '', '---', ...ctx].join('\n').trim();
       mustFit('board_feedback', body, MAX_BODY_CHARS, 'feedback detail (with its context lines)');
+      const assignee = feedbackAssignee(env);
+      await assertFeedbackAssignee(backend, assignee);
       const t = await backend.create({
         title: String(args.title || '').trim(),
         body,
         kind: 'feedback',
         subtype: type,
-        assignee: feedbackAssignee(env),
+        assignee,
         priority: args.priority,
         labels: ['feedback', type],
         session_id: context.session_id,

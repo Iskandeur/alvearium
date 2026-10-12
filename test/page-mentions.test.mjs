@@ -15,7 +15,7 @@ const computeMention = new Function(`${src}; return computeMention;`)();
 
 test('mentions: @ at start and after whitespace opens', () => {
   const all = [
-    { id: 'ferao', name: 'Ferao' },
+    { id: 'fern', name: 'Fern' },
     { id: 'rikki-tikki-tavi', name: 'Rikki' },
   ];
   const a = computeMention('hi @f', 'hi @f'.length, all);
@@ -23,15 +23,15 @@ test('mentions: @ at start and after whitespace opens', () => {
   assert.equal(a.start, 3);
   assert.equal(a.end, 5);
   assert.equal(a.q, 'f');
-  assert.equal(a.list[0].id, 'ferao');
+  assert.equal(a.list[0].id, 'fern');
 });
 
 test('mentions: @ inside a word is ignored', () => {
-  const all = [{ id: 'ferao', name: 'Ferao' }];
+  const all = [{ id: 'fern', name: 'Fern' }];
   assert.equal(computeMention('x@f', 3, all), null);
 });
 
 test('mentions: invalid query closes', () => {
-  const all = [{ id: 'ferao', name: 'Ferao' }];
+  const all = [{ id: 'fern', name: 'Fern' }];
   assert.equal(computeMention('hi @f_', 6, all), null);
 });

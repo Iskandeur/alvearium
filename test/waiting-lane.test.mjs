@@ -572,3 +572,15 @@ test('ask block: snake_case and a lone * keep their characters; only paired emph
   assert.equal(a.question, 'Add REFRESH_LOCK_TTL=5000 to the staging secrets, 2 * 3 = 6');
   assert.equal(a.sansReponse, 'I keep the default');
 });
+
+test('answers stay compatible with 0.5.9 clients: an option is matched by its letter, never by its cleaned text (0.5.10)', () => {
+  // The 0.5.10 clean() keeps snake_case (0.5.9 dropped every _ and *), so option texts changed form.
+  // An answer still goes through: the page, the API and the MCP tools of 0.5.9 send the letter.
+  const t = { assignee: 'user', status: 'todo', kind: 'decision', source: 'claude', created_by: 'planner', body: 'Options:\nA) keep REFRESH_LOCK_TTL — no change\nB) drop the *cache_v2* table — frees 2 GB\nI recommend drop the cache_v2 table.' };
+  const ask = askOf(t);
+  assert.deepEqual(ask.options.map((o) => o.text), ['keep REFRESH_LOCK_TTL', 'drop the cache_v2 table']);
+  assert.equal(ask.default, 'B', 'the default found by text: body and options are cleaned the same way');
+  for (const choice of ['B', 'b']) assert.equal(planAnswer(t, 'option', choice).comment, 'Answer: B — drop the cache_v2 table');
+  // A stored answer is history, never re-parsed: an old "Answer: B — drop the cachev2 table" comment changes nothing.
+  assert.match(planAnswer(t, 'option', 'drop the cachev2 table').error, /unknown option/, 'a text was never a valid choice, before or now');
+});

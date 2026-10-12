@@ -1047,7 +1047,7 @@
         s = s.replace(/\*\*([^*\n]{1,200})\*\*/g, '<strong>$1</strong>');
         s = s.replace(/(^|[\s(])_([^_\n]{1,200})_(?=[\s).,!?;:]|$)/g, '$1<em>$2</em>');
         s = s.replace(/(^|[\s(])\*([^*\n]{1,200})\*(?=[\s).,!?;:]|$)/g, '$1<em>$2</em>');
-        // @mentions, by actor id: @ferao. Only known actors become pills.
+        // @mentions, by actor id: @fern. Only known actors become pills.
         s = s.replace(/(^|[\s(])@([\p{L}0-9-]{1,64})(?![\p{L}0-9-])/gu, (m, pre, id) => {
           if (id === 'claude' || id === 'hook' || !actors?.has?.(id)) return m;
           const title = actorName(id);
@@ -1811,6 +1811,8 @@
       function openReader(src) {
         reader = { ...src, raw: prefs.get(READER_KEY) === 'raw' };
         openHelp(renderReader, `Reading view: ${src.heading}`, 'reader');
+        // The text takes the focus, so that arrows, Page Down and Space scroll it at once.
+        $('help').querySelector('.readerBody')?.focus({ preventScroll: true });
       }
       function renderReader() {
         const r = reader;
@@ -1823,7 +1825,7 @@
             <span class="mdActs"><button type="button" class="mdAct" data-md="copy" aria-label="Copy as markdown" title="Copy as markdown">${ICON_COPY}</button></span>
             <button type="button" class="x" id="helpClose" data-act="helpClose" aria-label="Close">×</button>
           </div>
-          <div class="readerBody" tabindex="-1" autofocus>${r.raw ? `<pre class="readerRaw" aria-label="Markdown source">${esc(r.text)}</pre>` : `<div class="md">${md(r.text)}</div>`}</div>
+          <div class="readerBody" tabindex="-1">${r.raw ? `<pre class="readerRaw" aria-label="Markdown source">${esc(r.text)}</pre>` : `<div class="md">${md(r.text)}</div>`}</div>
           <div class="readerFoot"><span>${groupDigits(r.text.length)} characters · ${groupDigits(words)} words</span><span style="margin-left:auto">Esc to close</span></div>`;
       }
 
@@ -1831,7 +1833,8 @@
       // (lib/core.mjs MAX_TEXT_CHARS; a test keeps the two equal). The count shows near the limit;
       // past it the text box says what to do and the send button waits. Nothing is ever cut.
       const MAX_TEXT = 64000;
-      const NEAR_TEXT = 56000;
+      const NEAR_TEXT = MAX_TEXT - 8000; // the count shows for the last 8 000 characters
+      // As lib/core.mjs groupDigits, with a narrow no-break space so a number never wraps (a test compares them).
       const groupDigits = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
       /** Updates the note under a limited text box; true when its text may be sent. */
       function limitCheck(ta) {

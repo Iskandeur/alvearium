@@ -123,21 +123,21 @@ test('server: actors can be renamed (stored), agents can only rename themselves'
   const store = await openStore(':memory:');
   await withServer(store, async (base) => {
     // Create a ticket attributed to an agent actor, so the actor exists.
-    const res = await post(base, '/api/tickets', { title: 'By ticketmaster', assignee: 'lupi/ticketmaster' }, { ...auth, 'x-session-board-actor': 'lupi/ticketmaster' });
+    const res = await post(base, '/api/tickets', { title: 'By scheduler', assignee: 'agent-a/scheduler' }, { ...auth, 'x-session-board-actor': 'agent-a/scheduler' });
     assert.equal(res.status, 201);
 
     // Rename via the main token.
-    const renamed = await fetch(`${base}/api/actors/lupi/ticketmaster`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'Ticketmaster' }) });
+    const renamed = await fetch(`${base}/api/actors/agent-a/scheduler`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'Scheduler' }) });
     assert.equal(renamed.status, 200);
     const body = await renamed.json();
-    assert.equal(body.actor.id, 'lupi/ticketmaster');
-    assert.equal(body.actor.name, 'Ticketmaster');
+    assert.equal(body.actor.id, 'agent-a/scheduler');
+    assert.equal(body.actor.name, 'Scheduler');
 
     // Touching the actor again must not override the manual name.
-    await post(base, '/api/tickets', { title: 'Second', assignee: 'lupi/ticketmaster' }, { ...auth, 'x-session-board-actor': 'lupi/ticketmaster' });
+    await post(base, '/api/tickets', { title: 'Second', assignee: 'agent-a/scheduler' }, { ...auth, 'x-session-board-actor': 'agent-a/scheduler' });
     const actors = await getJson(base, '/api/actors');
-    const a = (actors.actors || []).find((x) => x.id === 'lupi/ticketmaster');
-    assert.equal(a.name, 'Ticketmaster');
+    const a = (actors.actors || []).find((x) => x.id === 'agent-a/scheduler');
+    assert.equal(a.name, 'Scheduler');
 
     // Built-ins are never renamed; `user` is the owner since 0.5 and takes a person's name (never "You").
     const bad = await fetch(`${base}/api/actors/claude`, { method: 'PATCH', headers: auth, body: JSON.stringify({ name: 'Hacker' }) });
