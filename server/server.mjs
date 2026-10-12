@@ -39,7 +39,7 @@
 //   POST /api/import                { board, machine, sessions, tickets }: a machine's local board.db,
 //                                   idempotent per (board, ticket id); the plugin sends it once
 //   DELETE /api/sessions/:id        a session and its tickets (cleanup, tests)
-//   GET  /api/actions               ticket actions declared by this installation: { id, label, icon, allow_hosts }
+//   GET  /api/actions               ticket actions declared by this installation (owner, admin; empty for others)
 //   POST /api/tickets/:key/actions/:id  owner, admin: run one (the server calls its webhook, see server/actions.mjs)
 import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';

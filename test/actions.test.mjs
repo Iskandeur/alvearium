@@ -8,7 +8,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createApp } from '../server/server.mjs';
-import { ACTION_COOLDOWN_MS, actionRoutes, cleanMessage, loadActions, parseActions, safeOpenUrl } from '../server/actions.mjs';
+import { ACTION_COOLDOWN_MS, actionRoutes, cleanMessage, loadActions, parseActions, plainHttpAllowed, safeOpenUrl } from '../server/actions.mjs';
 import { openStore } from '../lib/store.mjs';
 import { Accounts } from '../lib/accounts.mjs';
 
@@ -40,6 +40,8 @@ test('parseActions: every mistake stops with a message that names it', () => {
     [JSON.stringify([conf({ label: 'x'.repeat(41) })]), /"label"/],
     [JSON.stringify([conf({ icon: '<b>' })]), /"icon"/],
     [JSON.stringify([conf({ url: 'ftp://h/x' })]), /http or https/],
+    [JSON.stringify([conf({ url: 'http://hooks.example.com/x' })]), /plain http on hooks\.example\.com: use https/],
+    [JSON.stringify([conf({ url: 'http://203.0.113.9/x' })]), /plain http/],
     [JSON.stringify([conf({ url: 'nope' })]), /not a URL/],
     [JSON.stringify([conf({ url: `https://user:pw${AT}hooks.example.com/x` })]), /no credentials/],
     [JSON.stringify([conf({ token_env: 'lower' })]), /"token_env"/],
@@ -51,6 +53,15 @@ test('parseActions: every mistake stops with a message that names it', () => {
     [JSON.stringify([conf({ token: 'inline' })]), /unknown field/],
   ];
   for (const [text, re] of bad) assert.throws(() => parseActions(text, ENV), re, text.slice(0, 60));
+});
+
+test('plain http only on this machine or a private network; https anywhere', () => {
+  for (const h of ['localhost', '127.0.0.1', '127.8.9.10', '[::1]', 'host.docker.internal', '10.0.0.5', '172.16.0.1', '172.31.255.254', '192.168.1.20']) assert.equal(plainHttpAllowed(h), true, h);
+  for (const h of ['example.com', '203.0.113.9', 'localhost.example.com', '127.0.0.1.nip.io', '']) assert.equal(plainHttpAllowed(h), false, h);
+  assert.equal(plainHttpAllowed(`10.0.0.${256}`), false, 'an octet above 255 is not an address');
+  // Just outside each private range: 172.15 and 172.32, 192.169, 11.
+  for (const [a, b] of [[172, 15], [172, 32], [192, 169], [11, 0]]) assert.equal(plainHttpAllowed(`${a}.${b}.0.1`), false, `${a}.${b}.0.1`);
+  for (const url of ['http://localhost:8080/h', 'http://[::1]:9/h', 'http://host.docker.internal:8787/h', 'http://192.168.1.2/h', 'https://hooks.example.com/h']) assert.equal(parseActions(JSON.stringify([conf({ url })]), ENV)[0].url.length > 0, true, url);
 });
 
 test('loadActions: none without the variable; a file that cannot be read is an error, not an empty list', () => {
@@ -71,6 +82,15 @@ test('the server refuses to start on a bad actions file', () => {
   try {
     const f = join(dir, 'actions.json');
     writeFileSync(f, JSON.stringify([conf({ token_env: 'NOT_SET_ANYWHERE' })]));
+    const g = join(dir, 'public-http.json');
+    writeFileSync(g, JSON.stringify([conf({ url: 'http://hooks.example.com/x' })]));
+    const p = spawnSync(process.execPath, [join(ROOT, 'server', 'server.mjs')], {
+      env: { PATH: process.env.PATH, SESSION_BOARD_TOKEN: MAIN, SESSION_BOARD_DATA: dir, SESSION_BOARD_ACTIONS_FILE: g, PORT: '0', HOST: '127.0.0.1', ...ENV },
+      encoding: 'utf8',
+      timeout: 15000,
+    });
+    assert.equal(p.status, 1);
+    assert.match(p.stderr, /plain http on hooks\.example\.com: use https, or http only for localhost/);
     const r = spawnSync(process.execPath, [join(ROOT, 'server', 'server.mjs')], {
       env: { PATH: process.env.PATH, SESSION_BOARD_TOKEN: MAIN, SESSION_BOARD_DATA: dir, SESSION_BOARD_ACTIONS_FILE: f, PORT: '0', HOST: '127.0.0.1' },
       encoding: 'utf8',
@@ -105,6 +125,17 @@ async function setup({ reply = { status: 200, body: { open_url: 'https://session
       received.push({ headers: req.headers, body: b, url: req.url });
       setTimeout(() => {
         const r = typeof reply === 'function' ? reply(received.length) : reply;
+        if (r.stall) {
+          // Headers and the start of a body, then nothing: the timeout must fire while reading.
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.write('{"open_url": "https://sessions.example.com/s/1", ');
+          return;
+        }
+        if (r.cut) {
+          res.writeHead(200, { 'content-type': 'application/json', 'content-length': '500' });
+          res.write('{"message": "half');
+          return setTimeout(() => res.socket.destroy(), 20);
+        }
         if (r.redirect) {
           res.writeHead(302, { location: r.redirect });
           return res.end();
@@ -143,7 +174,7 @@ async function setup({ reply = { status: 200, body: { open_url: 'https://session
   return { store, accounts, call, key, received, ids: { member: member.id, admin: admin.id }, close: () => (server.close(), hook.close()) };
 }
 
-test('GET /api/actions: id, label, icon and allowed hosts only; can_run for owner and admin', async () => {
+test('GET /api/actions: id, label, icon and allowed hosts, for owner and admin only; an empty list for the others', async () => {
   const s = await setup();
   try {
     const o = await s.call('owner', 'GET', '/api/actions');
@@ -152,9 +183,8 @@ test('GET /api/actions: id, label, icon and allowed hosts only; can_run for owne
     assert.equal(o.body.can_run, true);
     const text = JSON.stringify(o.body);
     assert.ok(!text.includes('127.0.0.1') && !text.includes('DEMO_HOOK_TOKEN') && !text.includes(HOOK_TOKEN), 'no URL, no token, no variable name');
-    assert.equal((await s.call('admin', 'GET', '/api/actions')).body.can_run, true);
-    assert.equal((await s.call('member', 'GET', '/api/actions')).body.can_run, false);
-    assert.equal((await s.call('agent', 'GET', '/api/actions')).body.can_run, false);
+    assert.equal((await s.call('admin', 'GET', '/api/actions')).body.actions.length, 2);
+    for (const who of ['member', 'viewer', 'agent']) assert.deepEqual((await s.call(who, 'GET', '/api/actions')).body, { actions: [], can_run: false }, who);
     assert.equal((await s.call(null, 'GET', '/api/actions')).status, 401);
   } finally {
     s.close();
@@ -218,7 +248,7 @@ test('the link is checked: not https, or a host outside allow_hosts, and nothing
       assert.equal(r.status, 502, open_url);
       assert.equal(r.body.open_url, undefined);
       assert.match(r.body.error, /outside its allowed hosts/);
-      assert.ok(s.accounts.listAudit().some((a) => a.action === 'action.run' && JSON.parse(a.detail).outcome === 'refused_url'));
+      assert.ok(s.accounts.listAudit().some((a) => a.action === 'action.run' && JSON.parse(a.detail).outcome === 'ko' && JSON.parse(a.detail).reason === 'refused_url'));
     } finally {
       s.close();
     }
@@ -254,7 +284,7 @@ test('timeout: 504 after timeout_ms, and the audit says so', async () => {
     const r = await s.call('owner', 'POST', `/api/tickets/${s.key}/actions/open-session`);
     assert.equal(r.status, 504);
     assert.match(r.body.error, /did not answer within 2 s/);
-    assert.ok(s.accounts.listAudit().some((a) => a.action === 'action.run' && JSON.parse(a.detail).outcome === 'timeout'));
+    assert.ok(s.accounts.listAudit().some((a) => a.action === 'action.run' && JSON.parse(a.detail).outcome === 'ko' && JSON.parse(a.detail).reason === 'timeout'));
   } finally {
     s.close();
   }
@@ -319,4 +349,48 @@ test('page: buttons in the ticket detail for owner and admin, the tab opened ins
   assert.match(run, /if \(win && !win\.closed\) win\.close\(\);/);
   assert.match(page, /await Promise\.all\(\[loadFacets\(\), refresh\(\), loadActions\(\)\]\);/);
   assert.match(page, /\.pAct:hover \{ border-color: var\(--accent\)/);
+});
+
+test('a webhook that stalls in the middle of its answer: 504 and an audit ko, never a 200', async () => {
+  const s = await setup({ reply: { stall: true } });
+  try {
+    const r = await s.call('owner', 'POST', `/api/tickets/${s.key}/actions/open-session`);
+    assert.equal(r.status, 504);
+    assert.equal(r.body.open_url, undefined);
+    const audit = s.accounts.listAudit().filter((a) => a.action === 'action.run').map((a) => JSON.parse(a.detail));
+    assert.deepEqual(audit.map((d) => [d.outcome, d.reason]), [['ko', 'timeout']]);
+  } finally {
+    s.close();
+  }
+});
+
+test('an answer cut while reading, or larger than 16 KiB: 502 and an audit ko', async () => {
+  const s = await setup({ reply: (n) => (n === 1 ? { cut: true } : { status: 200, body: { message: 'x'.repeat(20_000) } }), cooldownMs: 0 });
+  try {
+    const a = await s.call('owner', 'POST', `/api/tickets/${s.key}/actions/open-session`);
+    assert.deepEqual([a.status, a.body.error], [502, 'the answer of the action could not be read']);
+    const b = await s.call('owner', 'POST', `/api/tickets/${s.key}/actions/open-session`);
+    assert.deepEqual([b.status, b.body.error], [502, 'the action answered with more than 16 KiB']);
+    const audit = s.accounts.listAudit().filter((x) => x.action === 'action.run').map((x) => JSON.parse(x.detail));
+    assert.ok(audit.every((d) => d.outcome === 'ko'));
+    assert.deepEqual(audit.map((d) => d.reason).sort(), ['read_error', 'reply_too_large']);
+  } finally {
+    s.close();
+  }
+});
+
+test('a 2xx answer speaks through message only: its error field is not shown', async () => {
+  const s = await setup({ reply: { status: 200, body: { error: 'should not appear' } } });
+  try {
+    assert.deepEqual((await s.call('owner', 'POST', `/api/tickets/${s.key}/actions/ping`)).body, {});
+  } finally {
+    s.close();
+  }
+});
+
+test('page: a precise selector for the buttons, and no Referer on the way to the link', () => {
+  assert.match(page, /e\.target\.closest\?\.\('\.pAct\[data-action\]'\)/);
+  assert.equal(page.match(/data-action=/g).length, 1, 'data-action is carried by the action buttons alone');
+  assert.match(page, /meta\.name = 'referrer';\n\s*meta\.content = 'no-referrer';/);
+  assert.match(page, /referrerpolicy="no-referrer"/);
 });

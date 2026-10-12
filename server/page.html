@@ -2032,14 +2032,25 @@
         // popup. It starts blank and cut from this page (opener = null, what noopener does), and gets the
         // link once the server has checked it; the page checks it again here.
         const win = a.allow_hosts?.length ? window.open('about:blank', '_blank') : null;
-        if (win) { try { win.opener = null; win.document.title = a.label; win.document.body.textContent = 'Opening…'; } catch {} }
+        if (win) {
+          try {
+            win.opener = null;
+            // No Referer on the way to the link: this page's address stays here.
+            const meta = win.document.createElement('meta');
+            meta.name = 'referrer';
+            meta.content = 'no-referrer';
+            win.document.head.appendChild(meta);
+            win.document.title = a.label;
+            win.document.body.textContent = 'Opening…';
+          } catch {}
+        }
         btn.setAttribute('aria-busy', 'true');
         actionMsg(key, `${esc(a.label)}…`);
         try {
           const out = await apiCall('POST', `tickets/${encodeURIComponent(key)}/actions/${encodeURIComponent(a.id)}`);
           const url = out.open_url ? actionUrl(out.open_url, a.allow_hosts) : null;
           if (out.open_url && !url) throw new Error('the action answered with a link this page will not open');
-          const link = url ? ` <a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${win && !win.closed ? 'Open again' : 'Open it'} ↗</a>` : '';
+          const link = url ? ` <a href="${esc(url)}" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">${win && !win.closed ? 'Open again' : 'Open it'} ↗</a>` : '';
           if (url && win && !win.closed) { win.location.replace(url); actionMsg(key, esc(out.message || 'Opened in a new tab.') + link); }
           else if (url) actionMsg(key, esc(out.message || 'Ready.') + ' The browser blocked the new tab:' + link);
           else { if (win && !win.closed) win.close(); actionMsg(key, esc(out.message || 'Done.')); }
@@ -2051,7 +2062,7 @@
         }
       }
       document.addEventListener('click', (e) => {
-        const btn = e.target.closest?.('[data-action]');
+        const btn = e.target.closest?.('.pAct[data-action]');
         if (!btn || !$('panel').contains(btn)) return;
         e.preventDefault();
         runAction(btn);
