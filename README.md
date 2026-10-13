@@ -366,7 +366,7 @@ measures what their jobs cost) can post it, and the lane follows:
   with no `summary` clears everything. No ticket history is written: a score is a view the installation
   recomputes, not an edit.
 - **Who may post**: the owner, or an agent token whose actor `BOARD_JOB_ACTORS` names (the same trust as
-  the `blocks-job` label; `ops` also covers `ops/ticketmaster`). Members, admins included, and any other
+  the `blocks-job` label; `ops` also covers `ops/scorer`). Members, admins included, and any other
   agent get `403`. `GET /api/roi` (anyone who reads the board) returns the snapshot as stored, with `at`,
   `actor` and `stale`.
 - **The lane**: scored tickets come first, highest first, then the 0.5.8 order (what the answer unblocks,

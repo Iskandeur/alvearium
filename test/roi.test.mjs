@@ -85,14 +85,14 @@ test('store: a snapshot orders the lane, carries the reason, and the lane line c
   const a = mk('Approve the deploy', { priority: 'P0' });
   const b = mk('Pick a name');
   const c = mk('Read the draft');
-  const out = store.setRoi({ summary: '~6 pts of agent work wait on you', scores: [{ key: b.key, score: 30, note: 'unblocks 3 jobs (~6 pts)' }, { key: c.key, score: 4 }, { key: 'ALV-999', score: 99 }] }, { actor: 'ops/ticketmaster' });
+  const out = store.setRoi({ summary: '~6 pts of agent work wait on you', scores: [{ key: b.key, score: 30, note: 'unblocks 3 jobs (~6 pts)' }, { key: c.key, score: 4 }, { key: 'ALV-999', score: 99 }] }, { actor: 'ops/scorer' });
   assert.deepEqual([out.scored, out.unknown], [2, ['ALV-999']]);
   const board = store.ticketBoard({});
   assert.deepEqual(board.columns.waiting.map((t) => t.title), ['Pick a name', 'Read the draft', 'Approve the deploy']);
   assert.deepEqual(board.columns.waiting[0].roi, { score: 30, note: 'unblocks 3 jobs (~6 pts)' });
   assert.equal(board.columns.waiting[2].roi, null);
   assert.equal(board.roi_summary.text, '~6 pts of agent work wait on you');
-  assert.equal(board.roi_summary.actor, 'ops/ticketmaster');
+  assert.equal(board.roi_summary.actor, 'ops/scorer');
   assert.deepEqual(store.getTicket(b.key).roi, { score: 30, note: 'unblocks 3 jobs (~6 pts)' });
   assert.equal(store.getTicket(a.key).roi, null);
   // No ticket history for a score: it is a view, not an edit.
@@ -152,7 +152,7 @@ test('store: a change event goes out, so open pages redraw', async () => {
 test('mayPostRoi: the owner, or an agent BOARD_JOB_ACTORS names (sub-actors too); nobody else', () => {
   assert.equal(mayPostRoi({ kind: 'user', role: 'owner' }, []), true);
   assert.equal(mayPostRoi({ kind: 'agent', actor: 'ops', role: 'agent' }, ['ops']), true);
-  assert.equal(mayPostRoi({ kind: 'agent', actor: 'ops/ticketmaster', role: 'agent' }, ['ops']), true);
+  assert.equal(mayPostRoi({ kind: 'agent', actor: 'ops/scorer', role: 'agent' }, ['ops']), true);
   assert.equal(mayPostRoi({ kind: 'agent', actor: 'bot', role: 'agent' }, ['ops']), false);
   assert.equal(mayPostRoi({ kind: 'agent', actor: 'ops', role: 'agent' }, []), false);
   for (const role of ['admin', 'member', 'viewer']) assert.equal(mayPostRoi({ kind: 'member', role }, ['ops']), false, role);
