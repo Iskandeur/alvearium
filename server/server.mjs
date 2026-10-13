@@ -39,6 +39,9 @@
 //   POST /api/import                { board, machine, sessions, tickets }: a machine's local board.db,
 //                                   idempotent per (board, ticket id); the plugin sends it once
 //   DELETE /api/sessions/:id        a session and its tickets (cleanup, tests)
+//   GET  /api/roi                   lane scores posted by the installation: { summary, at, actor, stale, scores }
+//   PUT  /api/roi                   owner, or an agent in BOARD_JOB_ACTORS: { summary?, scores: [{ key, score, note? }] },
+//                                   replaces the snapshot (lib/roi.mjs); a snapshot older than 6 h is ignored
 //   GET  /api/actions               ticket actions declared by this installation (owner, admin; empty for others)
 //   POST /api/tickets/:key/actions/:id  owner, admin: run one (the server calls its webhook, see server/actions.mjs)
 import { createServer } from 'node:http';
@@ -48,6 +51,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MAX_TEXT_CHARS, VERSION, normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
 import { openStore } from '../lib/store.mjs';
+import { trustedActor } from '../lib/triage.mjs';
 import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
 import { inviteRoutes } from './invites.mjs';
 import { actionRoutes, loadActions } from './actions.mjs';
@@ -268,6 +272,16 @@ export function canEditActor(auth, id) {
   if (can(auth, 'editAnyActor')) return true;
   const self = auth.member || 'user';
   return sid === self || sid.startsWith(self + '/');
+}
+
+/** Lane scores (0.5.12): 500 items of a key, a score and a 200-character note fit well within this. */
+export const MAX_ROI_REQUEST = 512 * 1024;
+
+/** May this caller post lane scores? The owner, or an agent token whose actor BOARD_JOB_ACTORS names. */
+export function mayPostRoi(auth, jobActors = []) {
+  if (!auth) return false;
+  if (auth.kind === 'agent') return trustedActor(auth.actor, jobActors);
+  return auth.role === 'owner';
 }
 
 /** The role of a caller: the main token is the owner, an agent token is `agent`. */
@@ -595,6 +609,14 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
       if (path === '/api/tickets' && m === 'GET') return send(res, 200, store.listTickets(parseFilters(url.searchParams)));
       if (path === '/api/stream' && m === 'GET') return stream(req, res, store, heartbeatMs, streams, auth);
       if (path === '/api/tickets/board' && m === 'GET') return send(res, 200, store.ticketBoard(parseFilters(url.searchParams)));
+      if (path === '/api/roi') {
+        // 0.5.12: lane scores (lib/roi.mjs). Anyone who reads the board reads them; only the owner, or an
+        // agent named in BOARD_JOB_ACTORS, posts them (the same trust as the `blocks-job` label).
+        if (m === 'GET') return send(res, 200, store.getRoi());
+        if (m !== 'PUT') return send(res, 405, { error: 'method not allowed' });
+        if (!mayPostRoi(auth, store.jobActors)) return forbidden(res, 'post lane scores', auth);
+        return send(res, 200, store.setRoi(await jsonBody(req, MAX_ROI_REQUEST), { actor: actorOf(req, store) }));
+      }
       if (path === '/api/tickets/next' && m === 'GET') {
         const f = parseFilters(url.searchParams);
         if (!url.searchParams.get('limit')) f.limit = 50;

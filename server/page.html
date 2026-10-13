@@ -26,6 +26,8 @@
       --danger-soft: rgba(201, 69, 62, 0.09);
       --ok: #2f8f5b;
       --ok-soft: rgba(47, 143, 91, 0.1);
+      --roi: #9a5a00;
+      --roi-soft: rgba(214, 140, 20, 0.13);
       --chip: rgba(20, 20, 28, 0.05);
       --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
       --radius: 12px;
@@ -37,7 +39,7 @@
         --line: rgba(255, 255, 255, 0.06); --line-strong: rgba(255, 255, 255, 0.12);
         --shadow: 0 1px 2px rgba(0, 0, 0, 0.3); --shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.35); --shadow-panel: -12px 0 40px rgba(0, 0, 0, 0.5);
         --accent: #8d97ff; --accent-soft: rgba(141, 151, 255, 0.12); --danger: #f07a72; --danger-soft: rgba(240, 122, 114, 0.12);
-        --ok: #6cc896; --ok-soft: rgba(108, 200, 150, 0.12); --chip: rgba(255, 255, 255, 0.06);
+        --ok: #6cc896; --ok-soft: rgba(108, 200, 150, 0.12); --chip: rgba(255, 255, 255, 0.06); --roi: #f2b54a; --roi-soft: rgba(242, 181, 74, 0.13);
       }
     }
     :root[data-theme="dark"] {
@@ -45,7 +47,7 @@
       --line: rgba(255, 255, 255, 0.06); --line-strong: rgba(255, 255, 255, 0.12);
       --shadow: 0 1px 2px rgba(0, 0, 0, 0.3); --shadow-hover: 0 4px 14px rgba(0, 0, 0, 0.35); --shadow-panel: -12px 0 40px rgba(0, 0, 0, 0.5);
       --accent: #8d97ff; --accent-soft: rgba(141, 151, 255, 0.12); --danger: #f07a72; --danger-soft: rgba(240, 122, 114, 0.12);
-      --ok: #6cc896; --ok-soft: rgba(108, 200, 150, 0.12); --chip: rgba(255, 255, 255, 0.06);
+      --ok: #6cc896; --ok-soft: rgba(108, 200, 150, 0.12); --chip: rgba(255, 255, 255, 0.06); --roi: #f2b54a; --roi-soft: rgba(242, 181, 74, 0.13);
     }
 
     * { box-sizing: border-box; }
@@ -570,6 +572,12 @@
     .asks.many .asksAlt { flex: 1 1 100%; margin-left: -10px; }
     .asks .laterHint { font-size: 12px; color: var(--muted); margin-right: 2px; }
     .tag.unlocks { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+    /* 0.5.12: a score the installation posted (lib/roi.mjs), its reason on hover and in the ticket */
+    .tag.roi { background: var(--roi-soft); color: var(--roi); font-weight: 600; cursor: help; }
+    .roiNote { margin: -4px 8px 10px; padding: 7px 10px; border-radius: 8px; background: var(--roi-soft); color: var(--text); font-size: 12.5px; line-height: 1.4; }
+    .roiNote b { color: var(--roi); font-weight: 600; margin-right: 4px; }
+    .roiLine { display: flex; gap: 8px; align-items: baseline; margin: 0 0 12px; font-size: 13px; color: var(--muted); }
+    .roiLine .tag { flex: none; }
     .tag.snoozed { background: var(--chip); color: var(--muted); }
     .tag.reply { background: none; color: var(--accent); font-weight: 500; padding-left: 2px; }
     .tag.reply:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -778,6 +786,7 @@
       <div class="grid">
         <section class="lane primary" aria-labelledby="h-waiting">
           <div class="laneHead"><h2 id="h-waiting">Waiting on you</h2><span class="count" id="n-waiting"></span></div>
+          <div class="roiNote" id="roi-waiting" role="note" hidden></div>
           <div class="cards" id="col-waiting"></div>
         </section>
         <section class="lane" aria-labelledby="h-progress">
@@ -1220,6 +1229,7 @@
 
       function tags(t, now, opts = {}) {
         const out = [];
+        if (t.column === 'waiting' && t.roi) out.push(`<span class="tag roi" title="${esc(t.roi.note || 'Score posted by the installation')}" aria-label="ROI ${esc(roiNum(t.roi.score))}${t.roi.note ? ': ' + esc(t.roi.note) : ''}">⚡ ROI ${esc(roiNum(t.roi.score))}</span>`);
         if (t.column === 'waiting' && t.unlocks > 0) out.push(`<span class="tag unlocks" title="Your answer unblocks ${t.unlocks} open ticket${t.unlocks === 1 ? '' : 's'} or job${t.unlocks === 1 ? '' : 's'}">unblocks ${t.unlocks}</span>`);
         if (t.column === 'waiting' && t.gesture && !t.ask?.complete && !opts.noReply) out.push(`<button type="button" class="tag reply" data-open="${esc(t.key)}" aria-label="Reply to ${esc(t.key)}">Reply ›</button>`);
         if (t.snoozed_until) out.push(`<span class="tag snoozed" title="Comes back on ${esc(when(t.snoozed_until))}">⏸ until ${esc(new Date(t.snoozed_until).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span><button type="button" class="tag" data-ask="wake" data-key="${esc(t.key)}" aria-label="Bring ${esc(t.key)} back to your lane now">Back now</button>`);
@@ -1293,6 +1303,12 @@
         if (!b) return '';
         const q = t.ask?.question || plain(t.title);
         return `<div class="replyBar" id="replyBar"><div class="rbQ" title="${esc(q)}">${esc(q)}</div>${b}</div>`;
+      }
+      /** 0.5.12: a score the installation posted, as on the card (`⚡ ROI 42`), how much an answer is worth (lib/roi.mjs). */
+      function roiNum(n) { const v = Number(n); return !Number.isFinite(v) ? '' : v >= 10 ? String(Math.round(v)) : String(Math.round(v * 10) / 10); }
+      function roiLine(t) {
+        if (!t.roi || !isOpen(t)) return '';
+        return `<div class="roiLine"><span class="tag roi">⚡ ROI ${esc(roiNum(t.roi.score))}</span><span>${esc(t.roi.note || 'Score posted by the installation')}</span></div>`;
       }
       /** What we need from you, highlighted above the details of an open ticket. */
       function askBox(t) {
@@ -1558,6 +1574,12 @@
         col('todo', EMPTY('Nothing to do'));
         col('done', '');
         $('n-waiting').classList.toggle('hot', (c.waiting || 0) > 0);
+        // 0.5.12: the installation's line for the whole lane ("what waits on you"), when a fresh one was posted.
+        const rs = b.roi_summary;
+        const rn = $('roi-waiting');
+        rn.hidden = !rs;
+        setHtml(rn, rs ? `<b>⚡</b>${esc(rs.text)}` : '');
+        rn.title = rs ? `Posted by ${rs.actor || 'the installation'}, ${ago(rs.at, now)} ago` : '';
         $('doneBox').hidden = !c.done;
         $('doneLabel').textContent = `${c.done || 0} done`;
         summary(c);
@@ -1962,6 +1984,7 @@
           <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)">${CHECK}<span>Done</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="Close">×</button></div></div>
           <form class="pBody" id="tform" autocomplete="off">
             <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
+            ${roiLine(t)}
             ${askBox(t)}
             ${actionBar(t)}
             <div class="fields">

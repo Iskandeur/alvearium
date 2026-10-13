@@ -353,6 +353,36 @@ answer unblocks.
   and last update); if an agent or another tab touched it since, nothing is undone and the toast says
   so (`409`, `{ answer: 'undo', previous, expect }` on the same route).
 
+## Scores on the "Waiting on you" lane (0.5.12)
+
+The board knows what your answer unblocks on the board itself; it cannot know what it is worth to the
+agents behind it: how much work a job waiting on you would do next, how long your gesture takes,
+which project matters most this week. An installation that knows (a daemon that runs your agents and
+measures what their jobs cost) can post it, and the lane follows:
+
+- `PUT /api/roi { summary?, scores: [{ key, score, note? }] }` replaces the whole snapshot: a score
+  (a number from 0 up, higher first) and a one-line reason per ticket (at most 200 characters), plus one
+  line for the lane (at most 300). Keys that name no ticket come back in `unknown`. An empty `scores`
+  with no `summary` clears everything. No ticket history is written: a score is a view the installation
+  recomputes, not an edit.
+- **Who may post**: the owner, or an agent token whose actor `BOARD_JOB_ACTORS` names (the same trust as
+  the `blocks-job` label; `ops` also covers `ops/ticketmaster`). Members, admins included, and any other
+  agent get `403`. `GET /api/roi` (anyone who reads the board) returns the snapshot as stored, with `at`,
+  `actor` and `stale`.
+- **The lane**: scored tickets come first, highest first, then the 0.5.8 order (what the answer unblocks,
+  priority, oldest wait) for the others. A card shows **⚡ ROI 42** with the reason on hover; the open
+  ticket shows the same line above "Needs your answer"; the lane line sits under the lane title.
+  `GET /api/tickets/board` carries `roi: { score, note }` on each lane card and `roi_summary: { text,
+  at, actor }`; `GET /api/tickets/SB-12` carries `roi`.
+- **Stale**: a snapshot older than 6 hours is ignored (no badge, no order, no line), so an installation
+  that stops posting never leaves old scores ordering your lane. Post again at each pass.
+
+The board never computes a score: the formula is the installation's.
+
+![The lane ordered by score, the lane line, and a ticket with its reason](docs/screenshots/roi-ticket-desktop-light.png)
+
+([the lane alone](docs/screenshots/roi-lane-desktop-light.png).)
+
 ## Actors and threads
 
 An **actor** is whoever acts on the board: `{ id, type: human | agent | subagent | system, name }`.
@@ -665,6 +695,7 @@ as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without 
 | `POST` or `PATCH /api/tickets/SB-12` | update any field, `blocked_by_add` / `blocked_by_remove`, optional `comment` (and `to`) in the same call |
 | `POST /api/tickets/SB-12/comments` | `{ text, to? }` |
 | `GET /api/actions`, `POST /api/tickets/SB-12/actions/<id>` | ticket actions declared by the installation (see *Ticket actions*) |
+| `GET`, `PUT /api/roi` | scores an installation posts on the "Waiting on you" lane (see *Scores on the "Waiting on you" lane*) |
 | `GET /api/facets` | repos, sessions, branches, machines, kinds, labels and actors with counts, and the open feedback count |
 | `GET /api/sessions` | sessions, most recent first (`?repo=`) |
 | `DELETE /api/sessions/<id>` | remove a session and its tickets |
