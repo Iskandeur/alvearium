@@ -1884,6 +1884,8 @@
 
       // ---- detail panel -------------------------------------------------------------------------
       let panelDirty = false;
+      /** Set right after a comment is posted: the next render of that ticket lands on the new comment. */
+      let stickToBottom = false;
       async function openPanel(key, push = true) {
         state.ticket = key;
         writeUrl(push);
@@ -1938,6 +1940,13 @@
       function renderPanel(t) {
         panelDirty = false;
         mentionClose();
+        // The body is rebuilt below, which would drop its scroll back to the top. For the same ticket,
+        // keep the reader where they were; if they were at the bottom (or just posted a comment), stay there.
+        const oldBody = $('panel').querySelector('.pBody');
+        const sameTicket = !!oldBody && !$('panel').hidden && $('panel').dataset.key === t.key;
+        const keepTop = sameTicket ? oldBody.scrollTop : 0;
+        const stickBottom = sameTicket && (stickToBottom || oldBody.scrollHeight - oldBody.scrollTop - oldBody.clientHeight < 48);
+        stickToBottom = false;
         const now = Date.now();
         learnActors(t.actors);
         const ctx = [];
@@ -1990,6 +1999,8 @@
         $('panel').__ticket = t;
         syncExpandButton();
         autosize($('panel').querySelector('.pTitle'));
+        const body = $('panel').querySelector('.pBody');
+        if (body && sameTicket) body.scrollTop = stickBottom ? body.scrollHeight : keepTop;
       }
       // ---- ticket actions (0.5.11): buttons declared by the installation, run by the server --------
       let ticketActions = { list: [], canRun: false };
@@ -2348,6 +2359,7 @@
           if (!limitCheck($('comment'))) return $('comment').focus();
           try {
             await api(`tickets/${encodeURIComponent(t.key)}/comments`, { text });
+            stickToBottom = true;
             await openPanel(t.key, false);
             refresh();
           } catch (err) { toast(err.message); }
