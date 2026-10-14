@@ -1,0 +1,46 @@
+{
+  "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
+  "releases": [
+    {
+      "version": "0.5.13",
+      "date": "2026-10-14",
+      "items": [
+        "A grip on the left edge of an open ticket: drag it to widen the ticket, double-click it to reset.",
+        "Copy and read wide are always visible on descriptions and comments, and work with a tap.",
+        "On a phone or in a narrow window, the button next to Done reads the whole ticket, comments included.",
+        "This note shows once after each update. See all changes opens the full history.",
+        "The ? button in the header lists every shortcut and gesture."
+      ]
+    },
+    {
+      "version": "0.5.12",
+      "date": "2026-10-14",
+      "items": [
+        "The Waiting on you lane can show a score per ticket (⚡ ROI), posted by your installation, with its reason on hover.",
+        "Scored tickets come first in the lane, highest first, and a line under the lane title says what waits on you.",
+        "An open ticket keeps its scroll position when it updates, and lands on your comment after you post it.",
+        "Agents can read a ticket in full, every comment complete."
+      ]
+    },
+    {
+      "version": "0.5.11",
+      "date": "2026-10-13",
+      "items": [
+        "Ticket actions: buttons your installation declares appear in the open ticket, for example to start a job or open a related page.",
+        "A click runs the action on the server and can open a link or show a message in the ticket.",
+        "Only owners and admins see and run them, and every run is kept in the audit log."
+      ]
+    },
+    {
+      "version": "0.5.10",
+      "date": "2026-10-12",
+      "items": [
+        "Make the open ticket wider by dragging its left edge; the width is kept in this browser.",
+        "The expand button next to Done opens the ticket nearly full screen, its text in a readable column. Esc goes back.",
+        "Copy a description or a comment as markdown, or read it alone in a large reading view.",
+        "Long texts are never cut any more: up to 64 000 characters per comment or description, with a counter near the limit.",
+        "Nested lists and numbered lists render correctly in descriptions and comments."
+      ]
+    }
+  ]
+}

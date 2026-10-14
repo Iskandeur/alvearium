@@ -151,9 +151,9 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
   separator: arrows resize it (Shift for bigger steps), Home and End go to the bounds, Enter resets.
   The **expand** button next to *Done* opens the ticket nearly full screen, its text in a readable
   column; Esc goes back to the side panel, a second Esc closes it. On a phone the ticket already
-  fills the screen: no edge, no button.
-- **Copy and read wide.** The description and every comment carry two small buttons, shown on hover
-  or focus with a mouse and always on a touch screen: **copy** puts the raw markdown on the
+  fills the screen: no edge, and since 0.5.13 the button reads the whole ticket instead (see below).
+- **Copy and read wide.** The description and every comment carry two small buttons (quiet at rest
+  since 0.5.13, full on hover or focus with a mouse, always full on a touch screen): **copy** puts the raw markdown on the
   clipboard (not the rendered text; "Copied" for a moment), **read wide** opens that text alone in a
   large reading view, with a switch between *Rendered* and *Markdown* (both selectable, the choice is
   kept in this browser), its length, and a copy button. On plain HTTP, where browsers have no
@@ -179,6 +179,41 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
 
 ([resizing](docs/screenshots/panel-resize-desktop-light.png), [reading view](docs/screenshots/reader-desktop-light.png),
 [reading view at 390 px](docs/screenshots/reader-mobile-light.png), [a comment over the limit](docs/screenshots/comment-limit-desktop-light.png).)
+
+## Finding your way around (0.5.13)
+
+The tools of 0.5.10 were there but hard to find: a resize edge invisible until hovered, buttons that
+only appeared on hover, nothing at all on a phone, and no word when the board changed.
+
+- **A visible grip.** The left edge of an open ticket shows a small grip of three dots, mid-height,
+  in both themes; it turns accent with the edge line on hover, focus or drag. Its tooltip says
+  *Drag to widen · double-click to reset*.
+- **Copy and read wide, always there.** The two buttons on the description and on every comment stay
+  visible at 45 % opacity and come to full on hover or focus (and are always full on a touch
+  screen). Each has a tooltip and an `aria-label`. Where the browser offers no clipboard API (plain
+  HTTP, a frame without the permission), the fallback copy now selects the text explicitly, which
+  iOS needs for a tap to copy.
+- **Phones and narrow windows** (900 px and less, where the ticket fills the screen): the button next
+  to *Done* stays, and opens the **whole ticket** (title, description, every comment) in the reading
+  view, rendered or as markdown, with its copy button.
+- **What's new.** When the version a browser was last shown differs from the one the server runs, a
+  note above the board lists what changed (*What's new in 0.5.13*, 3 to 5 items), names the versions
+  skipped since the last visit, and offers *See all changes*: the whole history in the reading view.
+  × closes it for that version. A new browser is shown the current version only, never the backlog;
+  a rollback shows nothing. The browser remembers the version in `localStorage`
+  (`alvearium.seen-version`, behind a guard: a private window simply shows the note again). The
+  notes live in [`server/changelog.json`](server/changelog.json), written for the people who use the
+  board, newest first; `GET /api/changelog` serves them with the server version. When the server
+  restarts on another version while a page stays open, the page says so and offers *Reload*.
+- **Help one click away.** A **?** button in the header (or the `?` key) opens *Shortcuts and
+  gestures*: the keys, plus each button and gesture with the icon you will find on the page (grip,
+  expand, copy, read wide, done), the version, and *What's new*. On a touch screen the gestures come
+  first.
+
+![What's new, above the board](docs/screenshots/whatsnew-desktop-light.png)
+
+([the grip, at rest](docs/screenshots/ticket-grip-desktop-light.png), [shortcuts and gestures](docs/screenshots/help-gestures-desktop-dark.png),
+[the whole ticket at 390 px](docs/screenshots/reader-ticket-mobile-light.png).)
 
 ## Ticket actions (0.5.11)
 
@@ -696,6 +731,7 @@ as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without 
 | `POST /api/tickets/SB-12/comments` | `{ text, to? }` |
 | `GET /api/actions`, `POST /api/tickets/SB-12/actions/<id>` | ticket actions declared by the installation (see *Ticket actions*) |
 | `GET`, `PUT /api/roi` | scores an installation posts on the "Waiting on you" lane (see *Scores on the "Waiting on you" lane*) |
+| `GET /api/changelog` | `{ version, releases: [{ version, date, items }] }`, newest first: the page's *What's new* (see *Finding your way around*) |
 | `GET /api/facets` | repos, sessions, branches, machines, kinds, labels and actors with counts, and the open feedback count |
 | `GET /api/sessions` | sessions, most recent first (`?repo=`) |
 | `DELETE /api/sessions/<id>` | remove a session and its tickets |
@@ -725,7 +761,8 @@ for 6 seconds ([desktop](docs/screenshots/done-desktop-light.png), [phone](docs/
 **Keyboard**: `Ctrl+Enter` (`⌘+Enter` on a Mac) sends the comment you are typing, saves the ticket's
 title or description, or creates a new ticket; `Enter` alone stays a new line. Outside a text field:
 `/` search, `n` new ticket, `j` / `k` next / previous ticket, `Enter` or `o` open it, `d` done,
-`c` comment on the open ticket, `b` / `l` Board / List, `Esc` close, `?` the list of all of them
+`c` comment on the open ticket, `b` / `l` Board / List, `Esc` close, `?` (or the **?** button in the
+header) the list of all of them, with the buttons and gestures
 ([help](docs/screenshots/keys-help-desktop-light.png), [comment hint](docs/screenshots/keys-comment-desktop-light.png)).
 Single keys never fire with Ctrl, ⌘ or Alt held, so the browser's and a screen reader's own keys
 stay theirs.

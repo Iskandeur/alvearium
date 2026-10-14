@@ -347,7 +347,7 @@ test('page: buttons in the ticket detail for owner and admin, the tab opened ins
   assert.match(run, /The browser blocked the new tab:/);
   assert.match(run, /rel="noopener noreferrer"/);
   assert.match(run, /if \(win && !win\.closed\) win\.close\(\);/);
-  assert.match(page, /await Promise\.all\(\[loadFacets\(\), refresh\(\), loadActions\(\)\]\);/);
+  assert.match(page, /await Promise\.all\(\[loadFacets\(\), refresh\(\), loadActions\(\)[^\]]*\]\);/);
   assert.match(page, /\.pAct:hover \{ border-color: var\(--accent\)/);
 });
 
