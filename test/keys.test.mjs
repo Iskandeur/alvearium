@@ -74,7 +74,7 @@ test('page: a hint under the comment box, the help lists every key, focus is vis
   assert.match(page, /<div class="hint" id="commentHint">\$\{esc\(sendHint\('send'\)\)\}<\/div>/);
   assert.match(page, /const modLabel = \(\) => \(IS_MAC \? '⌘' : 'Ctrl'\)/);
   for (const k of ["'/'", "'n'", "'j'", "'k'", "'Enter'", "'o'", "'d'", "'c'", "'b'", "'l'", "'?'", "'Esc'"]) assert.ok(page.includes(`{ keys: ${k},`), k);
-  assert.match(page, /role="dialog" aria-modal="true" aria-label="Keyboard shortcuts"/);
+  assert.match(page, /role="dialog" aria-modal="true" aria-label="Shortcuts and gestures"/);
   for (const c of ['card', 'row', 'nrow']) assert.match(page, new RegExp(`\\.${c}:focus-visible \\{ outline: 2px solid var\\(--accent\\)`));
 });
 
@@ -87,15 +87,17 @@ test('keys: Esc first leaves the expanded ticket, then closes the panel; a dialo
 });
 
 test('panel: resize handle, width kept per browser behind a guard, expand button (0.5.10)', () => {
-  // The handle is a focusable separator on the left edge, hidden on a phone where the panel fills the screen.
+  // The handle is a focusable separator on the left edge, hidden on a phone where the panel fills the screen;
+  // the expand button stays there (0.5.13: it reads the whole ticket).
   assert.match(page, /class="pResize" role="separator" aria-orientation="vertical" aria-label="Resize the ticket panel"/);
-  assert.match(page, /\.pResize, \.pTools \.pExp \{ display: none; \}/);
+  assert.match(page, /\n\s*\.pResize \{ display: none; \}/);
+  assert.doesNotMatch(page, /\.pExp[^{]*\{[^}]*display: none/);
   assert.match(page, /width: clamp\(380px, var\(--panel-w, 560px\), max\(380px, calc\(100vw - 96px\)\)\)/);
   // Storage may throw (private window, blocked): the new keys go through the guarded helper only.
   assert.match(page, /get\(k\) \{ try \{ return localStorage\.getItem\(k\); \} catch \{ return null; \} \}/);
   for (const k of ['PANEL_KEY', 'READER_KEY']) assert.doesNotMatch(page, new RegExp(`localStorage\\.\\w+\\(${k}`), k);
   assert.match(page, /if \(e\.target\.closest\?\.\('\.pResize'\)\) applyPanelWidth\(PANEL_DEFAULT, true\)/, 'double-click resets');
-  assert.match(page, /if \(act === 'expand'\) return setExpanded\(!isExpanded\(\)\);/);
+  assert.match(page, /if \(act === 'expand'\) return isNarrow\(\) \? readWholeTicket\(\) : setExpanded\(!isExpanded\(\)\);/);
   assert.match(page, /if \(a === 'collapsePanel'\) return setExpanded\(false\);/);
 });
 
