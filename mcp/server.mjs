@@ -130,8 +130,15 @@ const TOOLS = [
   },
   {
     name: 'ticket_get',
-    description: 'Show one ticket with its history and sub-tickets.',
-    inputSchema: { type: 'object', properties: { key: { type: 'string' } }, required: ['key'] },
+    description: 'Show one ticket with its history and sub-tickets. Long comments are shortened in the history; pass full=true to get the whole body and every comment, complete.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        key: { type: 'string' },
+        full: { type: 'boolean', description: 'Default false: the last 15 history entries, comments cut at ~260 characters. true: the whole body and the whole history, every comment in full.' },
+      },
+      required: ['key'],
+    },
   },
 ];
 
@@ -177,23 +184,23 @@ const line = (t) => {
   );
 };
 
-function describe(t) {
+export function describe(t, { full = false } = {}) {
   const out = [line(t)];
   if (t.parent_key) out.push(`parent: ${t.parent_key} ${t.parent_title || ''}`.trim());
   if (t.blocked_by?.length) out.push(`blocked by: ${t.blocked_by.map((b) => `${b.key} [${b.status}]`).join(', ')}`);
   if (t.blocking?.length) out.push(`blocks: ${t.blocking.map((b) => `${b.key} [${b.status}]`).join(', ')}`);
 
-  if (t.body) out.push('', markdownToTerminal(t.body, { ansi: true, max: 1800 }));
+  if (t.body) out.push('', markdownToTerminal(t.body, { ansi: true, max: full ? MAX_BODY_CHARS : 1800 }));
 
   for (const l of t.links || []) out.push(`link: ${l.url}`);
   if (t.children?.length) out.push('', 'sub-tickets:', ...t.children.map((c) => '  ' + line(c)));
   if (t.events?.length) {
     out.push('', 'history:');
-    for (const e of t.events.slice(-15)) {
+    for (const e of full ? t.events : t.events.slice(-15)) {
       const actor = aName(e.actor, (t.actors || {})[e.actor]?.name);
       const target = e.target ? aName(e.target, (t.actors || {})[e.target]?.name) : '';
       const ts = new Date(e.at).toISOString().slice(0, 16).replace('T', ' ');
-      const body = e.text ? markdownToTerminal(e.text, { ansi: true, max: 260 }) : '';
+      const body = e.text ? markdownToTerminal(e.text, { ansi: true, max: full ? MAX_COMMENT_CHARS : 260 }) : '';
       const what =
         e.type === 'comment'
           ? `comment:\n${body}`
@@ -298,7 +305,7 @@ export async function callTool(name, args = {}, { backend, context, env = proces
       return `Commented on ${t.key} (${t.comments_count} comment${t.comments_count === 1 ? '' : 's'})`;
     }
     case 'ticket_get':
-      return describe(await backend.get(String(args.key)));
+      return describe(await backend.get(String(args.key)), { full: args.full === true });
     case 'ticket_next': {
       const scope = args.scope || 'repo';
       const params = { limit: Math.min(Number(args.limit) || 10, 50) };
