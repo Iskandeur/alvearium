@@ -1526,11 +1526,11 @@
         if (/\b(?:tomorrow|demain)\b/.test(s)) { const n = new Date(from + MX_DAY); return mxDay(n.getFullYear(), n.getMonth() + 1, n.getDate()); }
         return null;
       }
-      /** "in 5 h", "in 3 d", "2 d late". */
+      /** "in 5 h", "in 3 d", "2 d ago" (past due). */
       function mxIn(ms) {
         const late = ms < 0, a = Math.abs(ms);
         const v = a < MX_DAY ? `${Math.max(1, Math.round(a / 3600000))} h` : `${Math.round(a / MX_DAY)} d`;
-        return late ? `${v} late` : `in ${v}`;
+        return late ? `${v} ago` : `in ${v}`;
       }
       /**
        * Places one ticket: { u, i, urgent, important, due, why: [...] }. `roiRank` maps a key to its

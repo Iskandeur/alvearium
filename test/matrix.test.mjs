@@ -51,7 +51,7 @@ test('urgency: two days to the deadline, or three days waiting, is the line', ()
   assert.equal(mxPlace(tk({ labels: ['due:2026-10-30'] }), NOW).urgent, false);
   const past = mxPlace(tk({ labels: ['due:2026-10-10'] }), NOW);
   assert.equal(past.u, 1);
-  assert.match(past.why.join(' '), /late/);
+  assert.match(past.why.join(' '), /due \d+ d ago/);
   assert.equal(mxPlace(tk({ column: 'waiting', status_at: NOW - 3 * D }), NOW).urgent, true);
   assert.equal(mxPlace(tk({ column: 'waiting', status_at: NOW - 2 * D }), NOW).urgent, false);
   assert.equal(mxPlace(tk({ column: 'todo', status_at: NOW - 20 * D }), NOW).urgent, false, 'age counts on your lane only');
