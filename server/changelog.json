@@ -2,6 +2,16 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.5.14",
+      "date": "2026-10-15",
+      "items": [
+        "Matrix, next to Board, Next and List (or press m): your tickets on an important × urgent grid, in four boxes from Do now to Later.",
+        "Urgent means a deadline within 2 days, or waiting on you for 3 days or more. Important means P0 or P1, a ⚡ ROI in the top half, or an answer that unblocks work. The line under the switch says so.",
+        "A deadline is read from a due:YYYY-MM-DD label, or from the date in the \"Without an answer\" line of a request.",
+        "Mine shows what is assigned to you or waiting on you; All open shows every open ticket. Click a ticket to open it on the right."
+      ]
+    },
+    {
       "version": "0.5.13",
       "date": "2026-10-14",
       "items": [
