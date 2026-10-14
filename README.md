@@ -215,6 +215,35 @@ only appeared on hover, nothing at all on a phone, and no word when the board ch
 ([the grip, at rest](docs/screenshots/ticket-grip-desktop-light.png), [shortcuts and gestures](docs/screenshots/help-gestures-desktop-dark.png),
 [the whole ticket at 390 px](docs/screenshots/reader-ticket-mobile-light.png).)
 
+## Matrix: important × urgent (0.5.14)
+
+*Matrix*, next to *Board*, *Next* and *List* (or the `m` key), puts your open tickets on the classic
+2 × 2 grid: **Do now** (urgent and important), **Schedule** (important, not urgent), **Clear fast**
+(urgent, less important), **Later** (neither). Click a ticket to open it in the panel on the right;
+`j` / `k` move through them. *Mine* (the default) shows what is assigned to you or waiting on you;
+*All open* adds the agents' work, session traces aside. The choice is remembered per browser
+(`alvearium.matrix-all`). The filters and the search apply as on the other views.
+
+The board stores no "urgency" or "importance" field, so the grid is a projection of what it already
+knows, and the line under the switch states it:
+
+- **Urgent** = a deadline within 2 days (or past), or waiting on you for 3 days or more. The deadline
+  is a `due:YYYY-MM-DD` label when there is one, else the date in the *Without an answer* line of a
+  request: an ISO date, a day/month date (`15/10`, `15.10.2026`, day first), *today*, *tomorrow*, or
+  *in 48 h* / *within 2 days* counted from the ticket's last status change. A ticket put off with
+  *Later* is not urgent until it comes back.
+- **Important** = P0 or P1, a ⚡ ROI score in the top half of the scores on screen (a score only
+  means something next to the others), or an answer that unblocks other tickets or jobs.
+
+Inside a box, tickets are ordered by how far they sit from the centre of the grid (most urgent and
+important first), and each one says why it is there (*due in 5 h · ⚡ ROI 42*). Under 700 px the four
+boxes stack, *Do now* first.
+
+![The matrix, desktop, light](docs/screenshots/matrix-desktop-light.png)
+
+([dark](docs/screenshots/matrix-desktop-dark.png), [at 390 px](docs/screenshots/matrix-mobile-light.png),
+[at 390 px, dark](docs/screenshots/matrix-mobile-dark.png), [a ticket opened from the grid](docs/screenshots/matrix-open-desktop-light.png).)
+
 ## Ticket actions (0.5.11)
 
 An installation can add its own buttons to the ticket detail: *Open a coding session*, *Deploy a

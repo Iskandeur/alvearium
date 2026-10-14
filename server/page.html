@@ -210,6 +210,41 @@
     details.drawer .cards { margin-top: 8px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 
     /* List */
+    /* 0.5.14: matrix view, important × urgent (renderMatrix) */
+    .seg button svg { vertical-align: -1px; margin-right: 5px; }
+    .mxHead { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 12px; }
+    .mxCount { font-size: 12.5px; color: var(--muted); }
+    .mxLegend { flex: 1 1 100%; margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+    .mxGrid { display: grid; grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto; grid-template-areas: ". x x" "y do plan" "y quick later"; gap: 10px; }
+    .mxAxisX { grid-area: x; display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); letter-spacing: .02em; padding: 0 4px; }
+    .mxAxisY { grid-area: y; display: flex; align-items: flex-start; justify-content: center; font-size: 11.5px; color: var(--muted); letter-spacing: .02em; }
+    .mxAxisY span { writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap; }
+    .mxQ { background: var(--lane); border-radius: var(--radius); padding: 10px; min-height: 140px; display: flex; flex-direction: column; border: 1px solid transparent; }
+    .mxQ[data-q="do"] { grid-area: do; border-color: color-mix(in srgb, var(--danger) 35%, transparent); background: color-mix(in srgb, var(--danger) 6%, var(--lane)); }
+    .mxQ[data-q="plan"] { grid-area: plan; border-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+    .mxQ[data-q="quick"] { grid-area: quick; }
+    .mxQ[data-q="later"] { grid-area: later; opacity: .92; }
+    .mxQHead { display: flex; align-items: baseline; gap: 8px; padding: 2px 4px 8px; }
+    .mxQHead h2 { margin: 0; font-size: 14px; font-weight: 600; }
+    .mxQ[data-q="do"] .mxQHead h2 { color: var(--danger); }
+    .mxSub { font-size: 12px; color: var(--muted); flex: 1; min-width: 0; }
+    .mxList { display: flex; flex-direction: column; gap: 6px; max-height: 52vh; overflow-y: auto; }
+    .mxItem { background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; cursor: pointer; box-shadow: var(--shadow); }
+    .mxItem:hover, .mxItem:focus-visible { border-color: var(--accent); outline: none; }
+    .mxItem.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+    .mxItem .head { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .mxItem .title { margin: 0; font-size: 13.5px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mxItem .key { font-size: 11.5px; color: var(--muted); flex: none; }
+    .mxItem .dot { margin-top: 0; }
+    .mxWhy { margin: 3px 0 0 15px; font-size: 12px; color: var(--muted); }
+    .mxItem.late .mxWhy { color: var(--danger); }
+    @media (max-width: 700px) {
+      .mxGrid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "do" "plan" "quick" "later"; }
+      .mxAxis { display: none; }
+      .mxQ { min-height: 0; }
+      .mxList { max-height: none; }
+      .mxItem .title { white-space: normal; }
+    }
     .list { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
     .group { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--lane); border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
     .group:first-child { border-top: 0; }
@@ -853,6 +888,7 @@
     </div>
     <div id="listView" hidden></div>
     <div id="nextView" hidden></div>
+    <div id="matrixView" hidden></div>
     <div id="feedbackView" hidden></div>
     <div id="membersView" hidden></div>
   </main>
@@ -900,7 +936,7 @@
 
       // ---- state: everything that matters lives in the URL ------------------------------------
       const FILTERS = ['repo', 'session', 'actor', 'status', 'priority', 'assignee', 'kind', 'subtype', 'label', 'origin', 'machine', 'branch'];
-      const VIEWS = ['board', 'next', 'list', 'feedback', 'members'];
+      const VIEWS = ['board', 'next', 'list', 'matrix', 'feedback', 'members'];
       let state = readUrl();
       function readUrl() {
         const p = new URLSearchParams(location.search);
@@ -1437,6 +1473,169 @@
         toast(`${key} is back in your lane`);
       }
 
+      // ---- matrix (0.5.14): important × urgent, from what the board already stores --------------
+      // No new field: urgency comes from a deadline (a `due:YYYY-MM-DD` label, else the date in the
+      // ask block's "Without an answer" line) and from how long a ticket has waited on you; importance
+      // from the priority, the ⚡ ROI score the installation posted, and what an answer unblocks. Both
+      // scores run 0 to 1 and the line between the quadrants is 0.5, which is where the legend puts it.
+      const MX_DUE_DAYS = 2;
+      const MX_WAIT_DAYS = 3;
+      const MX_LEGEND = `Urgent: a deadline within ${MX_DUE_DAYS} days, or waiting on you ${MX_WAIT_DAYS} days or more. Important: P0 or P1, a ⚡ ROI in the top half, or an answer that unblocks work.`;
+      const MX_DAY = 86400000;
+      const MX_PRIO = { P0: 1, P1: 0.75, P2: 0.4, P3: 0.15 };
+      const MX_QUADS = [
+        { id: 'do', title: 'Do now', sub: 'Urgent and important', u: true, i: true },
+        { id: 'plan', title: 'Schedule', sub: 'Important, not urgent', u: false, i: true },
+        { id: 'quick', title: 'Clear fast', sub: 'Urgent, less important', u: true, i: false },
+        { id: 'later', title: 'Later', sub: 'Neither, for now', u: false, i: false },
+      ];
+      const mxClamp = (x) => Math.max(0, Math.min(1, x));
+      /** End of a calendar day, local time. Null when the date does not exist (31/02). */
+      function mxDay(y, m, d) {
+        const t = new Date(y, m - 1, d, 23, 59, 59, 999);
+        return t.getFullYear() === y && t.getMonth() === m - 1 && t.getDate() === d ? t.getTime() : null;
+      }
+      /**
+       * When a ticket falls due, in ms, or null. A `due:YYYY-MM-DD` label wins; else the ask block's
+       * "Without an answer" line: an ISO date, a day/month date (15/10, 15.10.2026: day first), today,
+       * tonight, tomorrow, or "in 48 h" / "within 2 days" counted from when the ticket last changed status.
+       */
+      function mxDeadline(t, now) {
+        for (const l of t.labels || []) {
+          const m = /^due:(\d{4})-(\d{2})-(\d{2})$/.exec(String(l));
+          if (m) { const d = mxDay(+m[1], +m[2], +m[3]); if (d) return d; }
+        }
+        const s = String(t.ask?.sansReponse || '').toLowerCase();
+        if (!s) return null;
+        let m = /\b(\d{4})-(\d{2})-(\d{2})\b/.exec(s);
+        const iso = m && mxDay(+m[1], +m[2], +m[3]);
+        if (iso) return iso;
+        // Day/month: a slash (15/10, 15/10/2026), or dots with a year (15.10.2026), never inside a word
+        // or a number: "2.5 days" and "v1.2" are not dates.
+        m = /(?:^|[\s(,;:])(\d{1,2})(?:\/(\d{1,2})(?:\/(\d{2}|\d{4}))?|\.(\d{1,2})\.(\d{2}|\d{4}))(?=$|[\s),;:!?]|\.(?:\s|$))/.exec(s);
+        if (m) { m = [m[0], m[1], m[2] ?? m[4], m[3] ?? m[5]]; if (+m[2] < 1 || +m[2] > 12) m = null; }
+        if (m) {
+          const day = +m[1], mon = +m[2];
+          if (m[3]) return mxDay(m[3].length === 2 ? 2000 + +m[3] : +m[3], mon, day);
+          // No year: the one that puts the date closest to now (a 2 January read in late December is next year).
+          const y = new Date(now).getFullYear();
+          const c = [y - 1, y, y + 1].map((yy) => mxDay(yy, mon, day)).filter(Boolean);
+          return c.length ? c.sort((a, b) => Math.abs(a - now) - Math.abs(b - now))[0] : null;
+        }
+        const from = t.status_at || t.updated_at || now;
+        m = /\b(?:in|within|under|dans|sous)\s+(\d{1,3})\s*(h|hours?|heures?|d|days?|j|jours?)\b/.exec(s);
+        if (m) return from + +m[1] * (/^[hH]/.test(m[2]) ? 3600000 : MX_DAY);
+        const d0 = new Date(from);
+        if (/\b(?:today|tonight|aujourd'hui|ce soir)\b/.test(s)) return mxDay(d0.getFullYear(), d0.getMonth() + 1, d0.getDate());
+        if (/\b(?:tomorrow|demain)\b/.test(s)) { const n = new Date(from + MX_DAY); return mxDay(n.getFullYear(), n.getMonth() + 1, n.getDate()); }
+        return null;
+      }
+      /** "in 5 h", "in 3 d", "2 d ago" (past due). */
+      function mxIn(ms) {
+        const late = ms < 0, a = Math.abs(ms);
+        const v = a < MX_DAY ? `${Math.max(1, Math.round(a / 3600000))} h` : `${Math.round(a / MX_DAY)} d`;
+        return late ? `${v} ago` : `in ${v}`;
+      }
+      /**
+       * Places one ticket: { u, i, urgent, important, due, why: [...] }. `roiRank` maps a key to its
+       * place among the scored tickets on screen (0 = highest) and `roiCount` is how many there are.
+       */
+      function mxPlace(t, now, roiRank = new Map(), roiCount = 0) {
+        const why = [];
+        const due = t.snoozed_until ? null : mxDeadline(t, now);
+        let uDue = 0, uWait = 0;
+        // 2 days left → 0.5 (the line), past due → 1; waited 3 days → 0.5, 6 days → 1.
+        if (due !== null) { uDue = mxClamp(1 - (due - now) / (2 * MX_DUE_DAYS * MX_DAY)); why.push(`due ${mxIn(due - now)}`); }
+        if (t.column === 'waiting' && !t.snoozed_until) {
+          const waited = now - (t.status_at || now);
+          uWait = mxClamp(waited / (2 * MX_WAIT_DAYS * MX_DAY));
+          if (waited >= MX_DAY) why.push(`waiting ${Math.floor(waited / MX_DAY)} d`);
+        }
+        const iPrio = MX_PRIO[t.priority] ?? 0.3;
+        let iRoi = 0;
+        if (t.roi && roiRank.has(t.key) && roiCount > 0) {
+          // Rank among the scores on screen: the top half reaches the line. A score is relative to the others.
+          const r = roiRank.get(t.key), half = Math.ceil(roiCount / 2);
+          iRoi = r < half ? 1 - (0.5 * r) / half : 0.45 * (1 - (r - half) / Math.max(1, roiCount - half));
+          if (iRoi >= 0.5) why.push(`⚡ ROI ${roiNum(t.roi.score)}`);
+        }
+        const iUnlock = t.unlocks > 0 ? mxClamp(0.55 + 0.05 * t.unlocks) : 0;
+        if (t.unlocks > 0) why.push(`unblocks ${t.unlocks}`);
+        const u = Math.max(uDue, uWait), i = Math.max(iPrio, iRoi, iUnlock);
+        return { u, i, urgent: u >= 0.5, important: i >= 0.5, due, why };
+      }
+      /**
+       * The matrix of a board snapshot. `all` false: yours only (your lane, plus open tickets assigned to
+       * you); true: every open ticket except session traces. Returns { quads: { do, plan, quick, later },
+       * total } with each list ordered by u + i, highest first.
+       */
+      function mxProject(columns, now, all = false) {
+        const c = columns || {};
+        const seen = new Set();
+        const list = [];
+        for (const [col, rows] of [['waiting', c.waiting], ['inProgress', c.inProgress], ['todo', c.todo]]) {
+          for (const t of rows || []) {
+            if (seen.has(t.key)) continue;
+            const mine = col === 'waiting' || t.assignee === 'user';
+            if (!all && !mine) continue;
+            if (col !== 'waiting' && (t.kind === 'session' || t.kind === 'feedback')) continue;
+            seen.add(t.key);
+            list.push(t);
+          }
+        }
+        const scored = list.filter((t) => t.roi && Number.isFinite(Number(t.roi.score))).sort((a, b) => Number(b.roi.score) - Number(a.roi.score));
+        const rank = new Map();
+        scored.forEach((t, n) => rank.set(t.key, n > 0 && Number(t.roi.score) === Number(scored[n - 1].roi.score) ? rank.get(scored[n - 1].key) : n));
+        const quads = { do: [], plan: [], quick: [], later: [] };
+        for (const t of list) {
+          const p = mxPlace(t, now, rank, scored.length);
+          quads[p.urgent ? (p.important ? 'do' : 'quick') : p.important ? 'plan' : 'later'].push({ t, ...p });
+        }
+        for (const q of Object.values(quads)) q.sort((a, b) => b.u + b.i - (a.u + a.i) || (a.t.status_at ?? 0) - (b.t.status_at ?? 0));
+        return { quads, total: list.length };
+      }
+      // ---- end of matrix helpers ----
+
+      const MX_ALL_KEY = 'alvearium.matrix-all';
+      document.addEventListener('click', (e) => {
+        const b = e.target.closest?.('[data-mx]');
+        if (!b || b.getAttribute('aria-pressed') === 'true') return;
+        prefs.set(MX_ALL_KEY, b.dataset.mx === 'all' ? '1' : null);
+        refresh();
+      });
+      function mxItem(p, now) {
+        const t = p.t;
+        const why = p.why.length ? p.why.join(' · ') : t.column === 'waiting' ? 'On you' : STATUS[t.status] || t.status;
+        return `<article class="mxItem${p.due !== null && p.due < now ? ' late' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" tabindex="0" role="listitem">
+          <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${prio(t.priority)}<span class="key">${esc(t.key)}</span></div>
+          <div class="mxWhy">${esc(why)}</div>
+        </article>`;
+      }
+      function renderMatrix(data, now) {
+        const all = prefs.get(MX_ALL_KEY) === '1';
+        const { quads, total } = mxProject(data.columns, now, all);
+        const head = `<div class="mxHead">
+          <div class="seg" role="group" aria-label="Whose tickets"><button type="button" data-mx="mine" aria-pressed="${!all}">Mine</button><button type="button" data-mx="all" aria-pressed="${all}">All open</button></div>
+          <span class="mxCount">${total} ticket${total === 1 ? '' : 's'}</span>
+          <p class="mxLegend">${esc(MX_LEGEND)}</p>
+        </div>`;
+        const box = (q) => {
+          const items = quads[q.id];
+          return `<section class="mxQ" data-q="${q.id}" aria-labelledby="mx-${q.id}">
+            <div class="mxQHead"><h2 id="mx-${q.id}">${q.title}</h2><span class="mxSub">${q.sub}</span><span class="count">${items.length || ''}</span></div>
+            <div class="mxList" role="list">${items.length ? items.map((p) => mxItem(p, now)).join('') : `<div class="empty">${q.id === 'do' ? 'Nothing urgent and important' : 'Empty'}</div>`}</div>
+          </section>`;
+        };
+        const grid = `<div class="mxGrid">
+          <div class="mxAxis mxAxisX" aria-hidden="true"><span>← More urgent</span><span>Less urgent →</span></div>
+          <div class="mxAxis mxAxisY" aria-hidden="true"><span>More important ↑</span></div>
+          ${MX_QUADS.map(box).join('')}
+        </div>`;
+        const empty = !total ? `<div class="list"><div class="empty big"><strong>${all ? 'No open tickets match' : 'Nothing on your plate'}</strong><span>${all ? 'Try another filter or search.' : 'Tickets assigned to you or waiting on you show up here.'}</span></div></div>` : '';
+        setHtml($('matrixView'), head + (empty || grid));
+        summaryFromApi();
+      }
+
       function card(t, now) {
         const ask = t.column === 'waiting' ? t.ask : null;
         // The lane shows the question the author asked; the start of the body only when there is none.
@@ -1531,7 +1730,7 @@
       }
       const PICK_LABEL = { repo: 'Repo', session: 'Session', actor: 'Actor', priority: 'Priority', status: 'Status', assignee: 'Assignee', subtype: 'Type', label: 'Label', kind: 'Kind', origin: 'Origin', machine: 'Machine' };
       function renderFilters() {
-        const seg = [['board', 'Board'], ['next', 'Next'], ['list', 'List']].map(([v, l]) => `<button type="button" data-view="${v}" aria-pressed="${state.view === v}">${l}</button>`).join('');
+        const seg = [['board', 'Board'], ['next', 'Next'], ['list', 'List'], ['matrix', 'Matrix']].map(([v, l]) => `<button type="button" data-view="${v}" aria-pressed="${state.view === v}"${v === 'matrix' ? ' title="Important × urgent: your tickets on a 2 × 2 grid (m)"' : ''}>${v === 'matrix' ? '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="1" width="4.2" height="4.2" rx="1" fill="currentColor"/><rect x="6.8" y="1" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.8" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>' : ''}${l}</button>`).join('');
         const parts = [`<div class="seg" role="group" aria-label="View">${seg}${state.view === 'feedback' ? '<button type="button" data-view="feedback" aria-pressed="true">Feedback</button>' : ''}</div>`];
         for (const k of FILTERS) {
           if (!state.f[k]) continue;
@@ -1568,7 +1767,7 @@
           let data;
           const view = state.view;
           if (view === 'members') {
-            for (const id of ['boardView', 'listView', 'nextView', 'feedbackView', 'membersView']) $(id).hidden = id !== 'membersView';
+            for (const id of ['boardView', 'listView', 'nextView', 'matrixView', 'feedbackView', 'membersView']) $(id).hidden = id !== 'membersView';
             $('auth').hidden = true;
             $('main').hidden = false;
             // Live changes must not wipe what you are typing on this page.
@@ -1588,10 +1787,11 @@
           $('auth').hidden = true;
           $('main').hidden = false;
           const now = data.now ?? Date.now();
-          for (const id of ['boardView', 'listView', 'nextView', 'feedbackView', 'membersView']) $(id).hidden = id !== view + 'View';
+          for (const id of ['boardView', 'listView', 'nextView', 'matrixView', 'feedbackView', 'membersView']) $(id).hidden = id !== view + 'View';
           if (view === 'list') renderList(data, now);
           else if (view === 'next') renderNext(data, now);
           else if (view === 'feedback') renderFeedback(data, now);
+          else if (view === 'matrix') renderMatrix(data, now);
           else renderBoard(data, now);
           changedKeys = new Set();
           lastRefresh = Date.now();
@@ -2611,6 +2811,7 @@
           { keys: 'c', desc: 'Focus comment (when a ticket is open)' },
           { keys: 'b', desc: 'Board view' },
           { keys: 'l', desc: 'List view' },
+          { keys: 'm', desc: 'Matrix view (important × urgent)' },
           { keys: '?', desc: 'Show this help' },
           { keys: 'Esc', desc: 'Leave the expanded ticket, then close the panel / help' },
         ];
@@ -2683,7 +2884,7 @@
         // Single keys: never while typing, never with a modifier (browser and screen-reader keys stay theirs).
         if (ctx.typing || mod || e.altKey) return null;
         if (e.key === 'Enter' && !e.shiftKey) return ctx.onTicket ? 'open' : null;
-        const map = { '/': 'search', '?': 'help', n: 'new', j: 'next', k: 'prev', o: 'open', d: 'done', c: 'comment', b: 'board', l: 'list' };
+        const map = { '/': 'search', '?': 'help', n: 'new', j: 'next', k: 'prev', o: 'open', d: 'done', c: 'comment', b: 'board', l: 'list', m: 'matrix' };
         const a = map[e.key] || map[e.key.toLowerCase()] || null;
         if (a === 'open' && !ctx.onTicket) return null;
         if (a === 'comment' && !ctx.panelOpen) return null;
@@ -2731,6 +2932,7 @@
         if (a === 'new') return renderCreate();
         if (a === 'board') return setView('board');
         if (a === 'list') return setView('list');
+        if (a === 'matrix') return setView('matrix');
         if (a === 'comment') return $('comment')?.focus();
         if (a === 'next') return focusDelta(+1);
         if (a === 'prev') return focusDelta(-1);
