@@ -98,6 +98,30 @@
     :root[data-theme="dark"] .btn.primary:hover { color: #0e0f11; }
     @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn.primary:hover { color: #0e0f11; } }
     .btn.ghost { border-color: transparent; background: none; color: var(--muted); }
+    .btn.helpBtn { width: 32px; padding: 0; justify-content: center; font-weight: 600; color: var(--muted); }
+    .btn.helpBtn:hover { color: var(--accent); }
+    .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    /* What's new (0.5.13): once per version and per browser, above the board; closed with ×, kept closed */
+    .news { position: relative; display: flex; align-items: flex-start; gap: 12px; margin: 2px 0 16px; padding: 12px 44px 12px 14px; background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; box-shadow: var(--shadow); }
+    .news .newsIc { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+    .news .newsIc svg { display: block; }
+    .news .newsMain { flex: 1; min-width: 0; }
+    .news .newsTop { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; min-height: 26px; padding-top: 3px; }
+    .news h2 { margin: 0; font-size: 13.5px; font-weight: 600; letter-spacing: -0.005em; }
+    .news .newsMore { font-size: 12.5px; font-weight: 400; color: var(--faint); }
+    .news ul { margin: 4px 0 0; padding-left: 1.1em; font-size: 13px; color: var(--muted); line-height: 1.45; }
+    .news li { margin: 0 0 3px; break-inside: avoid; }
+    .news li::marker { color: var(--faint); }
+    .news .newsActs { display: flex; align-items: center; gap: 14px; margin-left: auto; font-size: 12.5px; }
+    .news .linkBtn { font-size: 12.5px; font-weight: 500; }
+    .news .linkBtn:hover { text-decoration: underline; text-underline-offset: 3px; }
+    .news .linkBtn:focus-visible, .news .x:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+    .news .x { position: absolute; top: 8px; right: 8px; border: 0; background: none; width: 30px; height: 30px; border-radius: 8px; color: var(--muted); font-size: 18px; line-height: 1; }
+    .news .x:hover { background: var(--chip); color: var(--text); }
+    .news.update { align-items: center; padding-top: 9px; padding-bottom: 9px; padding-right: 14px; }
+    @media (min-width: 1100px) { .news ul { columns: 2; column-gap: 32px; } }
+    @media (max-width: 600px) { .news { gap: 10px; padding: 10px 40px 10px 12px; } .news .newsIc { display: none; } .news .newsActs { margin-left: 0; } .news.update .newsActs { margin-left: auto; } }
 
     /* Filter bar */
     .filters { display: flex; align-items: center; gap: 8px; padding-top: 2px; padding-bottom: 12px; flex-wrap: wrap; }
@@ -231,11 +255,20 @@
       position: fixed; top: 0; right: 0; bottom: 0; width: clamp(380px, var(--panel-w, 560px), max(380px, calc(100vw - 96px))); z-index: 10; background: var(--card);
       box-shadow: var(--shadow-panel); border-left: 1px solid var(--line); display: flex; flex-direction: column;
     }
-    /* The resize handle: a 10 px strip astride the left edge, a 2 px accent line when hovered or dragged */
-    .pResize { position: absolute; left: -5px; top: 0; bottom: 0; width: 10px; z-index: 3; cursor: col-resize; touch-action: none; outline: none; }
+    /* The resize handle: a 10 px strip astride the left edge. A grip of three dots shows at rest (0.5.13),
+       mid-height on the edge; hovered, focused or dragged, it turns accent with a 2 px accent line. */
+    .pResize { --grip: var(--faint); position: absolute; left: -5px; top: 0; bottom: 0; width: 10px; z-index: 3; cursor: col-resize; touch-action: none; outline: none; }
+    .pResize::before {
+      content: ""; position: absolute; z-index: 1; left: 0; top: 50%; width: 10px; height: 40px; margin-top: -20px; border-radius: 999px;
+      border: 1px solid var(--line-strong); background-color: var(--card); box-shadow: var(--shadow);
+      background-image: radial-gradient(circle at 50% 32%, var(--grip) 1.15px, transparent 1.6px), radial-gradient(circle at 50% 50%, var(--grip) 1.15px, transparent 1.6px), radial-gradient(circle at 50% 68%, var(--grip) 1.15px, transparent 1.6px);
+      transition: border-color 0.12s ease, box-shadow 0.12s ease;
+    }
     .pResize::after { content: ""; position: absolute; left: 4px; top: 0; bottom: 0; width: 2px; background: var(--accent); opacity: 0; transition: opacity 0.12s ease 0.08s; }
+    .pResize:hover, .pResize:focus-visible, body.resizing .pResize { --grip: var(--accent); }
+    .pResize:hover::before, body.resizing .pResize::before { border-color: var(--accent); }
+    .pResize:focus-visible::before { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
     .pResize:hover::after, .pResize:focus-visible::after, body.resizing .pResize::after { opacity: 1; transition-delay: 0s; }
-    .pResize:focus-visible::before { content: ""; position: absolute; left: -1px; top: 50%; width: 12px; height: 36px; margin-top: -18px; border-radius: 6px; border: 2px solid var(--accent); background: var(--card); }
     body.resizing, body.resizing * { cursor: col-resize !important; user-select: none !important; }
     /* Expanded: the ticket nearly full screen, its text in a readable column */
     aside.panel.expanded { top: 14px; right: 14px; bottom: 14px; left: 14px; width: auto; border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 24px 80px rgba(16, 18, 27, 0.28); overflow: hidden; }
@@ -270,12 +303,13 @@
     .sect > button { margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; }
     .sect .mdActs { margin-left: auto; }
     .sect .mdActs + button { margin-left: 2px; }
-    /* Copy / read wide, on the description and on each comment: shown on hover or focus (always on touch) */
-    .mdActs { display: inline-flex; align-items: center; gap: 2px; opacity: 0; transition: opacity 0.12s ease; }
-    .mdHost:hover .mdActs, .mdHost:focus-within .mdActs, .mdActs:has(.ok, .fail) { opacity: 1; }
+    /* Copy / read wide, on the description and on each comment: always there, quiet at rest (0.5.13),
+       full on hover or focus, and full on a touch screen */
+    .mdActs { display: inline-flex; align-items: center; gap: 2px; opacity: 0.45; transition: opacity 0.12s ease; }
+    .mdHost:hover .mdActs, .mdHost:focus-within .mdActs, .mdActs:hover, .mdActs:focus-within, .mdActs:has(.ok, .fail) { opacity: 1; }
     .mdAct {
       display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 26px; min-width: 26px; padding: 0 5px; border: 0; border-radius: 7px;
-      background: none; color: var(--faint); font-size: 12px; font-weight: 500; text-transform: none; letter-spacing: 0; line-height: 1;
+      background: none; color: var(--muted); font-size: 12px; font-weight: 500; text-transform: none; letter-spacing: 0; line-height: 1;
     }
     .mdAct:hover { background: var(--chip); color: var(--text); }
     .mdAct:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; }
@@ -290,7 +324,7 @@
       .ev .evHead { padding-right: 76px; }
       .ev.comment > .evHead > .mdActs { top: -7px; }
     }
-    @media (prefers-reduced-motion: reduce) { .mdActs, .pResize::after { transition: none; } }
+    @media (prefers-reduced-motion: reduce) { .mdActs, .pResize::before, .pResize::after { transition: none; } }
     .md { font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
     .md a { color: var(--accent); }
     .md.empty-body { color: var(--faint); }
@@ -404,7 +438,18 @@
     .help .x:hover { background: var(--chip); }
     .helpHead { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
     .helpNote { color: var(--faint); font-size: 12.5px; margin: 8px 0 0; }
-    @media (max-width: 900px) { .help .cols { grid-template-columns: 1fr; } .help .rowH { grid-template-columns: 72px minmax(0, 1fr); } }
+    .help h4 { margin: 4px 0 4px; font-size: 11.5px; font-weight: 600; color: var(--faint); text-transform: uppercase; letter-spacing: 0.04em; }
+    .help .rowH + h4, .help .helpNote + h4 { margin-top: 16px; }
+    .help:not(.reader) { width: min(880px, calc(100vw - 28px)); }
+    .help .rowH.g { grid-template-columns: 34px minmax(0, 1fr); align-items: start; }
+    .help .rowH.g .desc { padding-top: 2px; }
+    .help .gIc { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 4px; border-radius: 6px; border: 1px solid var(--line-strong); color: var(--muted); font-size: 11.5px; }
+    .help .gIc svg { display: block; }
+    .help .gGrip { width: 10px; min-width: 0; height: 22px; padding: 0; border-radius: 999px; background-image: radial-gradient(circle at 50% 32%, var(--faint) 1.15px, transparent 1.6px), radial-gradient(circle at 50% 50%, var(--faint) 1.15px, transparent 1.6px), radial-gradient(circle at 50% 68%, var(--faint) 1.15px, transparent 1.6px); }
+    .helpFoot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--faint); }
+    .helpFoot .linkBtn { font-size: 12.5px; }
+    @media (hover: none), (pointer: coarse) { .help .touchFirst { order: -1; } }
+    @media (max-width: 900px) { .help .cols { grid-template-columns: 1fr; } .help .rowH { grid-template-columns: 72px minmax(0, 1fr); } .help:not(.reader) { top: 4vh; max-height: 92vh; } }
 
     /* Members */
     .mbWrap { max-width: 860px; margin: 18px auto 40px; display: flex; flex-direction: column; gap: 16px; }
@@ -717,8 +762,9 @@
       .row .when { grid-column: 2; grid-row: 2; }
       .group .hideS { display: none; }
       aside.panel { width: 100vw; border-left: 0; }
-      /* The panel already fills the phone: no handle, no expand button */
-      .pResize, .pTools .pExp { display: none; }
+      /* The panel already fills the screen: no handle. The expand button stays and opens the whole
+         ticket in the reading view instead (0.5.13). */
+      .pResize { display: none; }
       aside.panel.expanded { inset: 0; border: 0; border-radius: 0; box-shadow: none; }
       aside.panel.expanded .pHead, aside.panel.expanded .pBody { padding-left: 18px; padding-right: 18px; }
       aside.panel.expanded .replyBar { padding-left: 14px; padding-right: 14px; }
@@ -749,6 +795,7 @@
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="6" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 13.5c.6-2.4 2.3-3.6 4.5-3.6s3.9 1.2 4.5 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10.5 3.2a2.4 2.4 0 0 1 0 4.6M12.2 9.9c1.2.5 2 1.6 2.3 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
         <span class="opt">Members</span>
       </button>
+      <button class="btn helpBtn" type="button" id="helpBtn" data-act="help" aria-label="Shortcuts and gestures" title="Shortcuts and gestures (?)">?</button>
       <button class="btn primary" type="button" data-act="new">
         <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
         <span>New</span>
@@ -782,6 +829,7 @@
   </section>
 
   <main class="wrap" id="main">
+    <section class="news" id="news" hidden aria-labelledby="newsTitle"></section>
     <div id="boardView">
       <div class="grid">
         <section class="lane primary" aria-labelledby="h-waiting">
@@ -813,7 +861,7 @@
   <aside class="panel" id="panel" hidden aria-label="Ticket"></aside>
 
   <div class="helpScrim" id="helpScrim" hidden></div>
-  <div class="help" id="help" hidden role="dialog" aria-modal="true" aria-label="Keyboard shortcuts"></div>
+  <div class="help" id="help" hidden role="dialog" aria-modal="true" aria-label="Shortcuts and gestures"></div>
 
   <script>
     (() => {
@@ -1725,7 +1773,7 @@
       }
       applyPanelWidth(panelWidth);
       const resizeHandle = () =>
-        `<div class="pResize" role="separator" aria-orientation="vertical" aria-label="Resize the ticket panel" aria-valuemin="${PANEL_MIN}" aria-valuemax="${panelMax()}" aria-valuenow="${clampPanel(panelWidth)}" tabindex="0" title="Drag to resize · double-click to reset"></div>`;
+        `<div class="pResize" role="separator" aria-orientation="vertical" aria-label="Resize the ticket panel" aria-valuemin="${PANEL_MIN}" aria-valuemax="${panelMax()}" aria-valuenow="${clampPanel(panelWidth)}" tabindex="0" title="Drag to widen · double-click to reset"></div>`;
       let drag = null;
       document.addEventListener('pointerdown', (e) => {
         const h = e.target.closest?.('.pResize');
@@ -1776,6 +1824,13 @@
       function syncExpandButton() {
         const b = $('panel').querySelector('.pExp');
         if (!b) return;
+        if (isNarrow()) {
+          b.innerHTML = ICON_READ;
+          b.removeAttribute('aria-pressed');
+          b.setAttribute('aria-label', 'Read the whole ticket in the reading view');
+          b.title = 'Read the whole ticket';
+          return;
+        }
         const on = isExpanded();
         b.innerHTML = on ? ICON_SIDE : ICON_FULL;
         b.setAttribute('aria-pressed', String(on));
@@ -1812,12 +1867,17 @@
           }
         } catch {}
         const prev = document.activeElement;
+        // Touch screens (0.5.13): iOS selects nothing in a read-only box and zooms on a small font, so the
+        // box is editable but asks for no keyboard, 16 px, and the selection is set explicitly.
         const ta = document.createElement('textarea');
         ta.value = text;
-        ta.setAttribute('readonly', '');
-        ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;';
+        ta.setAttribute('inputmode', 'none');
+        ta.setAttribute('aria-hidden', 'true');
+        ta.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;font-size:16px;';
         document.body.append(ta);
+        ta.focus({ preventScroll: true });
         ta.select();
+        try { ta.setSelectionRange(0, text.length); } catch {}
         let ok = false;
         try { ok = document.execCommand('copy'); } catch {}
         ta.remove();
@@ -1864,6 +1924,111 @@
           </div>
           <div class="readerBody" tabindex="-1">${r.raw ? `<pre class="readerRaw" aria-label="Markdown source">${esc(r.text)}</pre>` : `<div class="md">${md(r.text)}</div>`}</div>
           <div class="readerFoot"><span>${groupDigits(r.text.length)} characters · ${groupDigits(words)} words</span><span style="margin-left:auto">Esc to close</span></div>`;
+      }
+
+      // ---- what's new (0.5.13) ------------------------------------------------------------------
+      // Pure helpers, lifted out and run by test/changelog.test.mjs. The server sends its version and
+      // its release notes (GET api/changelog, from server/changelog.json); this browser remembers the
+      // last version it was shown, behind the storage guard.
+      const SEEN_KEY = 'alvearium.seen-version';
+      const isVersion = (v) => typeof v === 'string' && /^\d+\.\d+\.\d+$/.test(v);
+      /** < 0 when a is older than b, 0 when equal, > 0 when newer (as lib/core.mjs compareVersions). */
+      function cmpVersion(a, b) {
+        const x = String(a || '').split('.').map((n) => Number.parseInt(n, 10) || 0);
+        const y = String(b || '').split('.').map((n) => Number.parseInt(n, 10) || 0);
+        for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0);
+        return 0;
+      }
+      /**
+       * What the "What's new" note shows, or null. `lastSeen` is what this browser was last shown
+       * (null in a new browser). The note lists the current version's items (at most 5), and names
+       * the versions in between that this browser skipped (`missed`, newest first). A new browser
+       * gets the current version only, never the whole history; a version already seen, or newer
+       * than the one served (a rollback), shows nothing.
+       */
+      function whatsNew(current, lastSeen, releases) {
+        if (!isVersion(current) || !Array.isArray(releases)) return null;
+        if (isVersion(lastSeen) && cmpVersion(lastSeen, current) >= 0) return null;
+        const rel = releases.find((r) => r && r.version === current);
+        const items = (rel?.items || []).filter((x) => typeof x === 'string' && x.trim()).slice(0, 5);
+        if (!items.length) return null;
+        const missed = isVersion(lastSeen)
+          ? releases.filter((r) => r && isVersion(r.version) && cmpVersion(r.version, lastSeen) > 0 && cmpVersion(r.version, current) < 0).map((r) => r.version).sort((a, b) => cmpVersion(b, a))
+          : [];
+        return { version: current, items, missed };
+      }
+      /** The whole history as one markdown text, for the reading view ("See all"); newest first. */
+      function changelogMarkdown(releases, current, fmtDate = (d) => d) {
+        const list = (Array.isArray(releases) ? releases : []).filter((r) => r && isVersion(r.version)).sort((a, b) => cmpVersion(b.version, a.version));
+        if (!list.length) return 'No release notes on this server.';
+        return list
+          .map((r) => `## ${r.version}${r.version === current ? ' · this version' : ''}${r.date ? ` · ${fmtDate(r.date)}` : ''}\n\n${(r.items || []).map((x) => `- ${String(x).replace(/\s*\n\s*/g, ' ')}`).join('\n')}`)
+          .join('\n\n');
+      }
+      /** A whole ticket as one markdown text: title, description, every comment (the reading view on a phone). */
+      function ticketMarkdown(t, nameOf = (id) => String(id), whenOf = (ms) => new Date(ms).toISOString()) {
+        const comments = (t.events || []).filter((e) => e && e.type === 'comment' && e.text);
+        const parts = [`# ${String(t.title || '').trim() || t.key}`, String(t.body || '').trim() || '_No description._'];
+        if (comments.length) {
+          parts.push(`## ${comments.length === 1 ? '1 comment' : comments.length + ' comments'}`);
+          for (const c of comments) parts.push(`### ${nameOf(c.actor)} · ${whenOf(c.at)}`, String(c.text).trim());
+        }
+        return parts.join('\n\n');
+      }
+      // ---- end of what's new helpers ----
+
+      let served = { version: null, releases: [] };
+      const fmtDay = (d) => {
+        const at = new Date(d + 'T12:00:00Z');
+        return Number.isNaN(at.getTime()) ? d : at.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+      };
+      const ICON_NEW = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.8l1.5 4.2 4.3 1.5-4.3 1.5L8 13.2 6.5 9 2.2 7.5 6.5 6z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+      async function loadChangelog() {
+        try {
+          const r = await api('changelog');
+          served = { version: isVersion(r.version) ? r.version : null, releases: Array.isArray(r.releases) ? r.releases : [] };
+        } catch { return; }
+        renderNews();
+      }
+      function renderNews() {
+        const box = $('news');
+        const n = whatsNew(served.version, prefs.get(SEEN_KEY), served.releases);
+        if (!n) return void (box.hidden = true);
+        const more = n.missed.length ? `<span class="newsMore">also ${n.missed.length === 1 ? esc(n.missed[0]) : n.missed.length + ' earlier versions'} since your last visit</span>` : '';
+        box.className = 'news';
+        box.innerHTML = `
+          <span class="newsIc">${ICON_NEW}</span>
+          <div class="newsMain">
+            <div class="newsTop"><h2 id="newsTitle">What's new in ${esc(n.version)}</h2>${more}<div class="newsActs"><button type="button" class="linkBtn" data-act="newsAll">See all changes</button></div></div>
+            <ul>${n.items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+          </div>
+          <button type="button" class="x" data-act="newsClose" aria-label="Dismiss what's new in ${esc(n.version)}" title="Dismiss">×</button>`;
+        box.hidden = false;
+      }
+      /** The server restarted on another version while this page stayed open: offer to reload. */
+      function newsUpdate(version) {
+        const box = $('news');
+        box.className = 'news update';
+        box.innerHTML = `
+          <span class="newsIc">${ICON_NEW}</span>
+          <div class="newsMain"><div class="newsTop"><h2 id="newsTitle">Alvearium ${esc(version)} is ready</h2><span class="newsMore">this page still runs ${esc(served.version)}</span></div></div>
+          <div class="newsActs"><button type="button" class="btn primary" data-act="reload">Reload</button></div>`;
+        box.hidden = false;
+      }
+      function newsSeen() {
+        if (served.version) prefs.set(SEEN_KEY, served.version);
+      }
+      function openChangelog() {
+        openReader({ text: changelogMarkdown(served.releases, served.version, fmtDay), heading: "What's new", sub: served.version ? 'Alvearium ' + served.version : '' });
+      }
+      /** On a phone or in a narrow window the panel already fills the screen: "expand" reads the whole ticket. */
+      const NARROW = window.matchMedia('(max-width: 900px)');
+      const isNarrow = () => NARROW.matches;
+      NARROW.addEventListener?.('change', () => syncExpandButton());
+      function readWholeTicket() {
+        const t = $('panel').__ticket;
+        if (!t) return;
+        openReader({ text: ticketMarkdown(t, actorName, when), heading: `${t.key} · Whole ticket`, sub: plain(t.title) });
       }
 
       // Long texts: a comment or a description holds at most MAX_TEXT characters, like the server
@@ -2286,7 +2451,11 @@
         const act = el.dataset.act;
         if (act === 'helpClose') return closeHelp();
         if (act === 'close') return closePanel();
-        if (act === 'expand') return setExpanded(!isExpanded());
+        if (act === 'expand') return isNarrow() ? readWholeTicket() : setExpanded(!isExpanded());
+        if (act === 'help') return openHelp();
+        if (act === 'newsAll') { newsSeen(); return openChangelog(); }
+        if (act === 'newsClose') { newsSeen(); $('news').hidden = true; return $('helpBtn').focus({ preventScroll: true }); }
+        if (act === 'reload') return location.reload();
         if ((act === 'readerRendered' || act === 'readerRaw') && reader) {
           reader.raw = act === 'readerRaw';
           prefs.set(READER_KEY, reader.raw ? 'raw' : null);
@@ -2395,7 +2564,7 @@
 
       let helpPrevFocus = null;
       /** The help overlay doubles as the one modal of the page (help, actor dialog, avatar crop). */
-      function openHelp(render = renderHelp, label = 'Keyboard shortcuts', cls = '') {
+      function openHelp(render = renderHelp, label = 'Shortcuts and gestures', cls = '') {
         if (!$('help').hidden) closeHelp();
         helpPrevFocus = document.activeElement;
         $('help').className = 'help' + (cls ? ' ' + cls : '');
@@ -2450,19 +2619,33 @@
           { keys: `${modLabel()}+↵`, desc: 'Save edits, or create the ticket (in title or description)' },
           { keys: '↵', desc: 'New line (in a text box)' },
         ];
+        // The buttons and gestures, each shown with the icon you will find on the page (0.5.13).
+        const ic = (html, cls = '') => `<span class="gIc${cls}" aria-hidden="true">${html}</span>`;
+        const gestures = [
+          { icon: ic('', ' gGrip'), desc: 'Grip on the left edge of an open ticket: drag it to widen the ticket, double-click it to go back to the default width (arrows when it has the focus). Kept in this browser.' },
+          { icon: ic(ICON_FULL), desc: 'Expand the ticket nearly full screen, Esc goes back. On a phone or in a narrow window: read the whole ticket, comments included.' },
+          { icon: ic(ICON_COPY), desc: 'Copy a description or a comment as markdown.' },
+          { icon: ic(ICON_READ), desc: 'Read it alone in a wide view, rendered or as markdown.' },
+          { icon: ic(CHECK), desc: 'Mark a ticket done, on its card or in the open ticket. Undo for a few seconds.' },
+        ];
         const row = (x) => `<div class="rowH"><div class="keys">${kbd(x.keys)}</div><div class="desc">${esc(x.desc)}</div></div>`;
+        const gRow = (x) => `<div class="rowH g"><div class="keys">${x.icon}</div><div class="desc">${esc(x.desc)}</div></div>`;
         $('help').innerHTML = `
-          <div class="helpHead"><h3>Keyboard shortcuts</h3><button type="button" class="x" id="helpClose" data-act="helpClose" aria-label="Close">×</button></div>
+          <div class="helpHead"><h3>Shortcuts and gestures</h3><button type="button" class="x" id="helpClose" data-act="helpClose" aria-label="Close">×</button></div>
           <div class="cols">
             <div>
+              <h4>Keyboard</h4>
               ${g.map(row).join('')}
+              <p class="helpNote">Single keys are off while you type in a text field, and never fire with Ctrl, ⌘ or Alt held.</p>
             </div>
-            <div>
+            <div class="touchFirst">
+              <h4>Buttons and gestures</h4>
+              ${gestures.map(gRow).join('')}
+              <h4>In a text box</h4>
               ${inForm.map(row).join('')}
-              <p class="helpNote">Global shortcuts are disabled while you type in a text field.</p>
-              <p class="helpNote">Drag the left edge of an open ticket to resize it (arrows on the focused edge too); double-click it to go back to the default width. The width is kept in this browser.</p>
             </div>
-          </div>`;
+          </div>
+          <div class="helpFoot"><span>Alvearium ${esc(served.version || '')}</span>${served.releases.length ? `<button type="button" class="linkBtn" data-act="newsAll">What's new</button>` : ''}</div>`;
       }
       $('helpScrim').addEventListener('click', () => closeHelp());
 
@@ -2712,6 +2895,10 @@
         if (ev === 'hello') {
           streamRetry = 1000;
           setStream(true);
+          try {
+            const v = JSON.parse(data).server;
+            if (isVersion(v) && served.version && v !== served.version) newsUpdate(v);
+          } catch {}
           refresh(); // whatever changed while we were not connected
           return;
         }
@@ -3430,7 +3617,7 @@
         favicon(0);
         isLocked = false;
         await loadMe();
-        await Promise.all([loadFacets(), refresh(), loadActions()]);
+        await Promise.all([loadFacets(), refresh(), loadActions(), loadChangelog()]);
         if (state.ticket) openPanel(state.ticket, false);
         connectStream();
       }

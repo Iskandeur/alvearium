@@ -18,6 +18,8 @@
 //   POST /api/event                 hook event (v0.1 payload, still the only thing hooks send);
 //                                   the reply carries `server_version` (vendored copies compare it)
 //   GET  /api/version               { version } of this server
+//   GET  /api/changelog             { version, releases: [{ version, date, items }] }, newest first: the
+//                                   page's "What's new" (server/changelog.json, written for users)
 //   GET  /api/board                 v0.1 board (sessions in columns) + `tickets.counts`
 //   POST /api/dismiss               v0.1: { sessionId } → the session's review ticket is done
 //   GET  /api/tickets               list: ?session&repo&branch&machine&origin&status&assignee&kind
@@ -49,7 +51,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MAX_TEXT_CHARS, VERSION, normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
+import { MAX_TEXT_CHARS, VERSION, compareVersions, normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
 import { openStore } from '../lib/store.mjs';
 import { trustedActor } from '../lib/triage.mjs';
 import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
@@ -372,6 +374,30 @@ function sendAvatar(req, res, av) {
   res.end(req.method === 'HEAD' ? undefined : av.data);
 }
 
+/**
+ * The release notes the page shows ("What's new", 0.5.13), from server/changelog.json: releases newest
+ * first, each { version, date, items }. Only well-formed entries are kept (an `x.y.z` version, 1 to 5
+ * items of text); a missing or broken file gives an empty list and the page simply shows no note.
+ */
+export function cleanChangelog(raw) {
+  const list = Array.isArray(raw?.releases) ? raw.releases : [];
+  const out = [];
+  for (const r of list) {
+    if (!r || typeof r.version !== 'string' || !/^\d+\.\d+\.\d+$/.test(r.version)) continue;
+    const items = (Array.isArray(r.items) ? r.items : []).filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim().slice(0, 300)).slice(0, 5);
+    if (!items.length) continue;
+    out.push({ version: r.version, date: typeof r.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : null, items });
+  }
+  return out.sort((a, b) => compareVersions(b.version, a.version));
+}
+export function loadChangelog(path = join(HERE, 'changelog.json')) {
+  try {
+    return cleanChangelog(JSON.parse(readFileSync(path, 'utf8')));
+  } catch {
+    return [];
+  }
+}
+
 /** What the page and the CLI need to know about the caller. */
 function meOf(auth, accounts) {
   if (auth.kind === 'agent') return { id: auth.actor, kind: 'agent', role: 'agent', name: accounts.displayName(auth.actor) };
@@ -493,7 +519,7 @@ function stream(req, res, store, heartbeatMs, streams, auth) {
   });
   res.flushHeaders?.();
   // 2 KB of comment first: some proxies hold the first bytes of a response until they have enough.
-  res.write(`: ${' '.repeat(2048)}\nretry: 3000\n\nevent: hello\ndata: ${JSON.stringify({ version: store.version, at: Date.now() })}\n\n`);
+  res.write(`: ${' '.repeat(2048)}\nretry: 3000\n\nevent: hello\ndata: ${JSON.stringify({ version: store.version, at: Date.now(), server: VERSION })}\n\n`);
   const off = store.onChange((c) => res.write(`id: ${c.version}\nevent: change\ndata: ${JSON.stringify(c)}\n\n`));
   const beat = setInterval(() => res.write(`: hb ${Date.now()}\n\n`), heartbeatMs);
   const entry = { auth, res };
@@ -507,7 +533,7 @@ function stream(req, res, store, heartbeatMs, streams, auth) {
   res.on('error', stop);
 }
 
-export function createApp({ token, agents = [], store, page, heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes(), ticketActions = null }) {
+export function createApp({ token, agents = [], store, page, changelog = loadChangelog(), heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes(), ticketActions = null }) {
   const streams = new Set();
   /** End the live streams of whoever matches (a revoked member, a revoked session). */
   const cutStreams = (match) => {
@@ -592,6 +618,7 @@ export function createApp({ token, agents = [], store, page, heartbeatMs = HEART
         return send(res, 202, { ok: true, state: rec.state, server_version: VERSION });
       }
       if (path === '/api/version' && m === 'GET') return send(res, 200, { version: VERSION });
+      if (path === '/api/changelog' && m === 'GET') return send(res, 200, { version: VERSION, releases: changelog });
       if (path === '/api/import' && m === 'POST') {
         // An import replays a history with its own authors: only the main token may write one.
         if (!can(auth, 'import')) return forbidden(res, 'import a board', auth);
