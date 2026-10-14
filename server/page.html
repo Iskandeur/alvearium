@@ -1508,8 +1508,12 @@
         const s = String(t.ask?.sansReponse || '').toLowerCase();
         if (!s) return null;
         let m = /\b(\d{4})-(\d{2})-(\d{2})\b/.exec(s);
-        if (m) return mxDay(+m[1], +m[2], +m[3]);
-        m = /(?:^|[^\d/.])(\d{1,2})[/.](\d{1,2})(?:[/.](\d{2}|\d{4}))?(?![\d/.]*\d)/.exec(s);
+        const iso = m && mxDay(+m[1], +m[2], +m[3]);
+        if (iso) return iso;
+        // Day/month: a slash (15/10, 15/10/2026), or dots with a year (15.10.2026), never inside a word
+        // or a number: "2.5 days" and "v1.2" are not dates.
+        m = /(?:^|[\s(,;:])(\d{1,2})(?:\/(\d{1,2})(?:\/(\d{2}|\d{4}))?|\.(\d{1,2})\.(\d{2}|\d{4}))(?=$|[\s),;:!?]|\.(?:\s|$))/.exec(s);
+        if (m) { m = [m[0], m[1], m[2] ?? m[4], m[3] ?? m[5]]; if (+m[2] < 1 || +m[2] > 12) m = null; }
         if (m) {
           const day = +m[1], mon = +m[2];
           if (m[3]) return mxDay(m[3].length === 2 ? 2000 + +m[3] : +m[3], mon, day);

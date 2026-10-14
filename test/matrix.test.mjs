@@ -37,6 +37,9 @@ test('deadline: dates in the "Without an answer" line', () => {
   assert.equal(d('in 48 h I pick B', { status_at: NOW - 10 * H }), NOW + 38 * H, 'relative to the last status change');
   assert.equal(d('sous 2 jours, je tranche', { status_at: NOW }), NOW + 2 * D);
   assert.equal(d('nothing happens'), null);
+  assert.equal(d('within 2.5 days I decide'), null, 'a decimal is not a date');
+  assert.equal(d('I deploy v1.2 then'), null, 'a version is not a date');
+  assert.equal(d('on 2026-02-31, or 20/10'), endOf(2026, 10, 20), 'an impossible ISO date lets the next form try');
   assert.equal(mxDeadline(tk(), NOW), null, 'no block, no label');
 });
 

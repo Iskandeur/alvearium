@@ -242,7 +242,7 @@ boxes stack, *Do now* first.
 ![The matrix, desktop, light](docs/screenshots/matrix-desktop-light.png)
 
 ([dark](docs/screenshots/matrix-desktop-dark.png), [at 390 px](docs/screenshots/matrix-mobile-light.png),
-[at 390 px, dark](docs/screenshots/matrix-mobile-dark.png).)
+[at 390 px, dark](docs/screenshots/matrix-mobile-dark.png), [a ticket opened from the grid](docs/screenshots/matrix-open-desktop-light.png).)
 
 ## Ticket actions (0.5.11)
 
