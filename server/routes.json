@@ -18,6 +18,8 @@
     { "method": "POST", "path": "/api/tickets/:key/comments", "from": ["page", "clients"], "proxy": true, "example": "/api/tickets/ALV-1/comments" },
     { "method": "POST", "path": "/api/tickets/:key/move", "from": ["page", "clients"], "proxy": true, "example": "/api/tickets/ALV-1/move" },
     { "method": "POST", "path": "/api/tickets/:key/answer", "from": ["page"], "proxy": true, "example": "/api/tickets/ALV-1/answer" },
+    { "method": "GET", "path": "/api/unread", "from": ["page", "clients"], "proxy": true },
+    { "method": "POST", "path": "/api/tickets/:key/seen", "from": ["page"], "proxy": true, "example": "/api/tickets/ALV-1/seen" },
     { "method": "POST", "path": "/api/tickets/:key/actions/:id", "from": ["page"], "proxy": true, "example": "/api/tickets/ALV-1/actions/claude-code" },
     { "method": "GET", "path": "/api/actions", "from": ["page"], "proxy": true },
     { "method": "GET", "path": "/api/stream", "from": ["page", "clients"], "proxy": true },

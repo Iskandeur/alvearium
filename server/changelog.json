@@ -2,6 +2,16 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.5.15",
+      "date": "2026-10-15",
+      "items": [
+        "Reply: a dot on a card when someone answered you since you last opened it. The counter in the bar shows only those (or press u).",
+        "Opening a ticket marks its replies read, on the server: read on your phone, read on your computer.",
+        "Your comment hands the ticket to the actor you mention, else to the router of the installation. It leaves your pile until they give it back.",
+        "Mentions now offer sub-actors too, found by their name."
+      ]
+    },
+    {
       "version": "0.5.14",
       "date": "2026-10-15",
       "items": [
