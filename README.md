@@ -215,6 +215,33 @@ only appeared on hover, nothing at all on a phone, and no word when the board ch
 ([the grip, at rest](docs/screenshots/ticket-grip-desktop-light.png), [shortcuts and gestures](docs/screenshots/help-gestures-desktop-dark.png),
 [the whole ticket at 390 px](docs/screenshots/reader-ticket-mobile-light.png).)
 
+## Replies and hand-overs (0.5.15)
+
+**A reply you have not read** shows on its card as a *Reply* dot: someone else commented on a ticket
+you opened or commented on, after your last comment and after you last opened it. The bar counts them
+(*3 unread replies*); press it, or `u`, to see only those tickets. Opening a ticket marks it read. The
+server keeps this per reader (`ticket_seen`), so a ticket read on the phone is read on the computer.
+`GET /api/unread` gives `{ count, tickets }`, `?unread=1` filters any list, and
+`POST /api/tickets/:key/seen` marks one read.
+
+**Your comment hands the ticket over.** When the owner comments on an open ticket:
+
+- the ticket goes to the actor the comment names (`to`, or the first known `@mention`, sub-actors
+  included: `@crew/router`);
+- with no mention, a ticket that sat with you goes to the installation's router, set by
+  `BOARD_DEFAULT_ROUTER` (an actor id, for example an agent that dispatches work). Without it nothing
+  moves, as before;
+- a ticket waiting on you (waiting, review, failed) goes back to *To do*, so it leaves your lane.
+
+It comes back to you only when the assignee hands it back explicitly: assigned to you again, or set to
+waiting on you. Its own comments do not. Session tickets (kept by the hooks), closed tickets and a
+comment sent with its own status or assignee change are left as they are.
+
+![Two unread replies on the board](docs/screenshots/replies-board-desktop-light.png)
+
+([dark, filtered](docs/screenshots/replies-board-desktop-dark.png), [at 390 px](docs/screenshots/replies-mobile-light.png),
+[at 390 px, dark, filtered](docs/screenshots/replies-mobile-dark.png).)
+
 ## Matrix: important × urgent (0.5.14)
 
 *Matrix*, next to *Board*, *Next* and *List* (or the `m` key), puts your open tickets on the classic

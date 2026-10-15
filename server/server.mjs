@@ -36,6 +36,8 @@
 //                                   characters is refused with 413 and a message, never cut)
 //   POST /api/tickets/:key/answer   { answer: option|yes|no|done|later|decline|undo, choice, days }: a button of the
 //                                   "Waiting on you" lane = a comment from you + a reversible move
+//   GET  /api/unread                tickets where someone answered you since you last opened them: { count, tickets }
+//   POST /api/tickets/:key/seen     you opened it: its replies are read (stored per reader, on every device)
 //   GET  /api/facets                values to filter on (repos, sessions, machines, labels, kinds)
 //   GET  /api/sessions              sessions, most recent first (?repo)
 //   POST /api/import                { board, machine, sessions, tickets }: a machine's local board.db,
@@ -599,6 +601,8 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         if ((site && site !== 'same-origin') || !accounts.csrfOk(auth.csrf, req.headers['x-csrf-token'])) return refuseUnread(req, res, 403, { error: 'missing or bad CSRF token' });
       }
       const actorOf = (r, s) => actorOfAuth(r, s, auth, accounts);
+      /** `?unread=1`: only the tickets with a reply the caller has not read. */
+      const withUnread = (f) => (url.searchParams.get('unread') === '1' ? { ...f, unread: actorOf(req, store) } : f);
       const mustWrite = () => (can(auth, 'write') ? false : (forbidden(res, 'change the board', auth), true));
       if (extraRoutes?.private && (await extraRoutes.private(req, res, url, { ...ctx, auth, actorOf }))) return;
       if (ticketActions?.private && (await ticketActions.private(req, res, url, { ...ctx, auth, actorOf }))) return;
@@ -633,9 +637,9 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         const body = await jsonBody(req);
         return send(res, store.dismissSession(String(body?.sessionId ?? ''), undefined, actorOf(req, store)) ? 200 : 404, { ok: true });
       }
-      if (path === '/api/tickets' && m === 'GET') return send(res, 200, store.listTickets(parseFilters(url.searchParams)));
+      if (path === '/api/tickets' && m === 'GET') return send(res, 200, store.listTickets(withUnread(parseFilters(url.searchParams))));
       if (path === '/api/stream' && m === 'GET') return stream(req, res, store, heartbeatMs, streams, auth);
-      if (path === '/api/tickets/board' && m === 'GET') return send(res, 200, store.ticketBoard(parseFilters(url.searchParams)));
+      if (path === '/api/tickets/board' && m === 'GET') return send(res, 200, store.ticketBoard(withUnread(parseFilters(url.searchParams))));
       if (path === '/api/roi') {
         // 0.5.12: lane scores (lib/roi.mjs). Anyone who reads the board reads them; only the owner, or an
         // agent named in BOARD_JOB_ACTORS, posts them (the same trust as the `blocks-job` label).
@@ -716,6 +720,16 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         const out = store.deleteSession(sm[1]);
         return send(res, out.session || out.tickets ? 200 : 404, out);
       }
+      // 0.5.15: replies this reader has not read yet, and "I opened it" (any reader, viewers too).
+      if (path === '/api/unread' && m === 'GET') {
+        const tickets = store.unreadReplies(actorOf(req, store));
+        return send(res, 200, { count: tickets.length, tickets });
+      }
+      const seenM = path.match(/^\/api\/tickets\/([\w-]{1,64})\/seen$/);
+      if (seenM) {
+        if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
+        return send(res, 200, store.markSeen(seenM[1], actorOf(req, store)));
+      }
       const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move|\/answer)?$/);
       if (tm) {
         const key = tm[1];
@@ -777,7 +791,8 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     process.exit(1);
   }
   if (actions.length) console.log(`alvearium: ${actions.length} ticket action(s): ${actions.map((a) => a.id).join(', ')}`);
-  const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX, jobActors: String(process.env.BOARD_JOB_ACTORS || '').split(',').map((x) => x.trim()).filter(Boolean) });
+  const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX, jobActors: String(process.env.BOARD_JOB_ACTORS || '').split(',').map((x) => x.trim()).filter(Boolean), defaultRouter: process.env.BOARD_DEFAULT_ROUTER });
+  if (store.defaultRouter) console.log(`alvearium: a comment of yours with no @mention hands the ticket to ${store.defaultRouter}`);
   console.log(`alvearium: ticket keys ${store.prefix}-n (any prefix resolves: SB-12 and ALV-12 are the same ticket)`);
   const migrated = store.migrateBoardJson(join(dataDir, 'board.json'));
   if (migrated) console.log(`alvearium: imported ${migrated} session(s) from board.json (kept as board.json.migrated)`);
