@@ -237,6 +237,11 @@ It comes back to you only when the assignee hands it back explicitly: assigned t
 waiting on you. Its own comments do not. Session tickets (kept by the hooks), closed tickets and a
 comment sent with its own status or assignee change are left as they are.
 
+![Two unread replies on the board](docs/screenshots/replies-board-desktop-light.png)
+
+([dark, filtered](docs/screenshots/replies-board-desktop-dark.png), [at 390 px](docs/screenshots/replies-mobile-light.png),
+[at 390 px, dark, filtered](docs/screenshots/replies-mobile-dark.png).)
+
 ## Matrix: important × urgent (0.5.14)
 
 *Matrix*, next to *Board*, *Next* and *List* (or the `m` key), puts your open tickets on the classic
