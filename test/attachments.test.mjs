@@ -199,11 +199,13 @@ test('refusals: empty file, unknown ticket, file reused or from another ticket',
   });
 });
 
-test('a file nobody claimed is dropped after a day', async () => {
+test('a file uploaded for no ticket and never claimed is dropped after a day', async () => {
   const store = await openStore(':memory:');
   const t = store.createTicket({ title: 'old' }, { actor: 'user' });
   const now = Date.now();
-  const old = store.addAttachment(t.key, { mime: 'text/plain', data: Buffer.from('x'), name: 'a.txt' }, 'user', now - 2 * 24 * 3600 * 1000);
+  const kept = store.addAttachment(t.key, { mime: 'text/plain', data: Buffer.from('k'), name: 'k.txt' }, 'user', now - 2 * 24 * 3600 * 1000);
+  const old = store.addAttachment(null, { mime: 'text/plain', data: Buffer.from('x'), name: 'a.txt' }, 'user', now - 2 * 24 * 3600 * 1000);
   store.addAttachment(null, { mime: 'text/plain', data: Buffer.from('y'), name: 'b.txt' }, 'user', now);
   assert.equal(store.getAttachment(old.id), null);
+  assert.ok(store.getAttachment(kept.id), 'a file waiting on an open ticket panel stays');
 });
