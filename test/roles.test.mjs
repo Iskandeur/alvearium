@@ -73,6 +73,7 @@ test('every write verb, for every role: viewer refused everywhere, members and a
       ['POST', `/api/tickets/${key}`, { labels: ['a'] }],
       ['POST', `/api/tickets/${key}/comments`, { text: 'hi' }],
       ['POST', `/api/tickets/${key}/move`, { after: null }],
+      ['POST', `/api/tickets/${key}/attachments`, { not: 'an image' }],
       ['POST', '/api/dismiss', { sessionId: 'nope' }],
       ['POST', '/api/event', { v: 1, event: 'Stop', session_id: 's-1', cwd: '/tmp' }],
     ];

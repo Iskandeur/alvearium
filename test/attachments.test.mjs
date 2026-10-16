@@ -66,6 +66,19 @@ test('upload, comment with the picture, history lists it, served safely', async 
   });
 });
 
+test('limits: 40 pictures per ticket, 8 per comment, attachments must be a list', async () => {
+  await withServer(async (base, store) => {
+    const t = store.createTicket({ title: 'lots' }, { actor: 'user' });
+    const png = makePng(4, 4);
+    const ids = [];
+    for (let i = 0; i < 40; i++) ids.push((await (await upload(base, t.key, png)).json()).id);
+    assert.equal((await upload(base, t.key, png)).status, 413);
+    assert.equal((await json(base, `/api/tickets/${t.key}/comments`, { text: 'nine', attachments: ids.slice(0, 9) })).status, 400);
+    assert.equal((await json(base, `/api/tickets/${t.key}/comments`, { text: 'obj', attachments: { a: 1 } })).status, 400);
+    assert.equal((await json(base, `/api/tickets/${t.key}/comments`, { text: 'eight', attachments: ids.slice(0, 8) })).status, 201);
+  });
+});
+
 test('refusals: not an image, unknown ticket, picture reused or from another ticket', async () => {
   await withServer(async (base, store) => {
     const a = store.createTicket({ title: 'a' }, { actor: 'user' });
