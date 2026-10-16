@@ -436,6 +436,13 @@
     .ev b { color: var(--text); font-weight: 500; }
     .ev time { color: var(--faint); font-size: 12px; margin-left: 6px; }
     .ev .said { margin-top: 4px; padding: 8px 10px; background: var(--lane); border-radius: 8px; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .pics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .pics img, .pend img { max-width: 220px; max-height: 160px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--lane); cursor: zoom-in; display: block; }
+    .pics .ph { width: 120px; height: 80px; border-radius: 6px; background: var(--lane); }
+    .pend { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pend .pi { position: relative; }
+    .pend img { max-width: 96px; max-height: 72px; }
+    .pend button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--card); line-height: 1; cursor: pointer; padding: 0; }
     .compose { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
     .compose textarea { min-height: 64px; }
     .compose .hint { font-size: 12px; color: var(--faint); text-align: right; margin-top: -4px; }
@@ -2342,10 +2349,58 @@
       function fromTo(e) {
         return who(e.actor) + (e.target ? `<span class="arrow">→</span>${who(e.target)}` : '');
       }
+      // Pictures of a comment: fetched with the API credentials (an <img src> cannot carry a Bearer token),
+      // kept as blob: URLs keyed by id + etag, shown as thumbnails; a click opens the full picture.
+      const picUrls = new Map();
+      const picsHtml = (list) => (Array.isArray(list) && list.length ? `<div class="pics">${list.map((a) => `<span class="ph" data-pic="${Number(a.id)}" data-etag="${esc(a.etag)}"></span>`).join('')}</div>` : '');
+      async function loadPic(id, etag) {
+        const k = id + '@' + etag;
+        if (picUrls.has(k)) return picUrls.get(k);
+        const res = await fetch(`api/attachments/${encodeURIComponent(id)}?v=${encodeURIComponent(etag)}`, { headers: headers() });
+        const type = res.headers.get('content-type') || '';
+        if (!res.ok || !/^image\/(png|jpeg|webp)$/.test(type)) throw new Error('HTTP ' + res.status);
+        const url = URL.createObjectURL(await res.blob());
+        picUrls.set(k, url);
+        return url;
+      }
+      function hydratePics() {
+        for (const el of document.querySelectorAll('#panel [data-pic]')) {
+          loadPic(el.dataset.pic, el.dataset.etag).then((url) => {
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = 'Attached picture';
+            img.dataset.full = url;
+            el.replaceWith(img);
+          }).catch(() => { el.textContent = '⚠'; });
+        }
+      }
+      // Pictures waiting for the comment being written: uploaded at once, claimed by the comment.
+      let pendingPics = [];
+      function renderPending() {
+        const box = $('pendingPics');
+        if (!box) return;
+        box.innerHTML = pendingPics.map((p, i) => `<span class="pi"><img src="${esc(p.url)}" alt="Picture to send"><button type="button" data-act="dropPic" data-i="${i}" aria-label="Remove picture">×</button></span>`).join('');
+      }
+      async function addPendingPics(files) {
+        const key = state.ticket;
+        if (!key) return;
+        for (const f of files) {
+          if (!/^image\/(png|jpeg|webp)$/.test(f.type)) { toast('PNG, JPEG or WebP only'); continue; }
+          if (pendingPics.length >= 8) { toast('8 pictures per comment at most'); break; }
+          try {
+            const res = await fetch(`api/tickets/${encodeURIComponent(key)}/attachments`, { method: 'POST', headers: { ...headers(), 'content-type': f.type }, body: f });
+            const data = await res.json().catch(() => ({}));
+            if (res.status === 401) { locked(); return; }
+            if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+            pendingPics.push({ id: data.id, url: URL.createObjectURL(f) });
+            renderPending();
+          } catch (err) { toast(err.message); }
+        }
+      }
       function eventLine(e, i) {
         const by = fromTo(e);
         const at = `<time title="${esc(new Date(e.at).toLocaleString())}">${esc(when(e.at))}</time>`;
-        if (e.type === 'comment') return `<div class="ev comment mdHost" data-md-src="ev:${Number(i) || 0}"><div class="evHead">${by} commented${at}${mdActs('comment')}</div><div class="said md">${md(e.text)}</div></div>`;
+        if (e.type === 'comment') return `<div class="ev comment mdHost" data-md-src="ev:${Number(i) || 0}"><div class="evHead">${by} commented${at}${mdActs('comment')}</div><div class="said md">${md(e.text)}</div>${picsHtml(e.attachments)}</div>`;
         if (e.type === 'created') return `<div class="ev">${who(e.actor)} created it${e.to_status ? ' as ' + esc(STATUS[e.to_status] || e.to_status) : ''}${e.target ? `<span class="arrow">→</span>${who(e.target)}` : ''}${at}</div>`;
         if (e.type === 'status' || e.type === 'reopened') return `<div class="ev">${by} ${e.type === 'reopened' ? 'reopened it' : 'moved it'}: ${esc(STATUS[e.from_status] || e.from_status)} → <b>${esc(STATUS[e.to_status] || e.to_status)}</b>${at}${e.text ? `<div class="said">${md(e.text)}</div>` : ''}</div>`;
         if (e.type === 'assigned') return `<div class="ev">${who(e.actor)} handed it over<span class="arrow">→</span>${who(e.target || e.text)}${at}</div>`;
@@ -2419,9 +2474,11 @@
             </div>`}
             <div class="sect">History</div>
             <div class="timeline">${(t.events || []).map(eventLine).join('')}</div>
-            <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" data-limit="comment" placeholder="Add a comment…" aria-label="Comment"></textarea><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts"><button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
+            <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" data-limit="comment" placeholder="Add a comment… (paste or attach pictures)" aria-label="Comment"></textarea><div class="pend" id="pendingPics"></div><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts"><label class="btn" tabindex="0">Add picture<input type="file" id="picFile" accept="image/png,image/jpeg,image/webp" multiple hidden></label><button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
           </form>${replyBar(t)}`;
         $('panel').hidden = false;
+        pendingPics = [];
+        hydratePics();
         $('scrim').hidden = false;
         $('panel').dataset.key = t.key;
         $('panel').__ticket = t;
@@ -2798,20 +2855,43 @@
           } catch (err) { toast(err.message); }
           return;
         }
+        if (act === 'dropPic') {
+          pendingPics.splice(Number(el.dataset.i), 1);
+          return renderPending();
+        }
         if (act === 'newChild' && t) return renderCreate({ parent: t.key, repo: t.repo, session: t.session_id });
         if (act === 'comment' && t) {
-          const text = $('comment').value.trim();
-          if (!text) return;
+          const typed = $('comment').value.trim();
+          if (!typed && !pendingPics.length) return;
+          const text = typed || '📷';
           if (!limitCheck($('comment'))) return $('comment').focus();
           try {
-            await api(`tickets/${encodeURIComponent(t.key)}/comments`, { text });
+            await api(`tickets/${encodeURIComponent(t.key)}/comments`, { text, ...(pendingPics.length ? { attachments: pendingPics.map((p) => p.id) } : {}) });
+            pendingPics = [];
             stickToBottom = true;
             await openPanel(t.key, false);
             refresh();
           } catch (err) { toast(err.message); }
         }
       });
-      const IS_MAC = /Mac|iPhone|iPad|iPod/i.test(navigator.platform) || /Mac OS X/i.test(navigator.userAgent);
+      document.addEventListener('change', (e) => {
+        if (e.target?.id !== 'picFile') return;
+        const files = [...e.target.files];
+        e.target.value = '';
+        addPendingPics(files);
+      });
+      document.addEventListener('paste', (e) => {
+        if (e.target?.id !== 'comment') return;
+        const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'));
+        if (!files.length) return;
+        e.preventDefault();
+        addPendingPics(files);
+      });
+      document.addEventListener('click', (e) => {
+        const img = e.target?.closest?.('.pics img');
+        if (img?.dataset.full) window.open(img.dataset.full, '_blank', 'noopener');
+      });
+      const IS_MAC =/Mac|iPhone|iPad|iPod/i.test(navigator.platform) || /Mac OS X/i.test(navigator.userAgent);
       const isTyping = (el) => !!el?.closest?.('input, textarea, select, [contenteditable]');
       const modLabel = () => (IS_MAC ? '⌘' : 'Ctrl');
       const sendHint = (verb) => `${modLabel()}+↵ to ${verb}`;

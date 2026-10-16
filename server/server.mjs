@@ -58,6 +58,7 @@ import { openStore } from '../lib/store.mjs';
 import { loadManifest, settingsReport, warnLines } from '../lib/settings.mjs';
 import { trustedActor } from '../lib/triage.mjs';
 import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
+import { ATTACHMENT_MAX_BYTES, checkAttachment } from '../lib/attachment.mjs';
 import { inviteRoutes } from './invites.mjs';
 import { actionRoutes, loadActions } from './actions.mjs';
 import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib/accounts.mjs';
@@ -356,14 +357,14 @@ export function clientKey(req, trustProxy = false) {
  * An avatar, as stored: its own sniffed type, never sniffed again by the browser, no script ever
  * (CSP sandbox), cached by etag (the page asks with `?v=<etag>`, so a new picture is a new URL).
  */
-function sendAvatar(req, res, av) {
-  if (!av) return send(res, 404, { error: 'no avatar' });
+function sendAvatar(req, res, av, name = 'avatar') {
+  if (!av) return send(res, 404, { error: `no ${name}` });
   const etag = `"${av.etag}"`;
   const headers = {
     'content-type': av.mime,
     'x-content-type-options': 'nosniff',
     'content-security-policy': "default-src 'none'; sandbox",
-    'content-disposition': 'inline; filename="avatar"',
+    'content-disposition': `inline; filename="${name}"`,
     'cross-origin-resource-policy': 'same-origin',
     'referrer-policy': 'no-referrer',
     'cache-control': 'private, max-age=86400',
@@ -731,6 +732,29 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
         return send(res, 200, store.markSeen(seenM[1], actorOf(req, store)));
       }
+      const attm = path.match(/^\/api\/attachments\/(\d{1,12})$/);
+      if (attm) {
+        if (m !== 'GET' && m !== 'HEAD') return send(res, 405, { error: 'method not allowed' });
+        return sendAvatar(req, res, store.getAttachment(attm[1]), 'picture');
+      }
+      const upm = path.match(/^\/api\/tickets\/([\w-]{1,64})\/attachments$/);
+      if (upm) {
+        if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
+        if (mustWrite()) return;
+        if (Number(req.headers['content-length']) > ATTACHMENT_MAX_BYTES) {
+          res.setHeader('connection', 'close');
+          return send(res, 413, { error: `image too large (max ${ATTACHMENT_MAX_BYTES / 1024 / 1024} MiB)` });
+        }
+        let img;
+        try {
+          img = await readRaw(req, ATTACHMENT_MAX_BYTES);
+        } catch (e) {
+          return send(res, e.status || 400, { error: e.status === 413 ? `image too large (max ${ATTACHMENT_MAX_BYTES / 1024 / 1024} MiB)` : 'bad body' });
+        }
+        const info = checkAttachment(img);
+        const out = store.addAttachment(upm[1], { mime: info.mime, data: img, width: info.width, height: info.height }, actorOf(req, store));
+        return send(res, 201, { ok: true, ...out });
+      }
       const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move|\/answer)?$/);
       if (tm) {
         const key = tm[1];
@@ -747,7 +771,7 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         if (tm[2]) {
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
           const body = await jsonBody(req, MAX_TICKET_REQUEST);
-          return send(res, 201, store.comment(key, String(body.text ?? ''), { actor: actorOf(req, store), to: body.to }));
+          return send(res, 201, store.comment(key, String(body.text ?? ''), { actor: actorOf(req, store), to: body.to, attachments: body.attachments }));
         }
         if (m === 'GET') {
           const t = store.getTicket(key);
