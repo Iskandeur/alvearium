@@ -11,5 +11,6 @@
 // Never prints a token. Exit code 0 when the board answers as the board, 1 otherwise.
 import { fileURLToPath } from 'node:url';
 import { doctorMain } from '../lib/runtime.mjs';
+import { isEntryPoint } from '../lib/core.mjs';
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) await doctorMain(process.argv.slice(2).filter((a) => a !== '--cloud-only' && a !== 'doctor'));
+if (isEntryPoint(import.meta.url)) await doctorMain(process.argv.slice(2).filter((a) => a !== '--cloud-only' && a !== 'doctor'));

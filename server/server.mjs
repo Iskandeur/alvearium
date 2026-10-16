@@ -62,6 +62,7 @@ import { ATTACHMENT_MAX_BYTES, checkAttachment } from '../lib/attachment.mjs';
 import { inviteRoutes } from './invites.mjs';
 import { actionRoutes, loadActions } from './actions.mjs';
 import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib/accounts.mjs';
+import { isEntryPoint } from '../lib/core.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MAX_BODY = 64 * 1024;
@@ -789,7 +790,7 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
   };
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isEntryPoint(import.meta.url)) {
   const token = readToken();
   if (token.length < 24) {
     console.error('alvearium: set SESSION_BOARD_TOKEN (or SESSION_BOARD_TOKEN_FILE), at least 24 characters.');
