@@ -588,7 +588,7 @@
     @media (hover: none), (pointer: coarse) { .doneBtn { opacity: 1; } .pDone kbd { display: none; } }
     @media (prefers-reduced-motion: reduce) { .doneBtn, .doneBtn i { transition: none; } }
     .row .dn, .nrow .dn { display: flex; justify-content: center; }
-    .pDone { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px 0 8px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--card); color: var(--muted); font-size: 12.5px; font-weight: 500; }
+    .pDone { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px 0 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 12.5px; font-weight: 500; }
     .pDone:hover { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
     .pDone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .pDone kbd { font: inherit; font-size: 11px; color: var(--faint); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 4px; line-height: 16px; }
@@ -694,6 +694,10 @@
     .asks .ask.opt span { max-width: 15em; }
     /* the option he would pick by default: a quiet accent border, the label underlined, never a filled block */
     .asks .ask.def { border-color: var(--accent); }
+    /* 0.5.18: Done / Yes / No weigh as much as the other small buttons: 30 px, a hairline frame, a quieter default */
+    .asks .ask.quick { height: 30px; padding: 0 11px; border-color: var(--line); font-size: 12.5px; }
+    .asks .ask.quick:hover { border-color: var(--accent); }
+    .asks .ask.quick.def { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
     .asks .ask.def b { background: var(--accent-soft); color: var(--accent); }
     .asks .ask.def span, .asks .ask.def.quick u { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; }
     .asks .ask.soft { border-color: transparent; background: none; color: var(--muted); font-weight: 400; padding: 0 10px; }
@@ -734,6 +738,10 @@
     @media (max-width: 900px), (pointer: coarse) {
       .asks { margin-left: 0; gap: 8px; }
       .asks .ask, .asks.at-card .ask { height: 44px; font-size: 14px; }
+      /* touch target of 40 px with the same hairline frame: the frame stays slim, the padding does the reaching */
+      .asks .ask.quick, .asks.at-card .ask.quick { height: 40px; font-size: 13.5px; padding: 0 14px; }
+      .pDone { position: relative; }
+      .pDone::after { content: ""; position: absolute; inset: -6px -4px; }
       .asks .ask.opt span { max-width: 11em; }
       .replyBar { padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px)); }
       .replyBar .asks.many .asksAlt, .replyBar .asksAlt { flex: 1 1 100%; margin-left: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -1030,6 +1038,8 @@
       }
 
       // ---- formatting ---------------------------------------------------------------------------
+      /** The tooltip of the short date on every listed ticket: its last update, then its creation. */
+      const updTitle = (t) => `Updated ${when(t.updated_at)} · created ${when(t.created_at)}`;
       function ago(ms, now) {
         const s = Math.max(0, Math.round((now - ms) / 1000));
         if (s < 45) return 'now';
@@ -1389,7 +1399,7 @@
         if (t.children_count) out.push(`<span class="tag" title="Sub-tickets">↳ ${t.children_count}</span>`);
         if (t.comments_count) out.push(`<span class="tag" title="Comments">💬 ${t.comments_count}</span>`);
         if (!opts.noAvatar && t.assignee) out.push(avatar(t.assignee));
-        out.push(`<span class="age" title="${esc(when(t.status_at))}${t.created_by && t.created_by !== t.assignee ? ' · opened by ' + esc(actorName(t.created_by)) : ''}">${ago(t.status_at, now)}</span>`);
+        out.push(`<span class="age" title="${esc(updTitle(t))}${t.created_by && t.created_by !== t.assignee ? ' · opened by ' + esc(actorName(t.created_by)) : ''}">${ago(t.updated_at, now)}</span>`);
         return out.join('');
       }
 
@@ -1966,7 +1976,7 @@
           <span>${prio(t.priority) || '<span class="prio">–</span>'}</span>
           <span class="t"><span class="tt" title="${ttl(t.title)}">${ttl(t.title)}</span><span class="sub">${sub.join('<span>·</span>')}</span></span>
           <span>${avatar(t.assignee)}</span>
-          <span class="when" title="Created ${esc(when(t.created_at))}">${ago(t.created_at, now)}</span>
+          <span class="when" title="${esc(updTitle(t))}">${ago(t.updated_at, now)}</span>
           <span class="dn">${doneBtn(t)}</span>
         </div>`;
       }
@@ -1992,7 +2002,7 @@
               <span class="ft"><span class="ftype ${esc(t.subtype || 'suggestion')}">${esc(FTYPE[t.subtype] || 'Suggestion')}</span></span>
               <span class="t"><span class="dot" data-s="${esc(t.status)}"></span><span class="tt" title="${ttl(t.title)}">${ttl(t.title)}</span>${replyTag(t)}</span>
               <span class="lb">${avatar(t.created_by || 'claude')}<span class="tag">${esc(actorName(t.created_by || 'claude'))}</span>${t.repo ? `<span class="tag">${esc(repoName(t.repo))}</span>` : ''}</span>
-              <span class="when" title="${esc(when(t.created_at))}">${ago(t.created_at, now)}</span>
+              <span class="when" title="${esc(updTitle(t))}">${ago(t.updated_at, now)}</span>
             </div>`;
         const html = [];
         html.push(`<div class="nextHead"><h2>Feedback</h2><span>${open.length} to handle · ${closed.length} handled · reported by sessions with <code>board_feedback</code></span></div>`);
@@ -2037,7 +2047,7 @@
               <span class="t"><span class="dot" data-s="${esc(t.status)}"></span><span class="tt" title="${ttl(t.title)}">${ttl(t.title)}</span>${replyTag(t)}</span>
               <span class="st"><span class="pill" data-s="${esc(t.status)}">${esc(STATUS[t.status] || t.status)}</span></span>
               <span class="lb">${(t.labels || []).slice(0, 3).map((l) => `<span class="tag lbl">#${esc(l)}</span>`).join('')}${t.assignee === 'claude' && t.kind !== 'session' ? '<span class="tag">Claude</span>' : ''}</span>
-              <span class="when" title="Updated ${esc(when(t.updated_at))}">${ago(t.updated_at, now)}</span>
+              <span class="when" title="${esc(updTitle(t))}">${ago(t.updated_at, now)}</span>
               <span class="dn">${doneBtn(t)}</span>
             </div>`);
           }
