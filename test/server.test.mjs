@@ -57,7 +57,7 @@ test('server: v0.1 routes still answer (auth, ingest, board, dismiss, page)', as
     assert.deepEqual([board.counts.waiting, board.counts.working, board.counts.review], [1, 2, 1]);
     assert.ok(board.inProgress.some((r) => r.title === 'ship it'));
     assert.equal(board.review[0].pr, 'https://github.com/acme/app/pull/9');
-    assert.deepEqual(board.tickets.counts, { waiting: 2, inProgress: 3, todo: 0, done: 0 }, 'ticket counts for the mod');
+    assert.deepEqual(board.tickets.counts, { waiting: 2, inProgress: 3, todo: 0, done: 0, onHold: 0 }, 'ticket counts for the mod');
 
     assert.equal((await post(base, '/api/dismiss', { sessionId: 'c' })).status, 200);
     board = await getJson(base, '/api/board');

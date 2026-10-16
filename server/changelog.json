@@ -2,6 +2,16 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.6.0",
+      "date": "2026-10-16",
+      "items": [
+        "On hold: a ticket that waits for something leaves every lane and comes back by itself when it happens. Open a ticket and use Put on hold.",
+        "It can wait for other tickets to close, a pull request to be merged, a date, or a reply from someone.",
+        "Then it wakes the agent that put it on hold (to check the work still makes sense), hands it to someone, or comes back to you.",
+        "Tickets on hold sit in their own drawer under the board, with what each one waits for; one that can no longer come back is marked stuck."
+      ]
+    },
+    {
       "version": "0.5.19",
       "date": "2026-10-16",
       "items": [
