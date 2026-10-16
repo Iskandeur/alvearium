@@ -7,7 +7,8 @@
       "items": [
         "The server tells whoever runs it when a feature needs a setting that was never set: a warning when it starts, and the list in the version it reports.",
         "A new feature that needs a setting now ships with a line saying so, and what stays off without it.",
-        "Nothing changes for an installation that has them all."
+        "Nothing changes for an installation that has them all.",
+        "You can attach pictures to a comment: paste one into the box or use Add picture (PNG, JPEG or WebP, up to 8 MB, 8 per comment). Click a thumbnail to see it full size."
       ]
     },
     {

@@ -26,6 +26,8 @@
     { "method": "GET", "path": "/api/roi", "from": ["clients"], "proxy": false, "note": "lue et postée par l'installation, en direct sur le serveur ; la page lit les scores dans les tickets" },
     { "method": "PUT", "path": "/api/roi", "from": ["clients"], "proxy": false, "note": "idem : jamais par le navigateur" },
     { "method": "GET", "path": "/api/actors", "from": ["page", "clients"], "proxy": true },
+    { "method": "POST", "path": "/api/tickets/:key/attachments", "from": ["page", "clients"], "proxy": true, "example": "/api/tickets/ALV-1/attachments" },
+    { "method": "GET", "path": "/api/attachments/:id", "from": ["page"], "proxy": true, "example": "/api/attachments/1" },
     { "method": "GET", "path": "/api/actors/:id/avatar", "from": ["page"], "proxy": true, "example": "/api/actors/user/avatar" },
     { "method": "PUT", "path": "/api/actors/:id/avatar", "from": ["page"], "proxy": true, "example": "/api/actors/user/avatar" },
     { "method": "DELETE", "path": "/api/actors/:id/avatar", "from": ["page"], "proxy": true, "example": "/api/actors/user/avatar" },
