@@ -6,6 +6,7 @@
     { "name": "BOARD_JOB_ACTORS", "since": "0.5.0", "level": "optional", "effect": "No actor is treated as a background job." },
     { "name": "BOARD_DEFAULT_ROUTER", "since": "0.5.15", "level": "expected", "effect": "A comment of the owner with no @mention leaves the ticket in its lane: nothing is handed over." },
     { "name": "BOARD_ATTACHMENT_MAX_MB", "since": "0.5.18", "level": "optional", "effect": "Attached files are capped at 25 MB each. Set a number of MB (1 to 200); a proxy in front must accept bodies that large." },
-    { "name": "BOARD_PROJECT_LABEL", "since": "0.5.17", "level": "optional", "effect": "Tickets labelled front are projects: they leave the task columns for the Projects view. Set another label, or none to keep every ticket in the columns." }
+    { "name": "BOARD_PROJECT_LABEL", "since": "0.5.17", "level": "optional", "effect": "Tickets labelled front are projects: they leave the task columns for the Projects view. Set another label, or none to keep every ticket in the columns." },
+    { "name": "BOARD_STALE_AFTER_SECONDS", "since": "0.5.20", "level": "optional", "effect": "Each view shows how long ago its data was confirmed and flags it as out of date after 120 s (twice the page's slowest refresh). Set a number of seconds (30 to 86400)." }
   ]
 }
