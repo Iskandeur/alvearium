@@ -4,6 +4,7 @@
   "settings": [
     { "name": "BOARD_KEY_PREFIX", "since": "0.5.3", "level": "optional", "effect": "Ticket keys use the default prefix ALV (a board from before 0.5.3 keeps SB)." },
     { "name": "BOARD_JOB_ACTORS", "since": "0.5.0", "level": "optional", "effect": "No actor is treated as a background job." },
-    { "name": "BOARD_DEFAULT_ROUTER", "since": "0.5.15", "level": "expected", "effect": "A comment of the owner with no @mention leaves the ticket in its lane: nothing is handed over." }
+    { "name": "BOARD_DEFAULT_ROUTER", "since": "0.5.15", "level": "expected", "effect": "A comment of the owner with no @mention leaves the ticket in its lane: nothing is handed over." },
+    { "name": "BOARD_PROJECT_LABEL", "since": "0.5.17", "level": "optional", "effect": "Tickets labelled front are projects: they leave the task columns for the Projects view. Set another label, or none to keep every ticket in the columns." }
   ]
 }

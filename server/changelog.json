@@ -2,6 +2,16 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.5.17",
+      "date": "2026-10-16",
+      "items": [
+        "Projects, next to Matrix (or press p): each long-running project with its latest state, its tickets and jobs, and what it waits on from you.",
+        "Projects no longer crowd To do and In progress: they stay open, on the Projects page.",
+        "A project is a ticket with the label front, and a ticket joins it as a sub-ticket or with the label front-id:<name> when the project carries it too.",
+        "An installation can pick another label, or turn projects off."
+      ]
+    },
+    {
       "version": "0.5.16",
       "date": "2026-10-16",
       "items": [

@@ -754,6 +754,21 @@ a `level` (`required`, `expected`, or `optional`) and what happens when it is mi
 
 Adding a feature that reads a new environment variable means adding a line to the manifest: the test fails otherwise.
 
+### Projects (0.5.17)
+
+A project is a long-running piece of work, not a task: by default, any open ticket with the label `front`.
+Projects leave the task columns of the board (they stay open) and get their own page, **Projects** (key `p`):
+one card per project with its latest state, the tickets and jobs attached to it, and the gestures it waits on
+from you.
+
+- *Latest state*: the last comment that opens with `État au`, `State as of` or `Status:`, else the last comment.
+- *Attached*: its sub-tickets, and the tickets carrying `front-id:<name>` when the project carries the same label.
+- *Jobs*: attached tickets created by a sub-actor of an actor listed in `BOARD_JOB_ACTORS` (`agent/job-12`), or of kind `job`.
+- *Waits on you*: the project itself or an attached ticket in your lane.
+
+`BOARD_PROJECT_LABEL` picks another label (`project`, …); `none` turns projects off and keeps every ticket
+in the columns. `GET /api/tickets/board` carries the list (`projects`, `project_label`).
+
 ### Storage and upgrades
 
 Tickets live in one place at a time: the server when a URL and token are set, else

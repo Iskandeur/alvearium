@@ -210,6 +210,28 @@
     details.drawer .cards { margin-top: 8px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
 
     /* List */
+    /* 0.5.17: projects view (renderProjects) */
+    .pjHead { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 12px; }
+    .pjLegend { flex: 1 1 100%; margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+    .pjGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 10px; align-items: start; }
+    .pjCard { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); cursor: pointer; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .pjCard:hover, .pjCard:focus-visible { border-color: var(--accent); outline: none; }
+    .pjCard.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+    .pjCard.ask { border-color: color-mix(in srgb, var(--danger) 45%, var(--line)); }
+    .pjCard .head { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .pjCard .title { margin: 0; font-size: 14.5px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pjCard .key { font-size: 11.5px; color: var(--muted); flex: none; }
+    .pjStats { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); }
+    .pjStats b { color: var(--text); font-weight: 600; }
+    .pjState { font-size: 13px; line-height: 1.45; color: var(--text); border-left: 2px solid var(--line-strong); padding: 0 0 0 10px; max-height: 8.6em; overflow: hidden; overflow-wrap: anywhere; }
+    .pjState p { margin: 0 0 4px; }
+    .pjState ul, .pjState ol { margin: 0 0 4px; padding-left: 18px; }
+    .pjState.none { color: var(--faint); font-style: italic; border-left-color: transparent; padding-left: 0; }
+    .pjWhen { font-size: 11.5px; color: var(--faint); }
+    .pjAsks { display: flex; flex-direction: column; gap: 4px; }
+    .pjAsk { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--danger); background: color-mix(in srgb, var(--danger) 7%, transparent); border-radius: 7px; padding: 5px 8px; min-width: 0; border: 0; text-align: left; font: inherit; cursor: pointer; }
+    .pjAsk span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pjAsk .key { color: inherit; opacity: .8; }
     /* 0.5.14: matrix view, important × urgent (renderMatrix) */
     .seg button svg { vertical-align: -1px; margin-right: 5px; }
     .mxHead { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 12px; }
@@ -895,6 +917,7 @@
     <div id="listView" hidden></div>
     <div id="nextView" hidden></div>
     <div id="matrixView" hidden></div>
+    <div id="projectsView" hidden></div>
     <div id="feedbackView" hidden></div>
     <div id="membersView" hidden></div>
   </main>
@@ -942,7 +965,7 @@
 
       // ---- state: everything that matters lives in the URL ------------------------------------
       const FILTERS = ['repo', 'session', 'actor', 'status', 'priority', 'assignee', 'kind', 'subtype', 'label', 'origin', 'machine', 'branch'];
-      const VIEWS = ['board', 'next', 'list', 'matrix', 'feedback', 'members'];
+      const VIEWS = ['board', 'next', 'list', 'matrix', 'projects', 'feedback', 'members'];
       let state = readUrl();
       function readUrl() {
         const p = new URLSearchParams(location.search);
@@ -1610,6 +1633,42 @@
       }
       // ---- end of matrix helpers ----
 
+      // ---- projects (0.5.17): the board's `projects`, built by the server (store.projectList) ---------
+      /** "3 tickets · 1 open", "no ticket". */
+      function pjCount(c, one, many) {
+        if (!c || !c.total) return `no ${one}`;
+        return `<b>${c.total}</b> ${c.total === 1 ? one : many}${c.open ? ` · ${c.open} open` : ''}`;
+      }
+      /** Projects that wait on you first, then the most recently touched (the server's order). */
+      function pjOrder(list) {
+        return (list || []).map((p, n) => ({ p, n })).sort((a, b) => (b.p.gestures?.length ? 1 : 0) - (a.p.gestures?.length ? 1 : 0) || a.n - b.n).map((x) => x.p);
+      }
+      // ---- end of projects helpers ----
+      function pjCard(p, now) {
+        const asks = (p.gestures || []).map((g) => `<button type="button" class="pjAsk" data-open="${esc(g.key)}" title="Waits on you"><span>${g.key === p.key ? 'This project waits on you' : ttl(g.title)}</span><span class="key">${esc(g.key)}</span></button>`).join('');
+        const st = p.state
+          ? `<div class="pjState md">${md(p.state.text)}</div><div class="pjWhen">${p.state.dated ? 'State' : 'Last comment'} · ${esc(actorName(p.state.actor))} · ${esc(ago(p.state.at, now))}</div>`
+          : `<div class="pjState none">No state posted yet</div>`;
+        return `<article class="pjCard${asks ? ' ask' : ''}${state.ticket === p.key ? ' sel' : ''}" data-open="${esc(p.key)}" data-status="${esc(p.status)}" tabindex="0" role="listitem">
+          <div class="head"><span class="dot"></span><h3 class="title">${ttl(p.title)}</h3>${prio(p.priority)}<span class="key">${esc(p.key)}</span></div>
+          <div class="pjStats"><span>${pjCount(p.tickets, 'ticket', 'tickets')}</span><span>${pjCount(p.jobs, 'job', 'jobs')}</span></div>
+          ${st}
+          ${asks ? `<div class="pjAsks">${asks}</div>` : ''}
+        </article>`;
+      }
+      function renderProjects(data, now) {
+        const label = data.project_label;
+        const list = pjOrder(data.projects);
+        const waiting = list.filter((p) => p.gestures?.length).length;
+        const head = `<div class="pjHead"><span class="mxCount">${list.length} project${list.length === 1 ? '' : 's'}${waiting ? ` · ${waiting} waiting on you` : ''}</span>
+          <p class="pjLegend">${label ? `Open tickets labelled <span class="mono">${esc(label)}</span>. They stay out of the task columns. A ticket belongs to one as a sub-ticket, or with the label <span class="mono">${esc(label)}-id:&lt;name&gt;</span> when the project carries it too.` : 'Projects are turned off on this board.'}</p></div>`;
+        const body = list.length
+          ? `<div class="pjGrid" role="list">${list.map((p) => pjCard(p, now)).join('')}</div>`
+          : `<div class="list"><div class="empty big"><strong>No open project</strong><span>${label ? `Label a ticket ${esc(label)} to follow it here.` : 'An administrator can set BOARD_PROJECT_LABEL.'}</span></div></div>`;
+        setHtml($('projectsView'), head + body);
+        summaryFromApi();
+      }
+
       const MX_ALL_KEY = 'alvearium.matrix-all';
       document.addEventListener('click', (e) => {
         const b = e.target.closest?.('[data-mx]');
@@ -1765,7 +1824,7 @@
       }
       const PICK_LABEL = { repo: 'Repo', session: 'Session', actor: 'Actor', priority: 'Priority', status: 'Status', assignee: 'Assignee', subtype: 'Type', label: 'Label', kind: 'Kind', origin: 'Origin', machine: 'Machine' };
       function renderFilters() {
-        const seg = [['board', 'Board'], ['next', 'Next'], ['list', 'List'], ['matrix', 'Matrix']].map(([v, l]) => `<button type="button" data-view="${v}" aria-pressed="${state.view === v}"${v === 'matrix' ? ' title="Important × urgent: your tickets on a 2 × 2 grid (m)"' : ''}>${v === 'matrix' ? '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="1" width="4.2" height="4.2" rx="1" fill="currentColor"/><rect x="6.8" y="1" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.8" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>' : ''}${l}</button>`).join('');
+        const seg = [['board', 'Board'], ['next', 'Next'], ['list', 'List'], ['matrix', 'Matrix'], ['projects', 'Projects']].map(([v, l]) => `<button type="button" data-view="${v}" aria-pressed="${state.view === v}"${v === 'matrix' ? ' title="Important × urgent: your tickets on a 2 × 2 grid (m)"' : v === 'projects' ? ' title="Long-running projects, out of the task columns (p)"' : ''}>${v === 'matrix' ? '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="1" width="4.2" height="4.2" rx="1" fill="currentColor"/><rect x="6.8" y="1" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.8" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>' : ''}${l}</button>`).join('');
         const parts = [`<div class="seg" role="group" aria-label="View">${seg}${state.view === 'feedback' ? '<button type="button" data-view="feedback" aria-pressed="true">Feedback</button>' : ''}</div>`];
         // Replies you have not read (0.5.15): a count that filters the view when pressed.
         if (unread.size || state.unread) parts.push(`<button type="button" class="unreadBtn" data-act="unread" aria-pressed="${state.unread}" title="Tickets where someone answered you since you last opened them (u)"><span class="replyDot" aria-hidden="true"></span>${unread.size} unread ${unread.size === 1 ? 'reply' : 'replies'}</button>`);
@@ -1804,7 +1863,7 @@
           let data;
           const view = state.view;
           if (view === 'members') {
-            for (const id of ['boardView', 'listView', 'nextView', 'matrixView', 'feedbackView', 'membersView']) $(id).hidden = id !== 'membersView';
+            for (const id of ['boardView', 'listView', 'nextView', 'matrixView', 'projectsView', 'feedbackView', 'membersView']) $(id).hidden = id !== 'membersView';
             $('auth').hidden = true;
             $('main').hidden = false;
             // Live changes must not wipe what you are typing on this page.
@@ -1826,11 +1885,12 @@
           $('auth').hidden = true;
           $('main').hidden = false;
           const now = data.now ?? Date.now();
-          for (const id of ['boardView', 'listView', 'nextView', 'matrixView', 'feedbackView', 'membersView']) $(id).hidden = id !== view + 'View';
+          for (const id of ['boardView', 'listView', 'nextView', 'matrixView', 'projectsView', 'feedbackView', 'membersView']) $(id).hidden = id !== view + 'View';
           if (view === 'list') renderList(data, now);
           else if (view === 'next') renderNext(data, now);
           else if (view === 'feedback') renderFeedback(data, now);
           else if (view === 'matrix') renderMatrix(data, now);
+          else if (view === 'projects') renderProjects(data, now);
           else renderBoard(data, now);
           changedKeys = new Set();
           lastRefresh = Date.now();
@@ -2866,6 +2926,7 @@
           { keys: 'b', desc: 'Board view' },
           { keys: 'l', desc: 'List view' },
           { keys: 'm', desc: 'Matrix view (important × urgent)' },
+          { keys: 'p', desc: 'Projects view' },
           { keys: 'u', desc: 'Only tickets with a reply you have not read' },
           { keys: '?', desc: 'Show this help' },
           { keys: 'Esc', desc: 'Leave the expanded ticket, then close the panel / help' },
@@ -2941,7 +3002,7 @@
         // Single keys: never while typing, never with a modifier (browser and screen-reader keys stay theirs).
         if (ctx.typing || mod || e.altKey) return null;
         if (e.key === 'Enter' && !e.shiftKey) return ctx.onTicket ? 'open' : null;
-        const map = { '/': 'search', '?': 'help', n: 'new', j: 'next', k: 'prev', o: 'open', d: 'done', c: 'comment', b: 'board', l: 'list', m: 'matrix', u: 'unread' };
+        const map = { '/': 'search', '?': 'help', n: 'new', j: 'next', k: 'prev', o: 'open', d: 'done', c: 'comment', b: 'board', l: 'list', m: 'matrix', p: 'projects', u: 'unread' };
         const a = map[e.key] || map[e.key.toLowerCase()] || null;
         if (a === 'open' && !ctx.onTicket) return null;
         if (a === 'comment' && !ctx.panelOpen) return null;
@@ -2990,6 +3051,7 @@
         if (a === 'board') return setView('board');
         if (a === 'list') return setView('list');
         if (a === 'matrix') return setView('matrix');
+        if (a === 'projects') return setView('projects');
         if (a === 'unread') {
           state.unread = !state.unread;
           writeUrl(true);
