@@ -678,6 +678,12 @@ loading](https://code.claude.com/docs/en/plugins/loading)). Where each kind of s
 - **`claude --plugin-dir <clone>`** (agents, scripts): keep the clone on `main` (`git pull --ff-only`
   on a timer); the next session started loads it.
 - **The server**: `git pull && docker compose up -d --build`. Update it first when a release says so.
+- **An old `session-board` install left next to Alvearium** (two lines under the prompt,
+  `alvearium: …` and `session-board: …`; typically a copy synced from claude.ai, which the
+  marketplace's rename does not move): a session start says so once, read from
+  `~/.claude/plugins/installed_plugins.json`, `~/.claude/plugins/synced/` and `enabledPlugins`.
+  Remove it with `claude plugin uninstall session-board@session-board`, or turn it off in
+  claude.ai/code → Plugins (`claude plugin disable session-board@synced`).
 
 ### Terminal sessions: updating from 0.2.x
 
