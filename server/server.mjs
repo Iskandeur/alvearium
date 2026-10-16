@@ -816,7 +816,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     process.exit(1);
   }
   if (actions.length) console.log(`alvearium: ${actions.length} ticket action(s): ${actions.map((a) => a.id).join(', ')}`);
-  const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX, jobActors: String(process.env.BOARD_JOB_ACTORS || '').split(',').map((x) => x.trim()).filter(Boolean), defaultRouter: process.env.BOARD_DEFAULT_ROUTER });
+  const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX, jobActors: String(process.env.BOARD_JOB_ACTORS || '').split(',').map((x) => x.trim()).filter(Boolean), defaultRouter: process.env.BOARD_DEFAULT_ROUTER, projectLabel: process.env.BOARD_PROJECT_LABEL });
   if (store.defaultRouter) console.log(`alvearium: a comment of yours with no @mention hands the ticket to ${store.defaultRouter}`);
   console.log(`alvearium: ticket keys ${store.prefix}-n (any prefix resolves: SB-12 and ALV-12 are the same ticket)`);
   const migrated = store.migrateBoardJson(join(dataDir, 'board.json'));
