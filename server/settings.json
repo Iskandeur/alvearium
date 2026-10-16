@@ -1,0 +1,9 @@
+{
+  "//": "Install settings: the environment variables an installation sets (compose override, .env, service file) for a feature to work. One entry per setting. `level`: required = the server does not do its job without it; expected = the server runs, but a feature shipped in `since` stays inert without it; optional = a default is fine, never warned about. `effect` says in one line what happens when it is missing. A deployment tool can read this file at any commit to check an installation before moving to it. test/settings.test.mjs fails if the server reads an environment variable that is not listed here.",
+  "version": 1,
+  "settings": [
+    { "name": "BOARD_KEY_PREFIX", "since": "0.5.3", "level": "optional", "effect": "Ticket keys use the default prefix ALV (a board from before 0.5.3 keeps SB)." },
+    { "name": "BOARD_JOB_ACTORS", "since": "0.5.0", "level": "optional", "effect": "No actor is treated as a background job." },
+    { "name": "BOARD_DEFAULT_ROUTER", "since": "0.5.15", "level": "expected", "effect": "A comment of the owner with no @mention leaves the ticket in its lane: nothing is handed over." }
+  ]
+}

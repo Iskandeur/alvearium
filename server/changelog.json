@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.5.16",
+      "date": "2026-10-16",
+      "items": [
+        "The server tells whoever runs it when a feature needs a setting that was never set: a warning when it starts, and the list in the version it reports.",
+        "A new feature that needs a setting now ships with a line saying so, and what stays off without it.",
+        "Nothing changes for an installation that has them all."
+      ]
+    },
+    {
       "version": "0.5.15",
       "date": "2026-10-15",
       "items": [
