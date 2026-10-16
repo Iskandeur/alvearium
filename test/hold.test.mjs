@@ -16,11 +16,15 @@ test('sanitizeHold: the four conditions, the three next steps, refusals in words
   assert.deepEqual(sanitizeHold({ condition: { type: 'blocked_by', keys: 'ALV-1, ALV-2' } }, T0).value.condition, { type: 'blocked_by', keys: ['ALV-1', 'ALV-2'] });
   assert.equal(sanitizeHold({ condition: { type: 'pr_merged', pr: 'https://github.com/Acme/Repo/pull/12' } }, T0).value.condition.pr, 'acme/repo#12');
   assert.equal(normalizePr('acme/repo#x'), null);
+  assert.equal(normalizePr('../..#1'), null, 'no dot segments in the API URL');
+  assert.equal(normalizePr('acme/..#1'), null);
+  assert.equal(normalizePr('acme/repo.js#3'), 'acme/repo.js#3');
+  assert.match(sanitizeHold({ condition: { type: 'reply', from: 'ops' }, then: { type: 'assign', to: 'user', status: 'done' } }).error, /open status/);
   assert.equal(sanitizeHold({ condition: { type: 'time', at: '2027-01-15T09:00:00Z' } }, T0).value.condition.at, Date.parse('2027-01-15T09:00:00Z'));
   assert.match(sanitizeHold({ condition: { type: 'time', at: T0 + 400 * 86400000 } }, T0).error, /within a year/);
   assert.match(sanitizeHold({ condition: { type: 'nope' } }).error, /condition.type/);
   assert.match(sanitizeHold({ condition: { type: 'reply', from: 'ops' }, then: { type: 'wake', actor: 'user' } }).error, /agent id/);
-  assert.match(sanitizeHold({ condition: { type: 'reply', from: 'ops' }, then: { type: 'assign', to: 'user', status: 'on_hold' } }).error, /other than on_hold/);
+  assert.match(sanitizeHold({ condition: { type: 'reply', from: 'ops' }, then: { type: 'assign', to: 'user', status: 'on_hold' } }).error, /open status other than on_hold/);
   assert.match(sanitizeHold({ condition: { type: 'reply', from: 'ops' }, then: { type: 'comment' } }).error, /what to post/);
   assert.deepEqual(defaultNext({ set_by: 'builder', prev_assignee: 'user' }).type, 'wake');
   assert.deepEqual(defaultNext({ set_by: 'user', prev_assignee: 'user' }), { type: 'assign', to: 'user', status: 'todo' });
