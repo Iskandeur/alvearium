@@ -17,7 +17,7 @@
 // request made with an agent token acts as that agent and never as the user, see `authOf`):
 //   POST /api/event                 hook event (v0.1 payload, still the only thing hooks send);
 //                                   the reply carries `server_version` (vendored copies compare it)
-//   GET  /api/version               { version } of this server
+//   GET  /api/version               { version, settings: { missing } } of this server (server/settings.json)
 //   GET  /api/changelog             { version, releases: [{ version, date, items }] }, newest first: the
 //                                   page's "What's new" (server/changelog.json, written for users)
 //   GET  /api/board                 v0.1 board (sessions in columns) + `tickets.counts`
@@ -55,6 +55,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MAX_TEXT_CHARS, VERSION, compareVersions, normalizeActorId, parseFilters, sanitizeEvent } from '../lib/core.mjs';
 import { openStore } from '../lib/store.mjs';
+import { loadManifest, settingsReport, warnLines } from '../lib/settings.mjs';
 import { trustedActor } from '../lib/triage.mjs';
 import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
 import { inviteRoutes } from './invites.mjs';
@@ -535,7 +536,7 @@ function stream(req, res, store, heartbeatMs, streams, auth) {
   res.on('error', stop);
 }
 
-export function createApp({ token, agents = [], store, page, changelog = loadChangelog(), heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes(), ticketActions = null }) {
+export function createApp({ token, agents = [], store, page, changelog = loadChangelog(), heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes(), ticketActions = null, settings = { missing: [] } }) {
   const streams = new Set();
   /** End the live streams of whoever matches (a revoked member, a revoked session). */
   const cutStreams = (match) => {
@@ -621,7 +622,7 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         const rec = store.ingest(scopeEvent(evt, auth));
         return send(res, 202, { ok: true, state: rec.state, server_version: VERSION });
       }
-      if (path === '/api/version' && m === 'GET') return send(res, 200, { version: VERSION });
+      if (path === '/api/version' && m === 'GET') return send(res, 200, { version: VERSION, settings });
       if (path === '/api/changelog' && m === 'GET') return send(res, 200, { version: VERSION, releases: changelog });
       if (path === '/api/import' && m === 'POST') {
         // An import replays a history with its own authors: only the main token may write one.
@@ -797,7 +798,9 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const migrated = store.migrateBoardJson(join(dataDir, 'board.json'));
   if (migrated) console.log(`alvearium: imported ${migrated} session(s) from board.json (kept as board.json.migrated)`);
   const page = readFileSync(join(HERE, 'page.html'), 'utf8');
-  const server = createServer(createApp({ token, agents, store, page, trustProxy: process.env.SESSION_BOARD_TRUST_PROXY === '1', ticketActions: actionRoutes({ actions }) }));
+  const settings = settingsReport(loadManifest(HERE));
+  for (const l of warnLines(settings)) console.warn(l);
+  const server = createServer(createApp({ token, agents, store, page, settings, trustProxy: process.env.SESSION_BOARD_TRUST_PROXY === '1', ticketActions: actionRoutes({ actions }) }));
   const port = Number(process.env.PORT || 8793);
   server.listen(port, process.env.HOST || '0.0.0.0', () => console.log(`alvearium listening on :${port}`));
   const stop = () => {

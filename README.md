@@ -740,6 +740,20 @@ start `claude` themselves can load the plugin without installing it (`claude --p
 
 Sessions on claude.ai/code do not load plugins: see *Cloud sessions* below.
 
+### Install settings (0.5.16)
+
+Some features need a setting in your installation (a compose override, `.env`, a service file) and stay
+inert without it. `server/settings.json` lists them: the name, the release that introduced it (`since`),
+a `level` (`required`, `expected`, or `optional`) and what happens when it is missing (`effect`).
+
+- At startup the server logs one warning per `required` or `expected` setting that is not set.
+- `GET /api/version` answers `{ "version": "…", "settings": { "missing": [{ "name", "since", "level", "effect" }] } }`
+  (`missing` is empty when all is set).
+- A tool that moves an installation to a new version can read `server/settings.json` at the target commit
+  and check the entries newer than the running version before it moves.
+
+Adding a feature that reads a new environment variable means adding a line to the manifest: the test fails otherwise.
+
 ### Storage and upgrades
 
 Tickets live in one place at a time: the server when a URL and token are set, else
