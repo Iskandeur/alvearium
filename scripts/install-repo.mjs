@@ -13,6 +13,7 @@ import { appendFileSync, copyFileSync, existsSync, mkdirSync, readFileSync, rmSy
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { VERSION } from '../lib/core.mjs';
+import { isEntryPoint } from '../lib/core.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const MARKER = '.claude/session-board/hooks/report.mjs';
@@ -317,4 +318,4 @@ function main() {
   for (const n of notes) console.log(`alvearium: ${n}`);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) main();
+if (isEntryPoint(import.meta.url)) main();

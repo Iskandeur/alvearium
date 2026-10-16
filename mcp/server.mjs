@@ -16,6 +16,7 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { FEEDBACK_TYPES, MAX_BODY_CHARS, MAX_COMMENT_CHARS, PRIORITIES, STATUSES, VERSION, actorDisplayName, groupDigits, markdownToTerminal, normalizeActorId, repoFromRemote, textTooLong, truncate } from '../lib/core.mjs';
 import { CLOUD_SETUP_HINT, dataDir, loadConfig, openBackend, sessionForCwd } from '../lib/runtime.mjs';
+import { isEntryPoint } from '../lib/core.mjs';
 
 export { VERSION };
 const SERVER_INFO = { name: 'alvearium', version: VERSION };
@@ -477,4 +478,4 @@ async function main() {
   });
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
+if (isEntryPoint(import.meta.url)) main();

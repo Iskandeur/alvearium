@@ -9,6 +9,7 @@
 import { STATUSES } from '../lib/core.mjs';
 import { cloudCopyGuard, openBackend } from '../lib/runtime.mjs';
 import { callTool, currentContext } from '../mcp/server.mjs';
+import { isEntryPoint } from '../lib/core.mjs';
 
 const USAGE =
   'usage: /ticket new <title> [--priority P1] [--blocked-by ALV-3] | next [--all] | done <KEY> | status <KEY> <status> | priority <KEY> <P0-P3> | ' +
@@ -93,7 +94,7 @@ export async function run(words, { backend, context }) {
   }
 }
 
-if (process.argv[1] && import.meta.filename === process.argv[1]) {
+if (isEntryPoint(import.meta.url)) {
   let backend;
   // `--cloud-only`: the copy vendored into a repository (/alvearium:install-cloud).
   const args = process.argv.slice(2).filter((a) => a !== '--cloud-only');

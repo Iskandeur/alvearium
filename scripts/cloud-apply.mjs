@@ -13,6 +13,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { VERSION } from '../lib/core.mjs';
 import { MARKER, install } from './install-repo.mjs';
+import { isEntryPoint } from '../lib/core.mjs';
 
 export const EXCLUDE_TAG = '# session-board cloud setup (uncommitted copy)';
 const COPY_VERSION = '.claude/session-board/VERSION';
@@ -91,7 +92,7 @@ export function cloudApply(dir, { remove = false } = {}) {
   return 'applied';
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+if (isEntryPoint(import.meta.url)) {
   const args = process.argv.slice(2);
   const quiet = args.includes('--quiet');
   const dir = resolve(args.find((a) => !a.startsWith('--')) || process.cwd());
