@@ -764,10 +764,14 @@ from you.
 - *Latest state*: the last comment that opens with `État au`, `State as of` or `Status:`, else the last comment.
 - *Attached*: its sub-tickets, and the tickets carrying `front-id:<name>` when the project carries the same label.
 - *Jobs*: attached tickets created by a sub-actor of an actor listed in `BOARD_JOB_ACTORS` (`agent/job-12`), or of kind `job`.
-- *Waits on you*: the project itself or an attached ticket in your lane.
+- *Waits on you*: the project itself or an attached ticket in your lane. A project that waits on you (a wait,
+  a review, a failure, a decision or a question) also keeps its place in your lane: a gesture never hides on another page.
+- The board's filters and search narrow the projects too.
+
+On upgrade, open tickets that already carry the label leave To do and In progress at once (nothing is closed).
 
 `BOARD_PROJECT_LABEL` picks another label (`project`, …); `none` turns projects off and keeps every ticket
-in the columns. `GET /api/tickets/board` carries the list (`projects`, `project_label`).
+in the columns, as before 0.5.17. `GET /api/tickets/board` carries the list (`projects`, `project_label`).
 
 ### Storage and upgrades
 
