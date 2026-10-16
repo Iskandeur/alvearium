@@ -95,6 +95,8 @@ test('what waits on the owner: the project itself, or an attached ticket in thei
   assert.deepEqual(x.gestures.map((g) => g.key), [p.key, ask.key]);
   assert.ok(!keys(b.columns.waiting).includes(p.key), 'the project is out of the lane; its gesture shows in Projects');
   assert.ok(keys(b.columns.waiting).includes(ask.key), 'an attached task stays a task');
+  const plain = mk({ title: 'Mine, nothing asked', labels: ['front'], assignee: 'user' });
+  assert.deepEqual(store.projectList().find((y) => y.key === plain.key).gestures, [], 'a plain to-do project in my name asks nothing');
 });
 
 test('the label is configurable, and can be turned off', async () => {
