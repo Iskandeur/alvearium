@@ -458,13 +458,28 @@
     .ev b { color: var(--text); font-weight: 500; }
     .ev time { color: var(--faint); font-size: 12px; margin-left: 6px; }
     .ev .said { margin-top: 4px; padding: 8px 10px; background: var(--lane); border-radius: 8px; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
-    .pics { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .pics { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; margin-top: 6px; }
     .pics img, .pend img { max-width: 220px; max-height: 160px; border-radius: 6px; border: 1px solid var(--line-strong); background: var(--lane); cursor: zoom-in; display: block; }
     .pics .ph { width: 120px; height: 80px; border-radius: 6px; background: var(--lane); }
-    .pend { display: flex; flex-wrap: wrap; gap: 8px; }
-    .pend .pi { position: relative; }
-    .pend img { max-width: 96px; max-height: 72px; }
-    .pend button { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--card); line-height: 1; cursor: pointer; padding: 0; }
+    /* 0.5.18 attachments: the paperclip, the chips of files waiting to be sent, files in the history */
+    .pend { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pend:empty { display: none; }
+    .fchip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 4px 3px 6px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--lane); font-size: 12px; color: var(--muted); }
+    .fchip img, .fchip .fic { width: 22px; height: 22px; border-radius: 4px; object-fit: cover; flex: none; }
+    .fchip .fic { display: inline-flex; align-items: center; justify-content: center; color: var(--faint); }
+    .fchip .fn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; color: var(--text); }
+    .fchip .fs { color: var(--faint); white-space: nowrap; }
+    .fchip.up { opacity: .6; }
+    .fchip button { width: 22px; height: 22px; border-radius: 6px; border: 0; background: transparent; color: var(--faint); cursor: pointer; padding: 0; font-size: 15px; line-height: 1; }
+    .fchip button:hover { color: var(--danger, #c0392b); background: var(--card); }
+    .attachBtn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--faint); cursor: pointer; padding: 0; margin-right: auto; }
+    .attachBtn:hover, .attachBtn:focus-visible { color: var(--accent); border-color: var(--line-strong); background: var(--lane); }
+    .dropping { outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: 10px; }
+    .pics .file { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--lane); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+    .pics .file:hover { border-color: var(--accent); }
+    .pics .file svg { color: var(--faint); flex: none; }
+    .pics .file .fn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+    .pics .file .fs { color: var(--faint); font-size: 12px; white-space: nowrap; }
     .compose { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
     .compose textarea { min-height: 64px; }
     .compose .hint { font-size: 12px; color: var(--faint); text-align: right; margin-top: -4px; }
@@ -2409,59 +2424,112 @@
       function fromTo(e) {
         return who(e.actor) + (e.target ? `<span class="arrow">→</span>${who(e.target)}` : '');
       }
-      // Pictures of a comment: fetched with the API credentials (an <img src> cannot carry a Bearer token),
-      // kept as blob: URLs keyed by id + etag, shown as thumbnails; a click opens the full picture.
+      // Files of a comment or a new ticket (0.5.16 pictures, 0.5.18 any file): fetched with the API
+      // credentials (an <img src> cannot carry a Bearer token), kept as blob: URLs keyed by id + etag.
+      // A picture shows as a thumbnail (click: full size); any other file is a chip with its name (click:
+      // a PDF, text, audio or video opens in a new tab, anything else downloads under its own name).
+      const PIC_TYPES = /^image\/(png|jpeg|webp)$/;
+      const OPEN_TYPES = /^(image\/(png|jpeg|webp)|application\/pdf|text\/plain|audio\/(mpeg|ogg|wav|flac)|video\/(mp4|webm))$/;
+      const ICON_FILE = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M4 1.5h5l3.5 3.5v9.5h-8.5z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M9 1.5V5h3.5" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
+      const ICON_CLIP = '<svg width="17" height="17" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M13.5 7.6 8.2 12.9a3.3 3.3 0 0 1-4.7-4.7l5.6-5.6a2.2 2.2 0 0 1 3.1 3.1L6.6 11.3a1.1 1.1 0 0 1-1.6-1.6l5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      const fileSize = (b) => (b >= 1048576 ? `${Math.round((b / 1048576) * 10) / 10} MB` : b >= 1024 ? `${Math.round(b / 1024)} KB` : `${Number(b) || 0} B`);
+      const attachButton = (inputId) => `<button type="button" class="attachBtn" data-act="attach" data-input="${inputId}" title="Attach files (or drop, or paste)" aria-label="Attach files">${ICON_CLIP}</button><input type="file" id="${inputId}" class="attachInput" multiple hidden>`;
       const picUrls = new Map();
-      const picsHtml = (list) => (Array.isArray(list) && list.length ? `<div class="pics">${list.map((a) => `<span class="ph" data-pic="${Number(a.id)}" data-etag="${esc(a.etag)}"></span>`).join('')}</div>` : '');
-      async function loadPic(id, etag) {
+      const picsHtml = (list) => (Array.isArray(list) && list.length ? `<div class="pics">${list.map((a) => (PIC_TYPES.test(a.mime)
+        ? `<span class="ph" data-pic="${Number(a.id)}" data-etag="${esc(a.etag)}" data-name="${esc(a.name || 'picture')}"></span>`
+        : `<button type="button" class="file" data-file="${Number(a.id)}" data-etag="${esc(a.etag)}" data-name="${esc(a.name || 'file')}" data-mime="${esc(a.mime)}" title="${esc(OPEN_TYPES.test(a.mime) ? 'Open ' : 'Download ')}${esc(a.name || 'file')}">${ICON_FILE}<span class="fn">${esc(a.name || 'file')}</span><span class="fs">${esc(fileSize(a.size))}</span></button>`)).join('')}</div>` : '');
+      async function loadFile(id, etag, mime) {
         const k = id + '@' + etag;
         if (picUrls.has(k)) return picUrls.get(k);
         const res = await fetch(`api/attachments/${encodeURIComponent(id)}?v=${encodeURIComponent(etag)}`, { headers: headers() });
-        const type = res.headers.get('content-type') || '';
-        if (!res.ok || !/^image\/(png|jpeg|webp)$/.test(type)) throw new Error('HTTP ' + res.status);
-        const url = URL.createObjectURL(await res.blob());
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const type = (res.headers.get('content-type') || '').split(';')[0].trim();
+        if (mime && PIC_TYPES.test(mime) && !PIC_TYPES.test(type)) throw new Error('not a picture');
+        // The blob takes the type the server served, and only one of the types a browser may open:
+        // anything else becomes an opaque download, never a page of this origin.
+        const url = URL.createObjectURL(new Blob([await res.arrayBuffer()], { type: OPEN_TYPES.test(type) ? type : 'application/octet-stream' }));
         picUrls.set(k, url);
         return url;
       }
+      const loadPic = (id, etag) => loadFile(id, etag, 'image/png');
       function hydratePics() {
         for (const el of document.querySelectorAll('#panel [data-pic]')) {
           loadPic(el.dataset.pic, el.dataset.etag).then((url) => {
             const img = document.createElement('img');
             img.src = url;
-            img.alt = 'Attached picture';
+            img.alt = el.dataset.name || 'Attached picture';
+            img.title = el.dataset.name || '';
             img.dataset.full = url;
             el.replaceWith(img);
           }).catch(() => { el.textContent = '⚠'; });
         }
       }
-      // Pictures waiting for the comment being written: uploaded at once, claimed by the comment.
+      async function openFile(el) {
+        const { file: id, etag, name, mime } = el.dataset;
+        const open = OPEN_TYPES.test(mime);
+        // A tab opened before the fetch, so the popup blocker sees the click.
+        const tab = open ? window.open('', '_blank') : null;
+        try {
+          const url = await loadFile(id, etag, '');
+          if (tab) { tab.opener = null; tab.location.href = url; return; }
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = name || 'file';
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        } catch (err) { if (tab) tab.close(); toast(err.message); }
+      }
+      // Files waiting for the comment or the new ticket being written: uploaded at once, claimed when it is sent.
       let pendingPics = [];
+      let pendingFor = null;
+      let maxBytes = 0;
+      async function attachmentCap() {
+        if (maxBytes) return maxBytes;
+        try { maxBytes = Number((await api('version')).attachments?.max_bytes) || 25 * 1048576; } catch { maxBytes = 25 * 1048576; }
+        return maxBytes;
+      }
+      const pendTarget = () => ($('panel').querySelector('#cform') ? '' : state.ticket || null);
       function renderPending() {
         const box = $('pendingPics');
         if (!box) return;
-        box.innerHTML = pendingPics.map((p, i) => `<span class="pi"><img src="${esc(p.url)}" alt="Picture to send"><button type="button" data-act="dropPic" data-i="${i}" aria-label="Remove picture">×</button></span>`).join('');
+        box.innerHTML = (pendingFor === pendTarget() ? pendingPics : []).map((p, i) => `<span class="fchip${p.id ? '' : ' up'}" title="${esc(p.name)}">${p.url ? `<img src="${esc(p.url)}" alt="">` : `<span class="fic">${ICON_FILE}</span>`}<span class="fn">${esc(p.name)}</span><span class="fs">${p.id ? esc(fileSize(p.size)) : 'sending…'}</span><button type="button" data-act="dropPic" data-i="${i}" aria-label="Remove ${esc(p.name)}" title="Remove">×</button></span>`).join('');
       }
+      const queryName = (n) => encodeURIComponent(n).replace(/[!'()*]/g, (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase());
       async function addPendingPics(files) {
-        const key = state.ticket;
-        if (!key) return;
+        const target = pendTarget();
+        if (target === null) return;
+        if (pendingFor !== target) { pendingPics = []; pendingFor = target; }
+        const cap = await attachmentCap();
         for (const f of files) {
-          if (!/^image\/(png|jpeg|webp)$/.test(f.type)) { toast('PNG, JPEG or WebP only'); continue; }
-          if (pendingPics.length >= 8) { toast('8 pictures per comment at most'); break; }
+          if (!f.size) { toast(`${f.name || 'File'}: empty`); continue; }
+          if (f.size > cap) { toast(`${f.name || 'File'} is too large (max ${fileSize(cap)})`); continue; }
+          if (pendingPics.length >= 10) { toast('10 files per message at most'); break; }
+          const name = f.name || (f.type.startsWith('image/') ? 'pasted.png' : 'file');
+          const item = { id: 0, name, size: f.size, url: PIC_TYPES.test(f.type) ? URL.createObjectURL(f) : '' };
+          pendingPics.push(item);
+          renderPending();
           try {
-            const res = await fetch(`api/tickets/${encodeURIComponent(key)}/attachments`, { method: 'POST', headers: { ...headers(), 'content-type': f.type }, body: f });
+            const path = target ? `api/tickets/${encodeURIComponent(target)}/attachments` : 'api/attachments';
+            const res = await fetch(`${path}?name=${queryName(name)}`, { method: 'POST', headers: { ...headers(), 'content-type': f.type || 'application/octet-stream' }, body: f });
             const data = await res.json().catch(() => ({}));
             if (res.status === 401) { locked(); return; }
-            if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
-            pendingPics.push({ id: data.id, url: URL.createObjectURL(f) });
-            renderPending();
-          } catch (err) { toast(err.message); }
+            if (!res.ok) throw new Error(`${name}: ${data.error || 'HTTP ' + res.status}`);
+            Object.assign(item, { id: data.id, size: data.size });
+          } catch (err) {
+            toast(err.message);
+            pendingPics = pendingPics.filter((x) => x !== item);
+          }
+          if (pendingFor === target) renderPending();
         }
       }
+      const pendingIds = () => pendingPics.filter((p) => p.id).map((p) => p.id);
+      const pendingBusy = () => pendingPics.some((p) => !p.id);
       function eventLine(e, i) {
         const by = fromTo(e);
         const at = `<time title="${esc(new Date(e.at).toLocaleString())}">${esc(when(e.at))}</time>`;
         if (e.type === 'comment') return `<div class="ev comment mdHost" data-md-src="ev:${Number(i) || 0}"><div class="evHead">${by} commented${at}${mdActs('comment')}</div><div class="said md">${md(e.text)}</div>${picsHtml(e.attachments)}</div>`;
-        if (e.type === 'created') return `<div class="ev">${who(e.actor)} created it${e.to_status ? ' as ' + esc(STATUS[e.to_status] || e.to_status) : ''}${e.target ? `<span class="arrow">→</span>${who(e.target)}` : ''}${at}</div>`;
+        if (e.type === 'created') return `<div class="ev">${who(e.actor)} created it${e.to_status ? ' as ' + esc(STATUS[e.to_status] || e.to_status) : ''}${e.target ? `<span class="arrow">→</span>${who(e.target)}` : ''}${at}${picsHtml(e.attachments)}</div>`;
         if (e.type === 'status' || e.type === 'reopened') return `<div class="ev">${by} ${e.type === 'reopened' ? 'reopened it' : 'moved it'}: ${esc(STATUS[e.from_status] || e.from_status)} → <b>${esc(STATUS[e.to_status] || e.to_status)}</b>${at}${e.text ? `<div class="said">${md(e.text)}</div>` : ''}</div>`;
         if (e.type === 'assigned') return `<div class="ev">${who(e.actor)} handed it over<span class="arrow">→</span>${who(e.target || e.text)}${at}</div>`;
         if (e.type === 'edit') return `<div class="ev">${by} edited ${esc(e.text || 'it')}${at}</div>`;
@@ -2534,11 +2602,12 @@
             </div>`}
             <div class="sect">History</div>
             <div class="timeline">${(t.events || []).map(eventLine).join('')}</div>
-            <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" data-limit="comment" placeholder="Add a comment… (paste or attach pictures)" aria-label="Comment"></textarea><div class="pend" id="pendingPics"></div><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts"><label class="btn" tabindex="0">Add picture<input type="file" id="picFile" accept="image/png,image/jpeg,image/webp" multiple hidden></label><button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
+            <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" data-limit="comment" placeholder="Add a comment…" aria-label="Comment"></textarea><div class="pend" id="pendingPics"></div><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts">${attachButton('attachFile')}<button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
           </form>${replyBar(t)}`;
         $('panel').hidden = false;
         pendingPics = [];
         hydratePics();
+        renderPending();
         $('scrim').hidden = false;
         $('panel').dataset.key = t.key;
         $('panel').__ticket = t;
@@ -2626,6 +2695,8 @@
 
       function renderCreate(prefill = {}) {
         state.ticket = '';
+        pendingPics = [];
+        pendingFor = '';
         mentionClose();
         setExpanded(false);
         writeUrl(false);
@@ -2643,7 +2714,8 @@
               <label>Repo</label><input name="repo" value="${esc(prefill.repo || (f.repo && f.repo.includes('/') ? f.repo : ''))}" placeholder="owner/name (optional)">
             </div>
             <textarea name="body" data-limit="body" placeholder="Details (markdown)"></textarea>
-            <div class="formActs" style="margin-top:12px"><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="close">Cancel</button><button type="submit" class="btn primary" title="${esc(sendHint('create'))}">Create</button></div>
+            <div class="pend" id="pendingPics" style="margin-top:8px"></div>
+            <div class="formActs" style="margin-top:12px">${attachButton('attachFile')}<span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="close">Cancel</button><button type="submit" class="btn primary" title="${esc(sendHint('create'))}">Create</button></div>
           </form>`;
         $('panel').dataset.parent = prefill.parent || '';
         $('panel').dataset.session = prefill.session || f.session || '';
@@ -2919,14 +2991,17 @@
           pendingPics.splice(Number(el.dataset.i), 1);
           return renderPending();
         }
+        if (act === 'attach') return void $(el.dataset.input)?.click();
         if (act === 'newChild' && t) return renderCreate({ parent: t.key, repo: t.repo, session: t.session_id });
         if (act === 'comment' && t) {
           const typed = $('comment').value.trim();
-          if (!typed && !pendingPics.length) return;
-          const text = typed || '📷';
+          const ids = pendingFor === t.key ? pendingIds() : [];
+          if (pendingFor === t.key && pendingBusy()) return toast('A file is still uploading');
+          if (!typed && !ids.length) return;
+          const text = typed || '📎';
           if (!limitCheck($('comment'))) return $('comment').focus();
           try {
-            await api(`tickets/${encodeURIComponent(t.key)}/comments`, { text, ...(pendingPics.length ? { attachments: pendingPics.map((p) => p.id) } : {}) });
+            await api(`tickets/${encodeURIComponent(t.key)}/comments`, { text, ...(ids.length ? { attachments: ids } : {}) });
             pendingPics = [];
             stickToBottom = true;
             await openPanel(t.key, false);
@@ -2935,21 +3010,45 @@
         }
       });
       document.addEventListener('change', (e) => {
-        if (e.target?.id !== 'picFile') return;
+        if (e.target?.id !== 'attachFile') return;
         const files = [...e.target.files];
         e.target.value = '';
         addPendingPics(files);
       });
+      // Paste a screenshot (or copied files) into the comment, or anywhere in the new ticket form.
       document.addEventListener('paste', (e) => {
-        if (e.target?.id !== 'comment') return;
-        const files = [...(e.clipboardData?.files || [])].filter((f) => f.type.startsWith('image/'));
+        if (e.target?.id !== 'comment' && !e.target?.closest?.('#cform')) return;
+        const files = [...(e.clipboardData?.files || [])];
         if (!files.length) return;
         e.preventDefault();
         addPendingPics(files);
       });
+      // Drop files on the comment box or the new ticket form. Card reordering (below) carries no files.
+      const dropZone = (e) => (e.dataTransfer && [...e.dataTransfer.types].includes('Files') ? e.target.closest?.('.compose, #cform') : null);
+      document.addEventListener('dragover', (e) => {
+        const z = dropZone(e);
+        document.querySelectorAll('.dropping').forEach((x) => x !== z && x.classList.remove('dropping'));
+        if (!z) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        z.classList.add('dropping');
+      });
+      document.addEventListener('dragleave', (e) => {
+        const z = dropZone(e);
+        if (z && !z.contains(e.relatedTarget)) z.classList.remove('dropping');
+      });
+      document.addEventListener('drop', (e) => {
+        const z = dropZone(e);
+        document.querySelectorAll('.dropping').forEach((x) => x.classList.remove('dropping'));
+        if (!z) return;
+        e.preventDefault();
+        addPendingPics([...e.dataTransfer.files]);
+      });
       document.addEventListener('click', (e) => {
         const img = e.target?.closest?.('.pics img');
-        if (img?.dataset.full) window.open(img.dataset.full, '_blank', 'noopener');
+        if (img?.dataset.full) return void window.open(img.dataset.full, '_blank', 'noopener');
+        const file = e.target?.closest?.('.pics .file');
+        if (file) openFile(file);
       });
       const IS_MAC =/Mac|iPhone|iPad|iPod/i.test(navigator.platform) || /Mac OS X/i.test(navigator.userAgent);
       const isTyping = (el) => !!el?.closest?.('input, textarea, select, [contenteditable]');
@@ -3170,8 +3269,12 @@
         if (v.repo) body.repo = v.repo;
         if ($('panel').dataset.parent) body.parent = $('panel').dataset.parent;
         if ($('panel').dataset.session) body.session_id = $('panel').dataset.session;
+        if (pendingBusy()) return void ($('saveMsg').textContent = 'A file is still uploading.');
+        if (pendingFor === '' && pendingIds().length) body.attachments = pendingIds();
         try {
           const t = await api('tickets', body);
+          pendingPics = [];
+          pendingFor = null;
           toast(`${t.key} created`);
           await openPanel(t.key);
           refresh();

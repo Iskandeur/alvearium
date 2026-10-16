@@ -2,6 +2,16 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.5.18",
+      "date": "2026-10-16",
+      "items": [
+        "Attach any file, not only pictures: PDFs, text, archives, audio, video. Use the paperclip next to the text box, drop files on it, or paste a screenshot.",
+        "It works in a new ticket too, before you create it.",
+        "Before sending, each file shows as a chip with its name and size; × removes it. Files are capped at 25 MB each, or what the installation sets.",
+        "In the history a picture shows as a thumbnail, a PDF opens in the browser, any other file downloads with its own name."
+      ]
+    },
+    {
       "version": "0.5.17",
       "date": "2026-10-16",
       "items": [

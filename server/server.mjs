@@ -58,7 +58,7 @@ import { openStore } from '../lib/store.mjs';
 import { loadManifest, settingsReport, warnLines } from '../lib/settings.mjs';
 import { trustedActor } from '../lib/triage.mjs';
 import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
-import { ATTACHMENT_MAX_BYTES, checkAttachment } from '../lib/attachment.mjs';
+import { ATTACHMENT_MAX_BYTES, INLINE_TYPES, attachmentMaxBytes, checkAttachment, contentDisposition, humanSize } from '../lib/attachment.mjs';
 import { inviteRoutes } from './invites.mjs';
 import { actionRoutes, loadActions } from './actions.mjs';
 import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib/accounts.mjs';
@@ -380,6 +380,33 @@ function sendAvatar(req, res, av, name = 'avatar') {
 }
 
 /**
+ * Serve an attached file (0.5.18). Only INLINE_TYPES are shown in the browser; everything else, HTML and
+ * SVG first, goes out as a download. Always nosniff and a sandbox CSP, so even a file the browser opens
+ * can run nothing.
+ */
+function sendAttachment(req, res, file) {
+  if (!file) return send(res, 404, { error: 'no file' });
+  const inline = INLINE_TYPES.has(file.mime);
+  const etag = `"${file.etag}"`;
+  const headers = {
+    'content-type': inline ? file.mime : 'application/octet-stream',
+    'x-content-type-options': 'nosniff',
+    'content-security-policy': "default-src 'none'; sandbox",
+    'content-disposition': contentDisposition(inline ? 'inline' : 'attachment', file.name || (file.mime.startsWith('image/') ? 'picture' : 'file')),
+    'cross-origin-resource-policy': 'same-origin',
+    'referrer-policy': 'no-referrer',
+    'cache-control': 'private, max-age=86400',
+    etag,
+  };
+  if (req.headers['if-none-match'] === etag) {
+    res.writeHead(304, headers);
+    return res.end();
+  }
+  res.writeHead(200, { ...headers, 'content-length': file.data.length });
+  res.end(req.method === 'HEAD' ? undefined : file.data);
+}
+
+/**
  * The release notes the page shows ("What's new", 0.5.13), from server/changelog.json: releases newest
  * first, each { version, date, items }. Only well-formed entries are kept (an `x.y.z` version, 1 to 5
  * items of text); a missing or broken file gives an empty list and the page simply shows no note.
@@ -538,7 +565,7 @@ function stream(req, res, store, heartbeatMs, streams, auth) {
   res.on('error', stop);
 }
 
-export function createApp({ token, agents = [], store, page, changelog = loadChangelog(), heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes(), ticketActions = null, settings = { missing: [] } }) {
+export function createApp({ token, agents = [], store, page, changelog = loadChangelog(), heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes(), ticketActions = null, settings = { missing: [] }, attachmentMax = ATTACHMENT_MAX_BYTES }) {
   const streams = new Set();
   /** End the live streams of whoever matches (a revoked member, a revoked session). */
   const cutStreams = (match) => {
@@ -624,7 +651,7 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         const rec = store.ingest(scopeEvent(evt, auth));
         return send(res, 202, { ok: true, state: rec.state, server_version: VERSION });
       }
-      if (path === '/api/version' && m === 'GET') return send(res, 200, { version: VERSION, settings });
+      if (path === '/api/version' && m === 'GET') return send(res, 200, { version: VERSION, settings, attachments: { max_bytes: attachmentMax } });
       if (path === '/api/changelog' && m === 'GET') return send(res, 200, { version: VERSION, releases: changelog });
       if (path === '/api/import' && m === 'POST') {
         // An import replays a history with its own authors: only the main token may write one.
@@ -736,24 +763,29 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
       const attm = path.match(/^\/api\/attachments\/(\d{1,12})$/);
       if (attm) {
         if (m !== 'GET' && m !== 'HEAD') return send(res, 405, { error: 'method not allowed' });
-        return sendAvatar(req, res, store.getAttachment(attm[1]), 'picture');
+        // Every reader sees every ticket, so a file in a ticket's history is theirs to read; a file still
+        // waiting for its comment (or its ticket) is only its uploader's.
+        const file = store.getAttachment(attm[1]);
+        return sendAttachment(req, res, file && (file.claimed || file.by === actorOf(req, store)) ? file : null);
       }
-      const upm = path.match(/^\/api\/tickets\/([\w-]{1,64})\/attachments$/);
+      // 0.5.18: any file, ?name= its original name; /api/attachments without a ticket for the new ticket form.
+      const upm = path === '/api/attachments' ? [path, null] : path.match(/^\/api\/tickets\/([\w-]{1,64})\/attachments$/);
       if (upm) {
         if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
         if (mustWrite()) return;
-        if (Number(req.headers['content-length']) > ATTACHMENT_MAX_BYTES) {
+        const tooBig = `file too large (max ${humanSize(attachmentMax)})`;
+        if (Number(req.headers['content-length']) > attachmentMax) {
           res.setHeader('connection', 'close');
-          return send(res, 413, { error: `image too large (max ${ATTACHMENT_MAX_BYTES / 1024 / 1024} MiB)` });
+          return send(res, 413, { error: tooBig });
         }
-        let img;
+        let buf;
         try {
-          img = await readRaw(req, ATTACHMENT_MAX_BYTES);
+          buf = await readRaw(req, attachmentMax);
         } catch (e) {
-          return send(res, e.status || 400, { error: e.status === 413 ? `image too large (max ${ATTACHMENT_MAX_BYTES / 1024 / 1024} MiB)` : 'bad body' });
+          return send(res, e.status || 400, { error: e.status === 413 ? tooBig : 'bad body' });
         }
-        const info = checkAttachment(img);
-        const out = store.addAttachment(upm[1], { mime: info.mime, data: img, width: info.width, height: info.height }, actorOf(req, store));
+        const info = checkAttachment(buf, { name: url.searchParams.get('name') || '', maxBytes: attachmentMax });
+        const out = store.addAttachment(upm[1], { mime: info.mime, data: buf, width: info.width, height: info.height, name: info.name }, actorOf(req, store));
         return send(res, 201, { ok: true, ...out });
       }
       const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move|\/answer)?$/);
@@ -825,7 +857,7 @@ if (isEntryPoint(import.meta.url)) {
   const page = readFileSync(join(HERE, 'page.html'), 'utf8');
   const settings = settingsReport(loadManifest(HERE));
   for (const l of warnLines(settings)) console.warn(l);
-  const server = createServer(createApp({ token, agents, store, page, settings, trustProxy: process.env.SESSION_BOARD_TRUST_PROXY === '1', ticketActions: actionRoutes({ actions }) }));
+  const server = createServer(createApp({ token, agents, store, page, settings, trustProxy: process.env.SESSION_BOARD_TRUST_PROXY === '1', ticketActions: actionRoutes({ actions }), attachmentMax: attachmentMaxBytes(process.env.BOARD_ATTACHMENT_MAX_MB) }));
   const port = Number(process.env.PORT || 8793);
   server.listen(port, process.env.HOST || '0.0.0.0', () => console.log(`alvearium listening on :${port}`));
   const stop = () => {
