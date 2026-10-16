@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.5.19",
+      "date": "2026-10-16",
+      "items": [
+        "The short date beside a ticket is now its last change (comment, status, assignee), on the board, list and Next. Hover it for the creation date.",
+        "The Done button on your questions is slimmer: a hairline frame and the height of the other small buttons, still easy to hit on a phone.",
+        "Done in the ticket panel got the same lighter frame."
+      ]
+    },
+    {
       "version": "0.5.18",
       "date": "2026-10-16",
       "items": [
