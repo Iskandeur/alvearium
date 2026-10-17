@@ -192,7 +192,7 @@ test('vendored MCP server: zero tools outside the cloud, a setup hint in an unco
 
   const bare = client(server, { SESSION_BOARD_DIR: tmp(), CLAUDE_CODE_REMOTE: 'true' }, repo);
   await bare.request('initialize', {});
-  assert.equal((await bare.request('tools/list', {})).result.tools.length, 7);
+  assert.equal((await bare.request('tools/list', {})).result.tools.length, 8);
   const r = await bare.request('tools/call', { name: 'ticket_create', arguments: { title: 'x' } });
   assert.equal(r.result.isError, true);
   assert.match(r.result.content[0].text, /SESSION_BOARD_URL/);

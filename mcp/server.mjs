@@ -52,7 +52,7 @@ const TOOLS = [
   {
     name: 'ticket_update',
     description:
-      'Change a ticket: status (todo, in_progress, waiting_on_user, review, done, cancelled, failed), title, body, labels, priority (P0-P3), assignee, ' +
+      'Change a ticket: status (todo, in_progress, waiting_on_user, review, done, cancelled, failed, on_hold: prefer ticket_hold to say what it waits for), title, body, labels, priority (P0-P3), assignee, ' +
       'dependencies (blocked_by_add / blocked_by_remove: keys of tickets that block this one); optionally add a comment in the same call.',
     inputSchema: {
       type: 'object',
@@ -127,6 +127,25 @@ const TOOLS = [
       type: 'object',
       properties: { key: { type: 'string' }, text: { type: 'string' }, to: { type: 'string', description: 'Optional: who the comment is for (user, claude, an actor id)' } },
       required: ['key', 'text'],
+    },
+  },
+  {
+    name: 'ticket_hold',
+    description:
+      'Put a ticket on hold until something happens, instead of leaving it in To do: it leaves every lane and comes back by itself. ' +
+      'condition: {type:"blocked_by", keys?:["ALV-3"]} (all closed) | {type:"pr_merged", pr:"owner/repo#12"} | {type:"time", at:"2026-11-02T09:00:00Z"} | {type:"reply", from:"actor-id"}. ' +
+      'then (optional): {type:"wake", actor, text?} (mention an agent and hand it the ticket) | {type:"assign", to, status?, text?} | {type:"comment", text}. ' +
+      'Without then, the agent that put it on hold is woken first to check it still makes sense. lift=true lifts the hold by hand.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        key: { type: 'string' },
+        condition: { type: 'object', description: 'What it waits for: type blocked_by | pr_merged | time | reply' },
+        then: { type: 'object', description: 'Optional: what happens then: type wake | assign | comment' },
+        note: { type: 'string', description: 'Optional: why it waits, one line' },
+        lift: { type: 'boolean', description: 'true: lift the hold now, back to who had it' },
+      },
+      required: ['key'],
     },
   },
   {
@@ -304,6 +323,11 @@ export async function callTool(name, args = {}, { backend, context, env = proces
       mustFit('ticket_comment', String(args.text ?? ''), MAX_COMMENT_CHARS, 'comment', { trim: true });
       const t = must(await backend.comment(String(args.key), String(args.text ?? ''), args.to ? String(args.to) : undefined), 'ticket_comment');
       return `Commented on ${t.key} (${t.comments_count} comment${t.comments_count === 1 ? '' : 's'})`;
+    }
+    case 'ticket_hold': {
+      const body = args.lift === true ? null : { condition: args.condition, then: args.then, note: args.note };
+      const t = must(await backend.hold(String(args.key), body), 'ticket_hold');
+      return t.hold ? `${t.key} on hold until ${t.hold.waits_for}, then ${t.hold.next_text}` : `${t.key} is back: ${t.status}, ${t.assignee}`;
     }
     case 'ticket_get':
       return describe(await backend.get(String(args.key)), { full: args.full === true });

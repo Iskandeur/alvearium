@@ -63,6 +63,7 @@ import { inviteRoutes } from './invites.mjs';
 import { actionRoutes, loadActions } from './actions.mjs';
 import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib/accounts.mjs';
 import { isEntryPoint } from '../lib/core.mjs';
+import { normalizePr, startHoldClock } from '../lib/hold.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MAX_BODY = 64 * 1024;
@@ -799,7 +800,16 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         const out = store.addAttachment(upm[1], { mime: info.mime, data: buf, width: info.width, height: info.height, name: info.name }, actorOf(req, store));
         return send(res, 201, { ok: true, ...out });
       }
-      const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move|\/answer)?$/);
+      // 0.6.0: a pull request moved (a webhook relay, a CI step): { pr: "owner/repo#n", state: merged | closed | open }.
+      if (path === '/api/holds/pr') {
+        if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
+        if (mustWrite()) return;
+        const body = await jsonBody(req);
+        const pr = normalizePr(body.pr);
+        if (!pr) return send(res, 400, { error: 'pr must read owner/repo#number' });
+        return send(res, 200, store.signalPr(pr, String(body.state || 'merged')));
+      }
+      const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move|\/answer|\/hold)?$/);
       if (tm) {
         const key = tm[1];
         if (m !== 'GET' && mustWrite()) return;
@@ -807,6 +817,12 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
           const body = await jsonBody(req);
           return send(res, 200, store.moveTicket(key, { after: body.after || null, before: body.before || null }, { actor: actorOf(req, store) }));
+        }
+        if (tm[2] === '/hold') {
+          // 0.6.0: put on hold { condition, then?, note? }, or lift the hold by hand (DELETE).
+          if (m === 'POST') return send(res, 200, store.hold(key, await jsonBody(req), { actor: actorOf(req, store) }));
+          if (m === 'DELETE') return send(res, 200, store.unhold(key, { actor: actorOf(req, store) }));
+          return send(res, 405, { error: 'method not allowed' });
         }
         if (tm[2] === '/answer') {
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
@@ -860,7 +876,7 @@ if (isEntryPoint(import.meta.url)) {
     process.exit(1);
   }
   if (actions.length) console.log(`alvearium: ${actions.length} ticket action(s): ${actions.map((a) => a.id).join(', ')}`);
-  const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX, jobActors: String(process.env.BOARD_JOB_ACTORS || '').split(',').map((x) => x.trim()).filter(Boolean), defaultRouter: process.env.BOARD_DEFAULT_ROUTER, projectLabel: process.env.BOARD_PROJECT_LABEL });
+  const store = await openStore(join(dataDir, 'board.db'), { keyPrefix: process.env.BOARD_KEY_PREFIX, jobActors: String(process.env.BOARD_JOB_ACTORS || '').split(',').map((x) => x.trim()).filter(Boolean), defaultRouter: process.env.BOARD_DEFAULT_ROUTER, projectLabel: process.env.BOARD_PROJECT_LABEL, holdMaxBounces: process.env.BOARD_HOLD_MAX_BOUNCES });
   if (store.defaultRouter) console.log(`alvearium: a comment of yours with no @mention hands the ticket to ${store.defaultRouter}`);
   console.log(`alvearium: ticket keys ${store.prefix}-n (any prefix resolves: SB-12 and ALV-12 are the same ticket)`);
   const migrated = store.migrateBoardJson(join(dataDir, 'board.json'));
@@ -875,6 +891,9 @@ if (isEntryPoint(import.meta.url)) {
     store.close();
     process.exit(0);
   };
+  // 0.6.0: the clock of holds (a time reached) and the poll of the pull requests they wait on.
+  const holdClock = startHoldClock(store, { pollSeconds: process.env.BOARD_HOLD_POLL_SECONDS, githubToken: process.env.BOARD_GITHUB_TOKEN, log: (l) => console.log(`alvearium: ${l}`) });
+  process.on('exit', () => holdClock.stop());
   process.on('SIGTERM', stop);
   process.on('SIGINT', stop);
 }

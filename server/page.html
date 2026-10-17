@@ -206,6 +206,14 @@
     .tags a:hover { color: var(--accent); }
 
     /* Done drawer */
+    .tag.hold { background: var(--accent-soft); color: var(--accent); }
+    .tag.hold.stuck { background: transparent; color: var(--danger, #c0392b); border: 1px solid currentColor; }
+    .holdBox { display: grid; gap: 8px; margin: 6px 0 4px; }
+    .holdBox .holdNow { font-size: 13px; line-height: 1.5; }
+    .holdBox .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .holdBox select, .holdBox input { font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); min-width: 0; }
+    .holdBox input { flex: 1 1 160px; }
+    .holdBox .muted { color: var(--faint); font-size: 12px; }
     details.drawer { margin-top: 20px; color: var(--faint); font-size: 13px; }
     details.drawer summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; padding: 4px 2px; user-select: none; }
     details.drawer summary::-webkit-details-marker { display: none; }
@@ -944,6 +952,10 @@
           <div class="cards" id="col-todo"></div>
         </section>
       </div>
+      <details class="drawer" id="holdBox" hidden>
+        <summary><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 6.5 5 3 8.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="holdLabel"></span></summary>
+        <div class="cards" id="col-onHold"></div>
+      </details>
       <details class="drawer" id="doneBox" hidden>
         <summary><svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M3 1.5 6.5 5 3 8.5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="doneLabel"></span></summary>
         <div class="cards" id="col-done"></div>
@@ -1057,7 +1069,7 @@
       }
       const when = (ms) => new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       const repoName = (r) => (r ? r.split('/').pop() : '');
-      const STATUS = { todo: 'To do', in_progress: 'In progress', waiting_on_user: 'Waiting on you', review: 'Review', done: 'Done', cancelled: 'Cancelled', failed: 'Failed' };
+      const STATUS = { todo: 'To do', in_progress: 'In progress', waiting_on_user: 'Waiting on you', review: 'Review', done: 'Done', cancelled: 'Cancelled', failed: 'Failed', on_hold: 'On hold' };
       const ACT = { working: 'working', waiting: 'needs you', idle: 'idle', closed: 'closed' };
       const sessionName = (t) => t.session?.title || (t.session_id ? 'Session ' + t.session_id.slice(0, 6) : '');
 
@@ -1393,7 +1405,8 @@
         if (t.snoozed_until) out.push(`<span class="tag snoozed" title="Comes back on ${esc(when(t.snoozed_until))}">⏸ until ${esc(new Date(t.snoozed_until).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span><button type="button" class="tag" data-ask="wake" data-key="${esc(t.key)}" aria-label="Bring ${esc(t.key)} back to your lane now">Back now</button>`);
         if (t.repo && !state.f.repo) out.push(`<button type="button" class="tag" data-filter="repo" data-value="${esc(t.repo)}" title="Filter on ${esc(t.repo)}">${esc(repoName(t.repo))}${t.branch && t.branch !== 'HEAD' && t.branch !== 'main' && t.branch !== 'master' ? ' · ' + esc(t.branch) : ''}</button>`);
         if (t.session_id && !state.f.session && !opts.noSession && t.kind !== 'session') out.push(`<button type="button" class="tag sess" data-filter="session" data-value="${esc(t.session_id)}" title="Session: ${esc(sessionName(t))}">${t.origin === 'cloud' ? '☁ ' : '› '}${esc(sessionName(t))}</button>`);
-        if (t.blocked) {
+        if (t.hold) out.push(`<span class="tag hold${t.hold.stuck ? ' stuck' : ''}" title="${esc(t.hold.stuck ? 'Cannot happen any more: ' + t.hold.stuck : 'On hold until ' + t.hold.waits_for + ', then ' + t.hold.next_text)}">${t.hold.stuck ? '⚠ stuck' : '⏳'} ${esc(t.hold.waits_for)}</span>`);
+        if (t.blocked && !t.hold) {
           const open = (t.blocked_by || []).filter((b) => b.status !== 'done' && b.status !== 'cancelled');
           out.push(`<span class="tag blocked" title="Blocked by ${esc(open.map((b) => b.key + ' ' + plain(b.title)).join(', '))}">⛔ ${esc(open.map((b) => b.key).join(', ') || 'blocked')}</span>`);
         }
@@ -1848,7 +1861,7 @@
         const o = (v, label, n) => `<option value="${esc(v)}">${esc(label)}${n ? ' · ' + n : ''}</option>`;
         if (k === 'repo') return facets.repos.map((r) => o(r.value, repoName(r.value) + (facets.repos.filter((x) => repoName(x.value) === repoName(r.value)).length > 1 ? ' (' + r.value + ')' : ''), r.open || ''));
         if (k === 'session') return facets.sessions.filter((s) => !state.f.repo || s.repo === state.f.repo || repoName(s.repo) === state.f.repo).slice(0, 80).map((s) => o(s.id, `${s.title || 'Session ' + s.id.slice(0, 6)}${s.repo ? ' — ' + repoName(s.repo) : ''}`, s.open || ''));
-        if (k === 'status') return [['open', 'Open'], ['todo', 'To do'], ['in_progress', 'In progress'], ['waiting_on_user', 'Waiting on you'], ['review', 'Review'], ['failed', 'Failed'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([v, l]) => o(v, l));
+        if (k === 'status') return [['open', 'Open'], ['todo', 'To do'], ['in_progress', 'In progress'], ['waiting_on_user', 'Waiting on you'], ['review', 'Review'], ['failed', 'Failed'], ['on_hold', 'On hold'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([v, l]) => o(v, l));
         if (k === 'assignee') return [o('user', actorName('user')), ...(facets.actors || []).filter((a) => a.id !== 'user' && a.type !== 'system').map((a) => o(a.id, actorName(a.id), a.open || ''))];
         if (k === 'actor') return (facets.actors || []).filter((a) => a.type !== 'system').map((a) => o(a.id, (a.type === 'subagent' ? '↳ ' : '') + actorName(a.id), a.open || ''));
         if (k === 'priority') return [o('P0', 'P0 · now'), o('P1', 'P1 · next'), o('P2', 'P2 · normal'), o('P3', 'P3 · later'), o('none', 'No priority')];
@@ -1961,6 +1974,9 @@
         col('inProgress', EMPTY('Nothing in progress'));
         col('todo', EMPTY('Nothing to do'));
         col('done', '');
+        col('onHold', '');
+        $('holdBox').hidden = !c.onHold;
+        $('holdLabel').textContent = `${c.onHold || 0} on hold, back by themselves`;
         $('n-waiting').classList.toggle('hot', (c.waiting || 0) > 0);
         // 0.5.12: the installation's line for the whole lane ("what waits on you"), when a fresh one was posted.
         const rs = b.roi_summary;
@@ -2607,6 +2623,35 @@
         if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur)]);
         return list;
       };
+      // 0.6.0: on hold — what it waits for, what happens then; or the form to put it on hold.
+      function holdSection(t) {
+        const h = t.hold;
+        if (h) {
+          const by = h.set_by ? ` · set by ${esc(actorName(h.set_by))}, ${esc(ago(h.set_at, Date.now()))} ago` : '';
+          return `<div class="sect">On hold</div><div class="holdBox"><div class="holdNow">Waits for <b>${esc(h.waits_for)}</b>, then <b>${esc(h.next_text)}</b>.${h.note ? ' ' + esc(h.note) : ''}${h.stuck ? `<br><span class="tag hold stuck">⚠ ${esc(h.stuck)}</span>` : ''}<div class="muted">It comes back by itself${by}.</div></div><div class="row"><button type="button" class="btn" data-act="unhold">Lift the hold now</button></div></div>`;
+        }
+        const open = (t.blocked_by || []).filter((b) => b.status !== 'done' && b.status !== 'cancelled').map((b) => b.key).join(', ');
+        return `<details class="holdForm"><summary class="sect" style="cursor:pointer">Put on hold…</summary><div class="holdBox">
+          <div class="row"><label class="muted" for="holdCond">Until</label><select id="holdCond" aria-label="What it waits for"><option value="blocked_by">these tickets are closed</option><option value="pr_merged">a pull request is merged</option><option value="time">a date and time</option><option value="reply">someone replies</option></select><input id="holdValue" value="${esc(open)}" placeholder="${keyPrefix(t.key)}-12, ${keyPrefix(t.key)}-14" aria-label="Tickets, pull request, date or actor" autocomplete="off"></div>
+          <div class="row"><label class="muted" for="holdThen">Then</label><select id="holdThen" aria-label="What happens then"><option value="">wake who put it on hold</option><option value="wake">wake an agent</option><option value="assign">hand it to someone</option><option value="me">back to you</option></select><input id="holdWho" placeholder="agent id" aria-label="Who" autocomplete="off" hidden></div>
+          <div class="row"><input id="holdNote" placeholder="Why it waits (optional)" aria-label="Why it waits" autocomplete="off"><button type="button" class="btn primary" data-act="hold">Put on hold</button></div>
+          <div class="muted">It leaves every lane and comes back by itself, with a line in the history.</div></div></details>`;
+      }
+      function holdInput() {
+        const type = $('holdCond').value;
+        const v = $('holdValue').value.trim();
+        const condition = type === 'blocked_by' ? { type, keys: v ? v.split(/[\s,]+/).filter(Boolean).map((k) => k.toUpperCase()) : [] }
+          : type === 'pr_merged' ? { type, pr: v }
+          : type === 'time' ? { type, at: new Date(v).getTime() || v }
+          : { type, from: v.replace(/^@/, '') };
+        const then = $('holdThen').value;
+        const who = $('holdWho').value.trim().replace(/^@/, '');
+        const body = { condition, note: $('holdNote').value.trim() || undefined };
+        if (then === 'me') body.then = { type: 'assign', to: 'user', status: 'todo' };
+        else if (then === 'wake') body.then = { type: 'wake', actor: who };
+        else if (then === 'assign') body.then = { type: 'assign', to: who };
+        return body;
+      }
       function renderPanel(t) {
         panelDirty = false;
         mentionClose();
@@ -2655,6 +2700,7 @@
             </div>
             ${links ? `<div class="sect">Links</div><div class="links">${links}</div>` : ''}
             ${kids ? `<div class="sect">Sub-tickets</div><div class="kids">${kids}</div>` : ''}
+            ${t.kind === 'feedback' || !isOpen(t) ? '' : holdSection(t)}
             ${t.kind === 'feedback' ? '' : `<div class="sect">Dependencies ${t.blocked ? '<span class="tag blocked">⛔ blocked</span>' : ''}</div>
             <div class="depCols">
               <div><h4>Blocked by</h4><div class="deps">${depList(t.blocked_by, 'by')}</div><div class="depAdd"><input id="addBlocker" placeholder="${keyPrefix(t.key)}-12" aria-label="Add a ticket that blocks this one" autocomplete="off"><button type="button" class="btn" data-act="addBlocker">Add</button></div></div>
@@ -3027,6 +3073,15 @@
           return;
         }
         if (act === 'revert' && t) return renderPanel(t);
+        if ((act === 'hold' || act === 'unhold') && t) {
+          try {
+            if (act === 'hold') await api(`tickets/${encodeURIComponent(t.key)}/hold`, holdInput());
+            else await apiCall('DELETE', `tickets/${encodeURIComponent(t.key)}/hold`);
+            await openPanel(t.key, false);
+            refresh();
+          } catch (err) { toast(err.message); }
+          return;
+        }
         if ((act === 'addBlocker' || act === 'addBlocked') && t) {
           const input = $(act);
           const k = input.value.trim().toUpperCase().replace(/^(\d+)$/, `${keyPrefix(t.key)}-$1`);
@@ -3315,6 +3370,17 @@
         $('saveBar').hidden = false;
       });
       $('panel').addEventListener('change', (e) => {
+        if (e.target.id === 'holdThen') {
+          $('holdWho').hidden = !['wake', 'assign'].includes(e.target.value);
+          return;
+        }
+        if (e.target.id === 'holdCond') {
+          const ph = { blocked_by: 'ALV-12, ALV-14', pr_merged: 'owner/repo#12', time: '2026-11-02 09:00', reply: 'actor id' };
+          $('holdValue').placeholder = ph[e.target.value] || '';
+          if (e.target.value !== 'blocked_by') $('holdValue').value = '';
+          return;
+        }
+        if (e.target.closest?.('.holdBox')) return;
         if (!$('panel').querySelector('#tform') || e.target.id === 'comment') return;
         if (['status', 'assignee', 'priority', 'subtype'].includes(e.target.name)) save($('tform'));
       });
