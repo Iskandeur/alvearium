@@ -83,6 +83,10 @@
     .summary b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
     .summary .hot b { color: var(--accent); }
     .live { display: inline-flex; align-items: center; gap: 6px; }
+    .fresh { font-variant-numeric: tabular-nums; }
+    .fresh.stale { color: #d8a03a; font-weight: 600; }
+    .pHead .fresh { font-size: 11.5px; color: var(--faint); margin-left: 8px; }
+    .pHead .fresh.stale { color: #d8a03a; }
     .live i { width: 6px; height: 6px; border-radius: 50%; background: var(--faint); opacity: 0.6; }
     .live.on i { background: #3aa76d; opacity: 1; }
     .live.off i { background: var(--danger); opacity: 1; }
@@ -879,6 +883,7 @@
       <div class="summary">
         <span id="summary"></span>
         <span class="live" id="live" title=""><i></i><span class="opt" id="liveText">Connecting</span></span>
+        <span class="fresh" id="fresh" role="status" title=""></span>
       </div>
       <button class="btn fbBtn" type="button" data-view="feedback" id="fbBtn" title="Feedback inbox: bugs, suggestions and frictions reported by sessions">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
@@ -1901,6 +1906,8 @@
             // Live changes must not wipe what you are typing on this page.
             if (!(document.activeElement?.matches?.('#membersView input, #membersView select'))) await renderMembers();
             lastRefresh = Date.now();
+            dataAt = lastRefresh;
+            paintFresh();
             return;
           }
           try {
@@ -1926,6 +1933,8 @@
           else renderBoard(data, now);
           changedKeys = new Set();
           lastRefresh = Date.now();
+          dataAt = Number.isFinite(data.now) ? Math.min(data.now, lastRefresh) : lastRefresh;
+          paintFresh();
           if (!streamOn) live('poll', 'Polling');
         })();
         try {
@@ -2308,6 +2317,46 @@
       }
       // ---- end of what's new helpers ----
 
+      // ---- freshness (0.5.20)
+      /** How long ago the data on screen was confirmed by the server. `at`, `now`: ms; past `staleAfterS` it is out of date. */
+      function freshness(at, now, staleAfterS) {
+        if (!Number.isFinite(at) || at <= 0) return { text: '', title: '', stale: false };
+        const s = Math.max(0, Math.round((now - at) / 1000));
+        const ago = s < 45 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : s < 86400 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' d ago';
+        const stale = s > staleAfterS;
+        const exact = new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'medium' });
+        return { text: (stale ? '⚠ updated ' : 'updated ') + ago, title: `Data as of ${exact}` + (stale ? ` — older than ${Math.round(staleAfterS / 60) || 1} min, may be out of date` : ''), stale };
+      }
+      // ---- end freshness
+      let staleAfterS = 120;
+      let dataAt = 0;
+      function paintFresh() {
+        // A live stream that still beats (heartbeat every 15 s) confirms nothing changed since.
+        const at = Math.max(dataAt, streamOn ? streamBeat : 0);
+        const f = freshness(at, Date.now(), staleAfterS);
+        const el = $('fresh');
+        if (el) {
+          el.textContent = f.text;
+          el.title = f.title;
+          el.classList.toggle('stale', f.stale);
+        }
+        const p = $('panel').querySelector('.pHead .fresh');
+        if (p) {
+          // Live, a change to this ticket reopens it at once: the stream vouches for it too.
+          const g = freshness(Math.max(Number(p.dataset.at), streamOn ? streamBeat : 0), Date.now(), staleAfterS);
+          p.textContent = g.text.replace('updated', 'loaded');
+          p.title = g.title;
+          p.classList.toggle('stale', g.stale);
+        }
+      }
+      async function loadFreshness() {
+        try {
+          const v = await api('version');
+          const n = Number(v?.freshness?.stale_after_s);
+          if (Number.isFinite(n) && n >= 30) staleAfterS = n;
+        } catch {}
+        paintFresh();
+      }
       let served = { version: null, releases: [] };
       const fmtDay = (d) => {
         const at = new Date(d + 'T12:00:00Z');
@@ -2412,6 +2461,7 @@
         try { t = await api('tickets/' + encodeURIComponent(key)); } catch (e) { toast(e.message); closePanel(); return; }
         if (state.ticket !== key) return;
         renderPanel(t);
+        paintFresh();
         markSeen(key);
       }
       function closePanel(push = true) {
@@ -2579,7 +2629,7 @@
         const kids = (t.children || []).map((c) => `<div class="kid" data-open="${esc(c.key)}"><span class="dot" data-s="${esc(c.status)}"></span><span class="k">${esc(c.key)}</span><span class="tt">${ttl(c.title)}</span><span class="pill" data-s="${esc(c.status)}">${esc(STATUS[c.status])}</span></div>`).join('');
         $('panel').innerHTML = `
           ${resizeHandle()}
-          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)">${CHECK}<span>Done</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="Close">×</button></div></div>
+          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><span class="fresh" data-at="${now}"></span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)">${CHECK}<span>Done</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="Close">×</button></div></div>
           <form class="pBody" id="tform" autocomplete="off">
             <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
             ${roiLine(t)}
@@ -3366,6 +3416,7 @@
       let streamCtl = null;
       let streamRetry = 1000;
       let lastRefresh = 0;
+      let streamBeat = 0;
       function setStream(on) {
         streamOn = on;
         live(on ? 'on' : 'poll', on ? 'Live' : 'Polling');
@@ -3388,6 +3439,7 @@
             const { value, done } = await reader.read();
             if (done) break;
             lastByte = Date.now();
+            streamBeat = lastByte;
             buf += dec.decode(value, { stream: true });
             let i;
             while ((i = buf.indexOf('\n\n')) >= 0) {
@@ -4137,6 +4189,7 @@
         favicon(0);
         isLocked = false;
         await loadMe();
+        loadFreshness(); // never throws, paints the line on its own when /api/version answers
         await Promise.all([loadFacets(), refresh(), loadActions(), loadChangelog()]);
         if (state.ticket) openPanel(state.ticket, false);
         connectStream();
@@ -4146,6 +4199,7 @@
       // Fallback: poll every 10 s while the live stream is down, and once a minute anyway.
       setInterval(() => { if (!document.hidden && (!streamOn || Date.now() - lastRefresh > 60000)) refresh(); }, 10000);
       setInterval(() => { if (!document.hidden) loadFacets(); }, 60000);
+      setInterval(paintFresh, 15000);
       setInterval(async () => {
         // Keep an open ticket fresh, unless you are editing it (live changes reload it at once).
         if (!streamOn && !$('panel').hidden && state.ticket && !panelDirty && !$('panel').contains(document.activeElement)) openPanel(state.ticket, false);

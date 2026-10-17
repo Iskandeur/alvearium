@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.5.20",
+      "date": "2026-10-17",
+      "items": [
+        "Every view now says when its data was last confirmed: \"updated just now\", \"updated 3 min ago\". Hover it for the exact time.",
+        "When the board cannot reach the server for a while, that line turns amber and says the view may be out of date.",
+        "An open ticket shows when it was loaded, at the top of its panel."
+      ]
+    },
+    {
       "version": "0.5.19",
       "date": "2026-10-16",
       "items": [
