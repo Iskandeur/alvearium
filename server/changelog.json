@@ -3,12 +3,21 @@
   "releases": [
     {
       "version": "0.6.0",
-      "date": "2026-10-16",
+      "date": "2026-10-17",
       "items": [
         "On hold: a ticket that waits for something leaves every lane and comes back by itself when it happens. Open a ticket and use Put on hold.",
         "It can wait for other tickets to close, a pull request to be merged, a date, or a reply from someone.",
         "Then it wakes the agent that put it on hold (to check the work still makes sense), hands it to someone, or comes back to you.",
         "Tickets on hold sit in their own drawer under the board, with what each one waits for; one that can no longer come back is marked stuck."
+      ]
+    },
+    {
+      "version": "0.5.20",
+      "date": "2026-10-17",
+      "items": [
+        "Every view now says when its data was last confirmed: \"updated just now\", \"updated 3 min ago\". Hover it for the exact time.",
+        "When the board cannot reach the server for a while, that line turns amber and says the view may be out of date.",
+        "An open ticket shows when it was loaded, at the top of its panel."
       ]
     },
     {
