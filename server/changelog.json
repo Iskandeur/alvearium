@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.6.1",
+      "date": "2026-10-18",
+      "items": [
+        "Searching the board now finds projects too: the ones that match appear in a Projects group above the columns.",
+        "Typing a ticket key (ALV-12) always finds it, even for a project or an old closed ticket.",
+        "Without a search, nothing changes: projects stay in the Projects view."
+      ]
+    },
+    {
       "version": "0.6.0",
       "date": "2026-10-17",
       "items": [
