@@ -7,7 +7,7 @@ import { mkdtempSync, readFileSync, statSync, writeFileSync, existsSync } from '
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { applyAgentFlag, handleHook, openBackend, rememberSessionCwd } from '../lib/runtime.mjs';
-import { CODEX_EVENTS, MCP_ENV_VARS, TOML_BEGIN, TOML_END, codexSkill, hookCommand, mcpBlock, mergeCodexConfig, mergeCodexHooks, setup } from '../scripts/codex-setup.mjs';
+import { CODEX_EVENTS, MCP_ENV_VARS, TOML_BEGIN, TOML_END, codexSkill, hookCommand, mcpBlock, mergeCodexConfig, mergeCodexHooks, parseArgs, resolveToken, setup } from '../scripts/codex-setup.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const CLEAN = {
@@ -86,7 +86,21 @@ test('codex config.toml: the MCP block is added once, replaced on a rerun, remov
   assert.ok(one.text.startsWith(orig), 'the existing settings stay first, as they were');
   assert.equal(one.text.split(TOML_BEGIN).length, 2);
   assert.match(one.text, /\[mcp_servers\.alvearium\]\ncommand = "node"\nargs = \["\/opt\/alvearium\/mcp\/server\.mjs", "--codex"\]/);
-  assert.match(one.text, /default_tools_approval_mode = "approve"/);
+  // Writes ask first; only the read tools are approved one by one.
+  assert.match(one.text, /default_tools_approval_mode = "prompt"/);
+  for (const t of ['ticket_get', 'ticket_list', 'ticket_next']) assert.match(one.text, new RegExp(`\\[mcp_servers\\.alvearium\\.tools\\.${t}\\]\\napproval_mode = "approve"`));
+  assert.doesNotMatch(one.text, /tools\.ticket_(create|update|comment|hold)|board_feedback/);
+  const loose = mergeCodexConfig(orig, { root: '/opt/alvearium', approveWrites: true });
+  assert.match(loose.text, /default_tools_approval_mode = "approve"/);
+  assert.doesNotMatch(loose.text, /\.tools\./);
+  assert.equal(mergeCodexConfig(loose.text, { root: '/opt/alvearium' }).text, one.text, 'a rerun without the flag goes back to asking');
+  assert.equal(mergeCodexConfig(one.text, { remove: true }).text, orig, 'the per-tool tables go too');
+  // A block cut short (no end marker) is still ours: repaired by a rerun, removed by --uninstall.
+  const cut = one.text.slice(0, one.text.indexOf('args = '));
+  const cutOrig = cut;
+  assert.equal(mergeCodexConfig(cutOrig, { root: '/opt/alvearium' }).conflict, false);
+  assert.equal(mergeCodexConfig(cutOrig, { root: '/opt/alvearium' }).text, one.text);
+  assert.equal(mergeCodexConfig(cutOrig, { remove: true }).text, orig);
   assert.match(one.text, new RegExp(`env_vars = \\[${MCP_ENV_VARS.map((v) => `"${v}"`).join(', ')}\\]`));
   const two = mergeCodexConfig(one.text, { root: '/srv/alvearium' });
   assert.equal(two.text.split(TOML_BEGIN).length, 2, 'never two blocks');
@@ -137,6 +151,56 @@ test('codex-setup: writes config.toml, hooks.json and the skill, --print writes 
   assert.throws(() => setup({ home: mkdtempSync(join(tmpdir(), 'sb-codex-home-')), url: 'https://b.example.com' }), /go together/);
 });
 
+test('codex-setup: uninstall removes our hooks.json description only, and says nothing about a file that was not there', () => {
+  const home = mkdtempSync(join(tmpdir(), 'sb-codex-home-'));
+  writeFileSync(join(home, 'hooks.json'), JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'say done' }] }] } }));
+  setup({ home });
+  const out = JSON.parse(readFileSync(join(home, 'hooks.json'), 'utf8'));
+  assert.match(out.description, /^Alvearium:/);
+  setup({ home, remove: true });
+  assert.equal('description' in JSON.parse(readFileSync(join(home, 'hooks.json'), 'utf8')), false);
+  writeFileSync(join(home, 'hooks.json'), JSON.stringify({ description: 'mine', hooks: { Stop: [{ hooks: [{ type: 'command', command: 'say done' }] }] } }));
+  setup({ home, remove: true });
+  assert.equal(JSON.parse(readFileSync(join(home, 'hooks.json'), 'utf8')).description, 'mine', 'a description we did not write stays');
+  const none = mkdtempSync(join(tmpdir(), 'sb-codex-home-'));
+  assert.doesNotMatch(setup({ home: none, remove: true }).join('\n'), /removed the hooks/);
+});
+
+test('codex-setup: the token comes from the environment or stdin; --token <value> still works with a warning', async () => {
+  const warnings = [];
+  const warn = (m) => warnings.push(m);
+  const never = async () => assert.fail('stdin must not be read');
+  const base = parseArgs(['--url', 'https://b.example.com']);
+  assert.equal((await resolveToken(base, { env: { SESSION_BOARD_TOKEN: 'from-env' }, read: never, warn })).token, 'from-env');
+  assert.equal((await resolveToken(parseArgs(['--url', 'https://b.example.com', '--token', '-']), { env: { SESSION_BOARD_TOKEN: 'from-env' }, read: async () => 'from-stdin', warn })).token, 'from-stdin');
+  assert.equal((await resolveToken(base, { env: {}, read: async () => 'typed', warn })).token, 'typed');
+  assert.deepEqual(warnings, []);
+  const legacy = await resolveToken(parseArgs(['--url', 'https://b.example.com', '--token', 'on-the-command-line']), { env: {}, read: never, warn });
+  assert.equal(legacy.token, 'on-the-command-line');
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /shell history/);
+  assert.doesNotMatch(warnings[0], /on-the-command-line/);
+  // Without --url nothing is read, and --uninstall never asks.
+  assert.equal((await resolveToken(parseArgs([]), { env: {}, read: never, warn })).token, '');
+  assert.equal((await resolveToken(parseArgs(['--uninstall', '--url', 'x']), { env: {}, read: never, warn })).token, '');
+  assert.equal(parseArgs(['--auto-approve-writes']).approveWrites, true);
+  assert.equal(parseArgs([]).approveWrites, false);
+});
+
+test('codex-setup (the script itself): a token piped on stdin ends up in the config file, not in the arguments', () => {
+  const home = mkdtempSync(join(tmpdir(), 'sb-codex-home-'));
+  const data = mkdtempSync(join(tmpdir(), 'sb-codex-data-'));
+  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'codex-setup.mjs'), '--codex-home', home, '--url', 'https://b.example.com', '--token', '-'], {
+    input: 'piped-secret-token-1234567890\n',
+    env: { ...process.env, ...CLEAN, SESSION_BOARD_DIR: data },
+    encoding: 'utf8',
+  });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stderr, '');
+  assert.deepEqual(JSON.parse(readFileSync(join(data, 'config.json'), 'utf8')), { url: 'https://b.example.com', token: 'piped-secret-token-1234567890' });
+  assert.doesNotMatch(r.stdout, /piped-secret/);
+});
+
 test('Codex hook payloads: a session ticket with its repo and branch, in progress, then review with the last reply, then done; written by codex', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'sb-codex-'));
   const cwd = repo();
@@ -177,7 +241,7 @@ test('Codex hook payloads: a session ticket with its repo and branch, in progres
 
     // Codex: Stop's last_assistant_message may be null; the rollout is not read as a Claude transcript.
     assert.equal(await step('UserPromptSubmit', { turn_id: 't2', prompt: 'thanks' }), 'local');
-    assert.notEqual(await step('Stop', { turn_id: 't2', stop_hook_active: false, last_assistant_message: null }), undefined);
+    assert.equal(await step('Stop', { turn_id: 't2', stop_hook_active: false, last_assistant_message: null }), 'local');
     assert.equal((await session()).status, 'review');
 
     assert.equal(await step('SessionEnd', { reason: 'other' }), 'local');

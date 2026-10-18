@@ -1042,8 +1042,15 @@ Code sessions, under the `codex` agent, with their repository and branch.
    share `~/.claude/session-board/board.db`. For a server, export `SESSION_BOARD_URL` and
    `SESSION_BOARD_TOKEN` in the shell that starts `codex` (the block forwards them to the MCP server
    with `env_vars`; the hooks inherit them), or run the script once with
-   `--url https://board.example.com --token …`, which writes them to
-   `~/.claude/session-board/config.json` (mode 600).
+   `--url https://board.example.com`, which writes them to `~/.claude/session-board/config.json`
+   (mode 600). The script reads the token from `SESSION_BOARD_TOKEN`, or from standard input with
+   `--token -` (it asks, without echo, when stdin is a terminal):
+   ```bash
+   SESSION_BOARD_TOKEN=… node ~/alvearium/scripts/codex-setup.mjs --url https://board.example.com
+   printf '%s' "$TOKEN" | node ~/alvearium/scripts/codex-setup.mjs --url https://board.example.com --token -
+   ```
+   `--token <token>` on the command line still works, with a warning: it is kept in your shell
+   history and shows in the process list.
 3. **Trust the hooks.** Codex skips a new or changed hook until you trust it. Start `codex`: it
    says *Hooks need review*; review them and trust them (or later, type `/hooks`, then `t`). The
    ticket tools work without this step; the session ticket does not.
@@ -1055,16 +1062,24 @@ The block it writes in `config.toml`:
 command = "node"
 args = ["/home/you/alvearium/mcp/server.mjs", "--codex"]
 env_vars = ["SESSION_BOARD_URL", "SESSION_BOARD_TOKEN", "SESSION_BOARD_DIR", "SESSION_BOARD_ACTOR", "SESSION_BOARD_ACTOR_NAME", "SESSION_BOARD_FEEDBACK_ASSIGNEE"]
-default_tools_approval_mode = "approve"
+default_tools_approval_mode = "prompt"
+
+[mcp_servers.alvearium.tools.ticket_get]
+approval_mode = "approve"
+# … the same for ticket_list and ticket_next
 ```
 
-`default_tools_approval_mode = "approve"` lets Codex call the ticket tools without asking each
-time; they only write to your board. Without it, `codex exec` refuses every call (*MCP tool call
-requires approval, but approval policy is never*) and an interactive session asks for each one.
-Remove the line if you prefer to be asked.
+The tools that only read (`ticket_get`, `ticket_list`, `ticket_next`) run without asking. The ones
+that write to the board (`ticket_create`, `ticket_update`, `ticket_comment`, `ticket_hold`,
+`board_feedback`) ask first, so text from a repository you do not trust cannot make Codex file
+tickets on its own. In an interactive session you answer each prompt. `codex exec` has nobody to ask
+and refuses those calls (*MCP tool call requires approval, but approval policy is never*). For
+unattended runs, rerun the setup with `--auto-approve-writes`: it writes
+`default_tools_approval_mode = "approve"` instead, and Codex then calls every ticket tool without
+asking. Run the script again without the flag to go back to asking.
 
-To check it: `codex exec "create a test ticket on the Alvearium board, then list this session's
-tickets"`. The run shows `mcp: alvearium/ticket_create (completed)`, and the board shows the test
+To check it: `codex exec "list this session's tickets on the Alvearium board"` (to create one from
+`codex exec`, set up with `--auto-approve-writes` first). The run shows `mcp: alvearium/ticket_create (completed)`, and the board shows the test
 ticket next to the session ticket of that run.
 
 ### What works

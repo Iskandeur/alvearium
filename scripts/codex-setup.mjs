@@ -6,7 +6,9 @@
 // $CODEX_HOME defaults to ~/.codex. Codex skips a new or changed hook until you trust it: open
 // `codex`, type /hooks, review and trust the Alvearium hooks once.
 // Running it again updates what it wrote; everything else in those files is kept as is.
-// Usage: node scripts/codex-setup.mjs [--print] [--uninstall] [--codex-home <dir>] [--url <url> --token <token>]
+// Usage: node scripts/codex-setup.mjs [--print] [--uninstall] [--codex-home <dir>] [--auto-approve-writes]
+//        [--url <url>]   the token is read from SESSION_BOARD_TOKEN, or from stdin with `--token -`
+//                        (a prompt when stdin is a terminal); `--token <token>` still works but is discouraged
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -49,6 +51,10 @@ export const CODEX_EVENTS = {
   SessionEnd: false, // Codex always runs SessionEnd synchronously, 3 s at most
 };
 
+/** Ticket tools that only read: approved without asking. The others (create, update, comment, hold, feedback) write. */
+export const READ_TOOLS = ['ticket_get', 'ticket_list', 'ticket_next'];
+
+const DESCRIPTION = 'Alvearium: report each Codex session to the ticket board';
 const q = (s) => JSON.stringify(s);
 export const codexHome = (env = process.env) => env.CODEX_HOME || join(homedir(), '.codex');
 
@@ -79,12 +85,13 @@ export function mergeCodexHooks(existing, { remove = false, root = ROOT } = {}) 
   }
   if (Object.keys(hooks).length) out.hooks = hooks;
   else delete out.hooks;
-  if (!out.description && !remove) out.description = 'Alvearium: report each Codex session to the ticket board';
+  if (!remove && !out.description) out.description = DESCRIPTION;
+  if (remove && out.description === DESCRIPTION) delete out.description;
   return out;
 }
 
 /** The config.toml block. JSON strings are valid TOML basic strings (Windows backslashes included). */
-export function mcpBlock(root = ROOT) {
+export function mcpBlock(root = ROOT, { approveWrites = false } = {}) {
   return [
     TOML_BEGIN,
     `# Alvearium ${VERSION}: the ticket tools. Remove this block, or run codex-setup.mjs --uninstall, to take it out.`,
@@ -92,8 +99,11 @@ export function mcpBlock(root = ROOT) {
     `command = "node"`,
     `args = [${q(join(root, 'mcp', 'server.mjs'))}, ${q(FLAG)}]`,
     `env_vars = [${MCP_ENV_VARS.map(q).join(', ')}]`,
-    '# The ticket tools only write to your board: no approval prompt for each call (needed by `codex exec`).',
-    `default_tools_approval_mode = "approve"`,
+    approveWrites
+      ? '# --auto-approve-writes: every ticket tool runs without asking (what `codex exec` needs to create tickets).'
+      : '# The read-only tools run without asking; the tools that write ask first. Rerun with --auto-approve-writes to skip that.',
+    `default_tools_approval_mode = "${approveWrites ? 'approve' : 'prompt'}"`,
+    ...(approveWrites ? [] : READ_TOOLS.flatMap((t) => ['', `[mcp_servers.${MCP_NAME}.tools.${t}]`, 'approval_mode = "approve"'])),
     TOML_END,
   ].join('\n');
 }
@@ -104,17 +114,22 @@ const tableRe = new RegExp(String.raw`^\s*\[\s*mcp_servers\s*\.\s*(?:${MCP_NAME}
  * Pure: config.toml with our block replaced, added at the end, or (remove) taken out.
  * conflict = an `[mcp_servers.alvearium]` table we did not write is already there (left untouched).
  */
-export function mergeCodexConfig(text, { remove = false, root = ROOT } = {}) {
+export function mergeCodexConfig(text, { remove = false, root = ROOT, approveWrites = false } = {}) {
   const src = String(text || '');
   const begin = src.indexOf(TOML_BEGIN);
   const end = begin >= 0 ? src.indexOf(TOML_END, begin) : -1;
   let rest = src;
   if (begin >= 0 && end > begin) rest = src.slice(0, begin).replace(/\n+$/, '\n') + src.slice(end + TOML_END.length).replace(/^\n+/, '');
+  else if (begin >= 0) {
+    // A block cut short by hand (no end marker): ours runs from the begin marker to the next blank line.
+    const gap = src.indexOf('\n\n', begin);
+    rest = src.slice(0, begin).replace(/\n+$/, '\n') + (gap >= 0 ? src.slice(gap).replace(/^\n+/, '') : '');
+  }
   if (rest.trim() === '') rest = '';
   if (tableRe.test(rest)) return { text: src, conflict: true };
   if (remove) return { text: rest, conflict: false };
   const sep = rest && !rest.endsWith('\n') ? '\n\n' : rest ? '\n' : '';
-  return { text: rest + sep + mcpBlock(root) + '\n', conflict: false };
+  return { text: rest + sep + mcpBlock(root, { approveWrites }) + '\n', conflict: false };
 }
 
 /** The plugin's `tickets` skill, renamed for Codex. */
@@ -134,7 +149,7 @@ function readText(path) {
 }
 
 /** Writes (or, with print, only describes) the setup. Returns the lines to print. */
-export function setup({ home = codexHome(), remove = false, print = false, url = '', token = '', env = process.env, root = ROOT } = {}) {
+export function setup({ home = codexHome(), remove = false, print = false, url = '', token = '', approveWrites = false, env = process.env, root = ROOT } = {}) {
   const lines = [];
   const write = (path, text) => {
     if (print) {
@@ -147,8 +162,8 @@ export function setup({ home = codexHome(), remove = false, print = false, url =
 
   // 1. The MCP server, in config.toml.
   const configPath = join(home, 'config.toml');
-  const config = mergeCodexConfig(readText(configPath) ?? '', { remove, root });
-  if (config.conflict) lines.push(`${configPath}: an [mcp_servers.${MCP_NAME}] table is already there and was not written by this script; left as is. Compare it with:\n${mcpBlock(root)}`);
+  const config = mergeCodexConfig(readText(configPath) ?? '', { remove, root, approveWrites });
+  if (config.conflict) lines.push(`${configPath}: an [mcp_servers.${MCP_NAME}] table is already there and was not written by this script; left as is. Compare it with:\n${mcpBlock(root, { approveWrites })}`);
   else if (!remove || existsSync(configPath)) {
     write(configPath, config.text);
     if (!print) lines.push(`${remove ? 'removed the MCP server from' : 'MCP server set in'} ${configPath}`);
@@ -171,7 +186,7 @@ export function setup({ home = codexHome(), remove = false, print = false, url =
     if (print) lines.push(`--- ${hooksPath}`, '(deleted: only Alvearium hooks were in it)', '');
     else rmSync(hooksPath, { force: true });
   } else if (!remove || raw != null) write(hooksPath, JSON.stringify(merged, null, 2) + '\n');
-  if (!print) lines.push(`${remove ? 'removed the hooks from' : 'hooks set in'} ${hooksPath}`);
+  if (!print && (!remove || raw != null)) lines.push(`${remove ? 'removed the hooks from' : 'hooks set in'} ${hooksPath}`);
 
   // 3. The skill.
   const skillPath = join(home, 'skills', SKILL_NAME, 'SKILL.md');
@@ -210,8 +225,8 @@ export function setup({ home = codexHome(), remove = false, print = false, url =
   return lines;
 }
 
-function parseArgs(argv) {
-  const opts = { remove: argv.includes('--uninstall'), print: argv.includes('--print') };
+export function parseArgs(argv) {
+  const opts = { remove: argv.includes('--uninstall'), print: argv.includes('--print'), approveWrites: argv.includes('--auto-approve-writes') };
   const val = (name) => {
     const i = argv.indexOf(name);
     return i >= 0 ? argv[i + 1] || '' : '';
@@ -222,9 +237,54 @@ function parseArgs(argv) {
   return opts;
 }
 
+/** Reads all of stdin (a piped token), or one line typed without echo when stdin is a terminal. */
+async function readToken(stdin = process.stdin) {
+  if (stdin.isTTY) {
+    process.stderr.write('Board token (input hidden): ');
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.setEncoding('utf8');
+    return await new Promise((done) => {
+      let buf = '';
+      stdin.on('data', function onData(c) {
+        for (const ch of c) {
+          if (ch === '\r' || ch === '\n' || ch === '\u0004') {
+            stdin.setRawMode(false);
+            stdin.pause();
+            stdin.off('data', onData);
+            process.stderr.write('\n');
+            return done(buf.trim());
+          }
+          if (ch === '\u0003') process.exit(130);
+          buf = ch === '\u007f' ? buf.slice(0, -1) : buf + ch;
+        }
+      });
+    });
+  }
+  let buf = '';
+  stdin.setEncoding('utf8');
+  for await (const c of stdin) buf += c;
+  return buf.trim();
+}
+
+/**
+ * The token for --url: SESSION_BOARD_TOKEN, or stdin with `--token -` (a prompt on a terminal).
+ * `--token <token>` on the command line is still accepted, with a warning: it shows in the shell history and in `ps`.
+ */
+export async function resolveToken(opts, { env = process.env, read = readToken, warn = (m) => console.error(m) } = {}) {
+  if (opts.remove || !opts.url) return opts;
+  if (opts.token === '-') return { ...opts, token: await read() };
+  if (opts.token) {
+    warn('alvearium codex-setup: warning: --token <token> exposes the token in your shell history and in the process list; prefer SESSION_BOARD_TOKEN or `--token -` (stdin).');
+    return opts;
+  }
+  if (env.SESSION_BOARD_TOKEN) return { ...opts, token: env.SESSION_BOARD_TOKEN };
+  return { ...opts, token: await read() };
+}
+
 if (isEntryPoint(import.meta.url)) {
   try {
-    for (const l of setup(parseArgs(process.argv.slice(2)))) console.log(l);
+    for (const l of setup(await resolveToken(parseArgs(process.argv.slice(2))))) console.log(l);
   } catch (e) {
     console.error(`alvearium codex-setup: ${e.message}`);
     process.exit(1);
