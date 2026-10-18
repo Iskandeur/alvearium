@@ -1079,8 +1079,8 @@ unattended runs, rerun the setup with `--auto-approve-writes`: it writes
 asking. Run the script again without the flag to go back to asking.
 
 To check it: `codex exec "list this session's tickets on the Alvearium board"` (to create one from
-`codex exec`, set up with `--auto-approve-writes` first). The run shows `mcp: alvearium/ticket_create (completed)`, and the board shows the test
-ticket next to the session ticket of that run.
+`codex exec`, set up with `--auto-approve-writes` first). The run shows `mcp: alvearium/ticket_list (completed)`
+and lists the session ticket of that run, which the board shows too.
 
 ### What works
 

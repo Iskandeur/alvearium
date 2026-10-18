@@ -121,9 +121,16 @@ export function mergeCodexConfig(text, { remove = false, root = ROOT, approveWri
   let rest = src;
   if (begin >= 0 && end > begin) rest = src.slice(0, begin).replace(/\n+$/, '\n') + src.slice(end + TOML_END.length).replace(/^\n+/, '');
   else if (begin >= 0) {
-    // A block cut short by hand (no end marker): ours runs from the begin marker to the next blank line.
-    const gap = src.indexOf('\n\n', begin);
-    rest = src.slice(0, begin).replace(/\n+$/, '\n') + (gap >= 0 ? src.slice(gap).replace(/^\n+/, '') : '');
+    // A block cut short by hand (no end marker): ours is the begin marker and the lines after it that we write
+    // (comments, our tables and their keys); a blank line belongs to it only when one of our lines follows.
+    const lines = src.slice(begin).split('\n');
+    const ours = (l) => /^#/.test(l) || /^\[mcp_servers\.alvearium(\.tools\.[a-z_]+)?\]\s*$/.test(l) || /^(command|args|env_vars|default_tools_approval_mode|approval_mode)\s*=/.test(l);
+    let n = 1;
+    for (let i = 1; i < lines.length; i++) {
+      if (ours(lines[i])) n = i + 1;
+      else if (lines[i].trim() !== '') break;
+    }
+    rest = src.slice(0, begin).replace(/\n+$/, '\n') + lines.slice(n).join('\n').replace(/^\n+/, '');
   }
   if (rest.trim() === '') rest = '';
   if (tableRe.test(rest)) return { text: src, conflict: true };
@@ -255,7 +262,11 @@ async function readToken(stdin = process.stdin) {
             process.stderr.write('\n');
             return done(buf.trim());
           }
-          if (ch === '\u0003') process.exit(130);
+          if (ch === '\u0003') {
+            stdin.setRawMode(false);
+            process.stderr.write('\n');
+            process.exit(130);
+          }
           buf = ch === '\u007f' ? buf.slice(0, -1) : buf + ch;
         }
       });

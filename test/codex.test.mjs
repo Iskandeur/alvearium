@@ -101,6 +101,9 @@ test('codex config.toml: the MCP block is added once, replaced on a rerun, remov
   assert.equal(mergeCodexConfig(cutOrig, { root: '/opt/alvearium' }).conflict, false);
   assert.equal(mergeCodexConfig(cutOrig, { root: '/opt/alvearium' }).text, one.text);
   assert.equal(mergeCodexConfig(cutOrig, { remove: true }).text, orig);
+  // Cut after the first per-tool table (blank lines inside our block), with a user table after it.
+  const mid = one.text.slice(0, one.text.indexOf('[mcp_servers.alvearium.tools.ticket_list]')) + '[other]\nx = 1\n';
+  assert.equal(mergeCodexConfig(mid, { remove: true }).text, orig + '[other]\nx = 1\n');
   assert.match(one.text, new RegExp(`env_vars = \\[${MCP_ENV_VARS.map((v) => `"${v}"`).join(', ')}\\]`));
   const two = mergeCodexConfig(one.text, { root: '/srv/alvearium' });
   assert.equal(two.text.split(TOML_BEGIN).length, 2, 'never two blocks');
