@@ -1,6 +1,6 @@
 {
   "name": "session-board",
-  "description": "Alvearium (formerly session-board): one ticket board for every Claude Code session, terminal and cloud.",
+  "description": "Alvearium: one ticket board for every Claude Code session, terminal and cloud, and for OpenAI Codex CLI.",
   "owner": {
     "name": "Iskandeur",
     "url": "https://github.com/Iskandeur"
@@ -9,7 +9,7 @@
     {
       "name": "alvearium",
       "source": "./",
-      "description": "Alvearium (formerly session-board): one ticket board for all your Claude Code sessions and agents, terminal and claude.ai/code cloud: what waits on you, what is in progress, what to do next. Live updates, dependencies, priorities, who-talks-to-whom history and a feedback inbox.",
+      "description": "Alvearium: one ticket board for all your coding-agent sessions (Claude Code in the terminal and on claude.ai/code, and OpenAI Codex CLI) and their agents: what waits on you, what is in progress, what to do next. Live updates, dependencies, priorities, who-talks-to-whom history and a feedback inbox.",
       "category": "productivity"
     }
   ],

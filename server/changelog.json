@@ -2,6 +2,16 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.7.0",
+      "date": "2026-10-18",
+      "items": [
+        "OpenAI Codex CLI sessions can report to the board too: run the Codex setup script once (see the README), then trust the hooks in Codex.",
+        "A Codex session gets its own ticket with its repository and branch: in progress while it works, ready for review when a turn ends, done when it closes.",
+        "Codex can use every ticket tool (create, update, next, list, comment, get, hold, feedback); what it creates and changes shows as Codex.",
+        "Agents can now assign a ticket to themselves with \"me\", whichever agent they are."
+      ]
+    },
+    {
       "version": "0.6.0",
       "date": "2026-10-17",
       "items": [

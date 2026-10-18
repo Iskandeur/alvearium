@@ -3,7 +3,7 @@
 // Contract: never block the session, never fail. Always exit 0, swallow every error.
 import { existsSync } from 'node:fs';
 import { VERSION } from '../lib/core.mjs';
-import { handleHook, oldPluginNotice, pluginUpdateNotice, staleCopyNotice } from '../lib/runtime.mjs';
+import { applyAgentFlag, handleHook, oldPluginNotice, pluginUpdateNotice, staleCopyNotice } from '../lib/runtime.mjs';
 
 const MAX_STDIN = 2 * 1024 * 1024;
 const HARD_DEADLINE_MS = 4000;
@@ -32,6 +32,11 @@ if (process.argv.includes('--cloud-only') && process.env.CLAUDE_CODE_REMOTE !== 
 // `SESSION_BOARD=off claude`: keep one session off the board without touching the install.
 if (['off', '0', 'false'].includes(String(process.env.SESSION_BOARD || '').toLowerCase())) process.exit(0);
 
+// `--codex`: run by OpenAI Codex CLI's hooks (scripts/codex-setup.mjs), whose payloads have the same
+// shape: the session is the `codex` agent's unless SESSION_BOARD_ACTOR says otherwise.
+applyAgentFlag(process.argv, process.env);
+const codex = process.argv.includes('--codex');
+
 try {
   const raw = await readStdin();
   let input = {};
@@ -58,7 +63,8 @@ try {
     const text = staleCopyNotice(VERSION, out.serverVersion, process.env, { fromEnvironment });
     if (text) process.stdout.write(JSON.stringify({ systemMessage: text }) + '\n');
   }
-  if (event === 'SessionStart' && !process.argv.includes('--cloud-only') && !['send-failed', 'backoff'].includes(status)) {
+  // Not under Codex: those notices name Claude Code commands (plugin updates, the local board's move).
+  if (event === 'SessionStart' && !codex && !process.argv.includes('--cloud-only') && !['send-failed', 'backoff'].includes(status)) {
     try {
       const { sessionStartNotice } = await import('../lib/sync.mjs');
       const lines = [

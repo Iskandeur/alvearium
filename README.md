@@ -1,15 +1,14 @@
-# Alvearium (formerly session-board)
+# Alvearium
 
-> Plugin id: `alvearium` (marketplace: `session-board`).
->
-> A few technical names keep the old one on purpose, so that nothing already installed breaks: the
-> marketplace `session-board`, the `SESSION_BOARD_*` variables, the `~/.claude/session-board/` data
-> folder and the `session-board` MCP server name of the cloud copy. Everything you read says Alvearium.
+One live ticket board for all your coding-agent sessions: **Claude Code** (terminal and
+claude.ai/code cloud) and **OpenAI Codex CLI**, and every agent and subagent that works with you.
+It shows what is **waiting on you**, what is **in progress** and what to do **next**. Every ticket
+knows its session, repository, branch, machine and who opened it, so you can look at everything at
+once or at one repo, one session, one agent. The page updates live.
 
-One ticket board for **all** your Claude Code work, terminal and claude.ai/code cloud alike, and for
-every agent and subagent that works with you: what is **waiting on you**, what is **in progress**,
-what to do **next**. Every ticket knows its session, repository, branch, machine and who opened it,
-so you can look at everything at once or at one repo, one session, one agent. The page updates live.
+- **Claude Code**: a plugin (`claude plugin install alvearium@session-board`, see *Install*).
+- **OpenAI Codex CLI**: the same hooks and MCP server, set up with one script (see
+  [*Use with OpenAI Codex CLI*](#use-with-openai-codex-cli)).
 
 ```
 WAITING ON YOU (3)
@@ -36,7 +35,8 @@ one tab showing up in another without a reload.
 
 ## What Alvearium runs, reads and sends
 
-Alvearium is a Claude Code plugin plus an optional self-hosted server.
+Alvearium is a Claude Code plugin, also usable from OpenAI Codex CLI, plus an optional self-hosted
+server.
 
 **What runs**
 
@@ -44,6 +44,7 @@ Alvearium is a Claude Code plugin plus an optional self-hosted server.
 - **MCP server** (`mcp/server.mjs`, stdio): lets Claude create/update/list tickets through MCP tools (`ticket_create`, `ticket_next`, …).
 - **Mod** (`hooks/hooks.json` → `modules: ["./mod.mjs"]`): draws the status line and implements an instant `/board` in the terminal (Claude Code v2.1.287+).
 - **Slash commands** (`commands/*.md`): `/board`, `/ticket`, `/install-cloud` just run the Node scripts in `scripts/`.
+- **Under Codex**: the same hook script and MCP server, started by Codex with `--codex` (see *Use with OpenAI Codex CLI*). No mod, no slash commands.
 
 **What it reads**
 
@@ -633,6 +634,11 @@ history.
 
 ## Install
 
+The project was first called session-board. A few technical names keep that name on purpose,
+so that nothing already installed breaks: the marketplace `session-board` (plugin id `alvearium`),
+the `SESSION_BOARD_*` variables, the `~/.claude/session-board/` data folder and the `session-board`
+MCP server name of the cloud copy.
+
 Requires Node.js 22.13 or later (the board is stored with the built-in `node:sqlite`), on the `PATH`
 of the shell that starts `claude`. On Windows, check it in that same shell (PowerShell, cmd or Git
 Bash): `node --version`.
@@ -1013,6 +1019,85 @@ their password), the route requests take, then a `GET /api/version` and an authe
 the plugin's own client, the last failure the hooks recorded, and what to fix. The exit code is 0 when
 the board answers as the board.
 
+## Use with OpenAI Codex CLI
+
+Alvearium works with [OpenAI Codex CLI](https://github.com/openai/codex) (0.7.0, checked with Codex
+CLI 0.156): the ticket tools, through the same MCP server, and the session ticket, through the
+same hook script, run by Codex's own hooks. Codex sessions land on the same board as your Claude
+Code sessions, under the `codex` agent, with their repository and branch.
+
+### Setup in 3 steps
+
+1. **Clone and run the setup script** (Node.js 22.13 or later on the `PATH`):
+   ```bash
+   git clone https://github.com/Iskandeur/alvearium ~/alvearium
+   node ~/alvearium/scripts/codex-setup.mjs
+   ```
+   It writes three things into `$CODEX_HOME` (default `~/.codex`) and leaves everything else in
+   those files as it was: an `[mcp_servers.alvearium]` block in `config.toml` (between
+   `# >>> alvearium` markers), the hooks in `hooks.json`, and the `alvearium-tickets` skill (when to
+   use the tools) in `skills/`. `--print` shows what it would write, `--uninstall` takes it all
+   back, a rerun (after `git pull`) updates it.
+2. **Choose the board.** Nothing to do for **local mode**: Codex and Claude Code on this machine
+   share `~/.claude/session-board/board.db`. For a server, export `SESSION_BOARD_URL` and
+   `SESSION_BOARD_TOKEN` in the shell that starts `codex` (the block forwards them to the MCP server
+   with `env_vars`; the hooks inherit them), or run the script once with
+   `--url https://board.example.com --token …`, which writes them to
+   `~/.claude/session-board/config.json` (mode 600).
+3. **Trust the hooks.** Codex skips a new or changed hook until you trust it. Start `codex`: it
+   says *Hooks need review*; review them and trust them (or later, type `/hooks`, then `t`). The
+   ticket tools work without this step; the session ticket does not.
+
+The block it writes in `config.toml`:
+
+```toml
+[mcp_servers.alvearium]
+command = "node"
+args = ["/home/you/alvearium/mcp/server.mjs", "--codex"]
+env_vars = ["SESSION_BOARD_URL", "SESSION_BOARD_TOKEN", "SESSION_BOARD_DIR", "SESSION_BOARD_ACTOR", "SESSION_BOARD_ACTOR_NAME", "SESSION_BOARD_FEEDBACK_ASSIGNEE"]
+default_tools_approval_mode = "approve"
+```
+
+`default_tools_approval_mode = "approve"` lets Codex call the ticket tools without asking each
+time; they only write to your board. Without it, `codex exec` refuses every call (*MCP tool call
+requires approval, but approval policy is never*) and an interactive session asks for each one.
+Remove the line if you prefer to be asked.
+
+To check it: `codex exec "create a test ticket on the Alvearium board, then list this session's
+tickets"`. The run shows `mcp: alvearium/ticket_create (completed)`, and the board shows the test
+ticket next to the session ticket of that run.
+
+### What works
+
+| | Under Codex |
+| :- | :- |
+| Ticket tools | All eight: `ticket_create`, `ticket_update`, `ticket_next`, `ticket_list`, `ticket_comment`, `ticket_get`, `ticket_hold`, `board_feedback`. `assignee: "me"` is `codex`. Tickets attach to the current Codex session and repo |
+| Session ticket | `SessionStart`, `UserPromptSubmit`: **in progress**, titled with the first prompt. `Stop`: **review**, with the end of the last reply and its PR link, or **waiting on you** when the reply ends on a question. `SessionEnd`: **done** (a `codex exec` run ends there) |
+| Approval prompts | `PermissionRequest`: a **waiting on you** ticket while Codex asks you to approve a command |
+| Subagents | `SubagentStart`, `SubagentStop`: a line in the session ticket's history |
+| Who did what | Hooks and tools act as the `codex` agent, shown as *Codex*. `SESSION_BOARD_ACTOR` and `SESSION_BOARD_ACTOR_NAME` still override it |
+| Instructions | The MCP server's instructions, the `alvearium-tickets` skill, and [`AGENTS.md`](AGENTS.md) for this repository |
+
+### What does not work, or works differently
+
+- **No task-list mirror.** Codex has no `TaskCreated` / `TaskCompleted` hook, and its plan is not
+  reported to hooks: Codex's plan steps do not become tickets.
+- **No notification events.** Codex has no `Notification`, `Elicitation` or `StopFailure` hook:
+  an idle session waiting for you shows as *review* (or *waiting on you* when the last reply ended on
+  a question), and a turn that fails is not marked *failed*.
+- **Hooks need your trust**, once, and again after an update that changes the hook commands (Codex
+  pins trust to a hash of each hook). Until then Codex skips them silently. In CI or other
+  unattended `codex exec` runs, the hooks run only if they were trusted in that `CODEX_HOME`, or if
+  your administrator ships them as managed hooks.
+- **Tool calls keep the ticket in progress only for the tools Codex reports to hooks** (shell,
+  `apply_patch`, MCP tools). Other tool calls leave it as it is.
+- **No status line, no `/board`, no `/ticket` inside Codex** (Codex has no plugin mod or custom
+  slash command for them). Use the web page, or the same scripts in a shell:
+  `node ~/alvearium/scripts/board.mjs` and `node ~/alvearium/scripts/ticket.mjs list`.
+- **Codex cloud tasks are not covered**; only Codex CLI on your machine. The cloud copy
+  (*Cloud sessions* above) is for claude.ai/code.
+- The data folder keeps its name, `~/.claude/session-board/`, on a machine that only has Codex.
+
 ## In the terminal
 
 - **`/board`**: prints the board (`--here` for this repo, `--repo <name>`, `--q <text>`). With Claude
@@ -1054,5 +1139,8 @@ npm test                      # node --test, no dependencies
 SESSION_BOARD_DEBUG=1 claude  # hooks print what they report on stderr
 claude plugin validate .
 ```
+
+Agents working on this repository (Codex, Claude Code) follow [AGENTS.md](AGENTS.md); `CLAUDE.md`
+imports it.
 
 MIT licensed.
