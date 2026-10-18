@@ -72,6 +72,13 @@ test('codex hooks.json: every Codex event we handle, ours replaced on a rerun, o
   assert.deepEqual(removed.hooks, { PreToolUse: [foreign] });
 });
 
+test('codex hooks.json: a hook written on Windows (backslashes) is recognised as ours', () => {
+  const win = { hooks: [{ type: 'command', command: `node ${JSON.stringify('C:\\Users\\me\\alvearium\\hooks\\report.mjs')} Stop --codex` }] };
+  const merged = mergeCodexHooks({ hooks: { Stop: [win] } }, { root: '/opt/alvearium' });
+  assert.equal(merged.hooks.Stop.length, 1, 'the Windows hook is replaced, not kept beside the new one');
+  assert.deepEqual(mergeCodexHooks({ hooks: { Stop: [win] } }, { remove: true }).hooks, undefined);
+});
+
 test('codex config.toml: the MCP block is added once, replaced on a rerun, removed cleanly; a table we did not write is left alone', () => {
   const orig = 'model = "gpt-5"\n\n[projects."/w"]\ntrust_level = "trusted"\n';
   const one = mergeCodexConfig(orig, { root: '/opt/alvearium' });

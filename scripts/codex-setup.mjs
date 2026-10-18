@@ -20,7 +20,8 @@ export const SKILL_NAME = 'alvearium-tickets';
 export const TOML_BEGIN = '# >>> alvearium (scripts/codex-setup.mjs) >>>';
 export const TOML_END = '# <<< alvearium <<<';
 /** Every hook command we write carries both: a later run knows the hook is ours. */
-const HOOK_MARKER = '/hooks/report.mjs';
+// Either separator: on Windows, hookCommand writes `C:\\…\\hooks\\report.mjs` (JSON-escaped backslashes).
+const HOOK_MARKER = /[\\/]hooks[\\/]+report\.mjs/;
 const FLAG = '--codex';
 /** Variables the MCP server may read from the shell that starts `codex` (Codex passes a fixed few otherwise). */
 export const MCP_ENV_VARS = [
@@ -57,7 +58,7 @@ export function hookCommand(ev, root = ROOT) {
 }
 
 const isOurs = (group) =>
-  Array.isArray(group?.hooks) && group.hooks.some((h) => typeof h?.command === 'string' && h.command.includes(HOOK_MARKER) && h.command.includes(FLAG));
+  Array.isArray(group?.hooks) && group.hooks.some((h) => typeof h?.command === 'string' && HOOK_MARKER.test(h.command) && h.command.includes(FLAG));
 
 /** Pure: a Codex hooks.json with our hooks removed, then (unless remove) added back. Other hooks are kept. */
 export function mergeCodexHooks(existing, { remove = false, root = ROOT } = {}) {
