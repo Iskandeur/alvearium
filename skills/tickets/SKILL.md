@@ -5,7 +5,7 @@ description: Track action items and work steps as tickets on the Alvearium board
 
 # Tickets on the Alvearium board
 
-The user watches one board for all their Claude Code sessions and agents, live. A ticket is how
+The user watches one board for all their coding-agent sessions (Claude Code, OpenAI Codex CLI) and agents, live. A ticket is how
 something reaches them when the conversation is not on screen. Keys look like `ALV-12` (a board made before 0.5.3 may use `SB-12`; both forms resolve).
 
 ## When to create a ticket
@@ -15,14 +15,14 @@ something reaches them when the conversation is not on screen. Keys look like `A
   secret to the staging environment", "Review and merge PR #412", "Decide between option A and B",
   "Rotate the leaked token". Put the exact steps and links in `body`. If you cannot continue until
   it is done, use `status: "waiting_on_user"`; otherwise leave the default `todo`.
-- **Splitting long work** (`assignee: "claude"`, `kind: "task"`): when a task has several steps that
+- **Splitting long work** (`assignee: "me"`, which is you: `claude`, `codex` or your actor id; `kind: "task"`): when a task has several steps that
   will outlive one turn, create a parent ticket and sub-tickets (`parent: "ALV-12"`). Move each to
   `in_progress` when you start it and `done` when it is finished.
 - **Something you noticed but will not do now** (bug, follow-up): a `todo` ticket with a label.
 
 Do not create tickets for every small step of a short task, for things you finish in the same turn,
 or to restate what the conversation already shows. Permission prompts, questions and "ready for
-review" are already ticketed automatically by the plugin's hooks: never duplicate them.
+review" are already ticketed automatically by Alvearium's hooks: never duplicate them.
 
 ## Priorities and dependencies: set them when you split work
 
@@ -83,7 +83,7 @@ same one twice in a session, and do not use it for the user's own tasks (those a
 
 - When you finish something a ticket tracks, close it (`ticket_update` with `status: "done"`, and a
   one-line `comment` saying what was done). Cancelled work: `status: "cancelled"` with the reason.
-- Handing something over? Change the `assignee` (to `user`, `claude`, or another agent's id): the
+- Handing something over? Change the `assignee` (to `user`, `claude`, `codex`, or another agent's id): the
   history shows who gave it to whom. `ticket_comment` takes an optional `to` for the same reason.
 - Before ending a long piece of work, or when the user asks "what's left?", call `ticket_list`
   (default scope: this session; `scope: "repo"` for the whole repository) and report what is open.

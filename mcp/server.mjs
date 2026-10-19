@@ -15,22 +15,31 @@ import { hostname } from 'node:os';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { FEEDBACK_TYPES, MAX_BODY_CHARS, MAX_COMMENT_CHARS, PRIORITIES, STATUSES, VERSION, actorDisplayName, groupDigits, markdownToTerminal, normalizeActorId, repoFromRemote, textTooLong, truncate } from '../lib/core.mjs';
-import { CLOUD_SETUP_HINT, dataDir, loadConfig, openBackend, sessionForCwd } from '../lib/runtime.mjs';
+import { CLOUD_SETUP_HINT, applyAgentFlag, dataDir, loadConfig, openBackend, sessionForCwd } from '../lib/runtime.mjs';
 import { isEntryPoint } from '../lib/core.mjs';
 
 export { VERSION };
 const SERVER_INFO = { name: 'alvearium', version: VERSION };
-const ASSIGNEE = { type: 'string', description: 'user = the human (default); claude = Claude; or any actor id (an agent, e.g. "ci-bot")' };
+const ASSIGNEE = { type: 'string', description: 'user = the human (default); me = you, the agent calling this tool; claude = Claude; codex = Codex; or any actor id (an agent, e.g. "ci-bot")' };
 const PRIORITY = { type: 'string', enum: PRIORITIES, description: 'P0 = drop everything, P1 = next up, P2 = normal, P3 = some day' };
 const PROTOCOL = '2025-06-18';
 const LIMIT = `at most ${groupDigits(MAX_COMMENT_CHARS)} characters; a longer text is refused, never cut`;
 
+/**
+ * MCP tool annotations (hints, spec 2025-06-18): what reads, what writes. Nothing here deletes or
+ * reaches outside the board. Clients may use them to decide what to ask before (OpenAI Codex CLI
+ * shows them); the tools behave the same either way.
+ */
+const READS = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
+const WRITES = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
+
 const TOOLS = [
   {
     name: 'ticket_create',
+    annotations: WRITES,
     description:
       'Create a ticket on the Alvearium board. Use it for an action item the human must do (assignee "user": create a secret, review a PR, decide something), ' +
-      'or to split a long task into tracked steps (assignee "claude"). The ticket is attached to the current session and repo unless told otherwise.',
+      'or to split a long task into tracked steps (assignee "me"). The ticket is attached to the current session and repo unless told otherwise.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -51,6 +60,7 @@ const TOOLS = [
   },
   {
     name: 'ticket_update',
+    annotations: WRITES,
     description:
       'Change a ticket: status (todo, in_progress, waiting_on_user, review, done, cancelled, failed, on_hold: prefer ticket_hold to say what it waits for), title, body, labels, priority (P0-P3), assignee, ' +
       'dependencies (blocked_by_add / blocked_by_remove: keys of tickets that block this one); optionally add a comment in the same call.',
@@ -73,6 +83,7 @@ const TOOLS = [
   },
   {
     name: 'ticket_next',
+    annotations: READS,
     description:
       'What to work on now: open tickets that nothing blocks, most important first (P0…P3), then the manual order, then the oldest. ' +
       'Default: this repository. Use it before picking up work, and after finishing a ticket.',
@@ -88,6 +99,7 @@ const TOOLS = [
   },
   {
     name: 'board_feedback',
+    annotations: WRITES,
     description:
       'Report a problem or an improvement to the feedback inbox of the board: a bug, a suggestion, or a friction (a tool, an instruction or the board itself made you lose time). ' +
       'Context (session, repo, agent, plugin version) is attached automatically. Be specific: what you tried, what happened, what would have helped.',
@@ -105,6 +117,7 @@ const TOOLS = [
   },
   {
     name: 'ticket_list',
+    annotations: READS,
     description: 'List tickets. Default: the open tickets of the current session. Use scope "repo" for the whole repository, "all" for everything.',
     inputSchema: {
       type: 'object',
@@ -122,6 +135,7 @@ const TOOLS = [
   },
   {
     name: 'ticket_comment',
+    annotations: WRITES,
     description: `Add a comment to a ticket (progress note, answer, what is left). Markdown, ${LIMIT}: split a longer text into several comments.`,
     inputSchema: {
       type: 'object',
@@ -131,6 +145,7 @@ const TOOLS = [
   },
   {
     name: 'ticket_hold',
+    annotations: WRITES,
     description:
       'Put a ticket on hold until something happens, instead of leaving it in To do: it leaves every lane and comes back by itself. ' +
       'condition: {type:"blocked_by", keys?:["ALV-3"]} (all closed) | {type:"pr_merged", pr:"owner/repo#12"} | {type:"time", at:"2026-11-02T09:00:00Z"} | {type:"reply", from:"actor-id"}. ' +
@@ -150,6 +165,7 @@ const TOOLS = [
   },
   {
     name: 'ticket_get',
+    annotations: READS,
     description: 'Show one ticket with its history and sub-tickets. Long comments are shortened in the history; pass full=true to get the whole body and every comment, complete.',
     inputSchema: {
       type: 'object',
@@ -296,7 +312,11 @@ function mustFit(tool, text, max, what, { trim = false } = {}) {
   if (tooLong) throw new Error(`${tool}: ${tooLong}`);
 }
 
+/** `me` = the agent calling the tool (SESSION_BOARD_ACTOR, `codex` under Codex, else `claude`). */
+const who = (value, context) => (value === 'me' ? context.actor || 'claude' : value);
+
 export async function callTool(name, args = {}, { backend, context, env = process.env }) {
+  if (args && typeof args === 'object' && args.assignee === 'me') args = { ...args, assignee: who('me', context) };
   switch (name) {
     case 'ticket_create': {
       mustFit('ticket_create', args.body, MAX_BODY_CHARS, 'body');
@@ -334,7 +354,7 @@ export async function callTool(name, args = {}, { backend, context, env = proces
     case 'ticket_next': {
       const scope = args.scope || 'repo';
       const params = { limit: Math.min(Number(args.limit) || 10, 50) };
-      if (args.assignee) params.assignee = args.assignee === 'me' ? context.actor || 'claude' : String(args.assignee);
+      if (args.assignee) params.assignee = String(args.assignee);
       if (args.label) params.label = String(args.label);
       let where = scope;
       if (scope === 'session') {
@@ -464,6 +484,9 @@ export async function handleMessage(msg, deps) {
 }
 
 async function main() {
+  // `--codex`: started by OpenAI Codex CLI (scripts/codex-setup.mjs): tickets are written as `codex`.
+  applyAgentFlag(process.argv, process.env);
+  const codex = process.argv.includes('--codex');
   let backend;
   let ctx;
   const deps = {
@@ -472,7 +495,9 @@ async function main() {
     context: () => {
       // Re-read: the hooks may have recorded the session after the server started (in the cloud,
       // where their record wins over the env, until they have).
-      if (!ctx || !ctx.session_id || (ctx.origin === 'cloud' && !ctx.fromHooks)) ctx = currentContext();
+      // Under Codex, every call: one Codex process can start several sessions (/new), and the hooks
+      // record the current one for this directory.
+      if (codex || !ctx || !ctx.session_id || (ctx.origin === 'cloud' && !ctx.fromHooks)) ctx = currentContext();
       return ctx;
     },
   };
