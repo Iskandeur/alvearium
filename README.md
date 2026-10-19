@@ -103,6 +103,29 @@ Tickets come from three places:
 The hook is one zero-dependency Node script. It never blocks or fails your session: network calls
 time out after 2 s, every error is swallowed, it always exits 0, and hot-path events run `async`.
 
+## Waiting for the world (0.8.0)
+
+A ticket on hold (`ticket_hold`, 0.6.0) leaves every lane and comes back by itself when what it waits for
+happens: its blockers closed (`blocked_by`), a pull request merged (`pr_merged`), a time (`time`), a
+reply (`reply`). 0.8.0 adds `external`: a state of the world the board cannot see itself.
+
+```json
+{ "condition": { "type": "external", "what": "the hall motion sensor sees someone come in",
+                 "deadline": "2026-11-02T22:00:00Z",
+                 "otherwise": { "type": "assign", "to": "user", "text": "Nothing was seen: check the sensor." } },
+  "then": { "type": "wake", "actor": "builder" } }
+```
+
+- `what` says the state in words; it is what the ticket shows as *waits for*.
+- Whoever sees it (a polling script, a home-automation hook, an agent) lifts the hold with a proof:
+  `POST /api/tickets/ALV-12/hold/fire` `{ "proof": "on at 19:42, entity history" }`, or
+  `ticket_hold` with `fire_proof`. The ticket comes back through `then` (or the default step), and
+  the proof stays in its history: *Back with @builder: seen: … (on at 19:42 …)*.
+- `deadline` is optional. When it passes unmet, the ticket comes back on its own through `otherwise`
+  (absent: the same step as `then`), and the history says *not met: … was not seen by …*.
+- The board never polls anything for an `external` hold: the watcher lives where the state can be
+  read, and needs only a token that may write tickets.
+
 ## Ticket keys (0.5.3)
 
 Tickets are numbered `ALV-1`, `ALV-2`… A board created before 0.5.3 keeps its `SB-` keys (they are in
@@ -830,6 +853,9 @@ as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without 
 | `GET /api/tickets/SB-12` | one ticket with its history and sub-tickets |
 | `POST` or `PATCH /api/tickets/SB-12` | update any field, `blocked_by_add` / `blocked_by_remove`, optional `comment` (and `to`) in the same call |
 | `POST /api/tickets/SB-12/comments` | `{ text, to? }` |
+| `POST`, `DELETE /api/tickets/SB-12/hold` | put on hold `{ condition, then?, note? }`, or lift the hold by hand (see *Waiting for the world*) |
+| `POST /api/tickets/SB-12/hold/fire` | `{ proof }`: the external state an `external` hold waits for is seen; its next step runs now |
+| `POST /api/holds/pr` | `{ pr: "owner/repo#12", state: merged \| closed }`: a pull request moved (webhook relay, CI) |
 | `GET /api/actions`, `POST /api/tickets/SB-12/actions/<id>` | ticket actions declared by the installation (see *Ticket actions*) |
 | `GET`, `PUT /api/roi` | scores an installation posts on the "Waiting on you" lane (see *Scores on the "Waiting on you" lane*) |
 | `GET /api/changelog` | `{ version, releases: [{ version, date, items }] }`, newest first: the page's *What's new* (see *Finding your way around*) |
