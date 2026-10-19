@@ -3950,9 +3950,9 @@
         root.dataset.role = me.role || '';
         waitingLabel();
       }
-      /** The first column is the owner's queue: for anyone else, say whose it is. */
+      /** The first column is the viewer's own queue (0.9.4): an invited member sees what waits on them. */
       function waitingLabel() {
-        if (me && me.id !== 'user') $('h-waiting').textContent = 'Waiting on ' + actor('user').name;
+        $('h-waiting').textContent = 'Waiting on you';
       }
       const canManage = () => me && (me.role === 'owner' || me.role === 'admin');
       let shownToken = null;

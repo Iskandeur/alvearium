@@ -261,7 +261,8 @@ function scopeEvent(evt, auth) {
   if (auth.kind === 'member') {
     const raw = normalizeActorId(evt.identity.actor);
     const actor = !raw || raw === 'claude' || raw === 'user' ? `${auth.member}/claude` : scopeActor(raw, auth.member);
-    return { ...evt, identity: { ...evt.identity, actor, actorName: agentDisplayName(evt.identity.actorName) ?? (actor.endsWith('/claude') ? 'Claude' : undefined) } };
+    // 0.9.4: what this session asks (permissions, questions, review) waits on the member, not on the owner.
+    return { ...evt, identity: { ...evt.identity, actor, human: auth.member, actorName: agentDisplayName(evt.identity.actorName) ?? (actor.endsWith('/claude') ? 'Claude' : undefined) } };
   }
   if (auth.kind !== 'agent') return evt;
   const actor = scopeActor(evt.identity.actor, auth.actor);
@@ -690,7 +691,7 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
       }
       if (path === '/api/tickets' && m === 'GET') return send(res, 200, store.listTickets(withUnread(parseFilters(url.searchParams))));
       if (path === '/api/stream' && m === 'GET') return stream(req, res, store, heartbeatMs, streams, auth);
-      if (path === '/api/tickets/board' && m === 'GET') return send(res, 200, store.ticketBoard(withUnread(parseFilters(url.searchParams))));
+      if (path === '/api/tickets/board' && m === 'GET') return send(res, 200, store.ticketBoard(withUnread(parseFilters(url.searchParams)), { me: auth.kind === 'member' ? auth.member : 'user' }));
       if (path === '/api/roi') {
         // 0.5.12: lane scores (lib/roi.mjs). Anyone who reads the board reads them; only the owner, or an
         // agent named in BOARD_JOB_ACTORS, posts them (the same trust as the `blocks-job` label).

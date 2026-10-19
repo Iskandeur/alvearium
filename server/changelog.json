@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.4",
+      "date": "2026-10-19",
+      "items": [
+        "An invited member who connects their own Claude Code now gets its questions, permission prompts and finished turns in their own \"Waiting on you\".",
+        "Those no longer land in the owner's lane.",
+        "Every person sees their own queue first: the first column is always \"Waiting on you\"."
+      ]
+    },
+    {
       "version": "0.9.3",
       "date": "2026-10-19",
       "items": [

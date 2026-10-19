@@ -191,6 +191,25 @@ test('history carries the real human; headers never impersonate a person', async
   }
 });
 
+test('0.9.4: a member\'s own Claude Code waits on that member, in their "Waiting on you", not in the owner\'s', async () => {
+  const s = await setup();
+  try {
+    const { member } = s.ids;
+    assert.equal((await s.call('member', 'POST', '/api/event', { v: 1, session: { sessionId: 'bo-1' }, transition: { state: 'review' } })).status, 202);
+    assert.equal((await s.call('owner', 'POST', '/api/event', { v: 1, session: { sessionId: 'own-1' }, transition: { state: 'review' } })).status, 202);
+    const bo = s.store.listTickets({}).tickets.find((t) => t.created_by === `${member}/claude` || t.assignee === member);
+    assert.ok(bo, 'the member session has its ticket');
+    assert.equal(bo.assignee, member);
+    const own = s.store.listTickets({}).tickets.find((t) => t.key !== bo.key && t.status === 'review');
+    assert.equal(own.assignee, 'user', 'the owner\'s session is unchanged');
+    const lane = async (who) => (await s.call(who, 'GET', '/api/tickets/board')).body.columns.waiting.map((t) => t.key);
+    assert.deepEqual(await lane('member'), [bo.key]);
+    assert.deepEqual(await lane('owner'), [own.key]);
+  } finally {
+    s.close();
+  }
+});
+
 test('avatars and names of others: only owner/admin; anyone their own', async () => {
   const s = await setup();
   try {

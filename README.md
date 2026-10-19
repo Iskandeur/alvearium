@@ -589,6 +589,10 @@ A board can have several humans. Each one has a name, a role and personal tokens
 names whoever did what (no more anonymous *You* once there are two of you). The server checks the
 role on every route, whatever the page shows.
 
+A member who connects their own Claude Code with a personal token gets what it asks (questions,
+permission prompts, finished turns) in their own *Waiting on you*, not in the owner's (0.9.4): the
+first column of the page is always the queue of whoever looks at it.
+
 | Role | Can | Why this role exists |
 | :- | :- | :- |
 | `owner` | everything, including members, invitations and every token | one person answers for the board. The owner is the actor `user` of the whole history and whoever holds the server token (`SESSION_BOARD_TOKEN`): an existing install changes nothing, and ownership moves only by handing over that token, never through the API |
