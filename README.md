@@ -256,6 +256,16 @@ server keeps this per reader (`ticket_seen`), so a ticket read on the phone is r
   `BOARD_DEFAULT_ROUTER` (an actor id, for example an agent that dispatches work). Without it nothing
   moves, as before;
 - a ticket waiting on you (waiting, review, failed) goes back to *To do*, so it leaves your lane.
+- a comment that tags a session only (`@session/1a2b3c4d`) hands the ticket to nobody: see below.
+
+**Tag one Claude Code session.** Type `@` in a comment: after the agents, the list offers the sessions
+seen in the last 30 minutes (`GET /api/sessions/taggable`), each as `@session/<first 8 characters of its
+id>` with its repo, subject and start time. The comment waits in that session's queue; at the session's
+next prompt, its `UserPromptSubmit` hook asks the server for it (`"mentions": true` in the event, the
+reply carries `mentions`) and adds it to the turn as context, with the ticket key to answer on. Each
+comment is delivered once. Only the owner's comments are queued (an agent's never are), never to an
+invited member's session, and a handle that matches two sessions reaches neither. A session idle at its
+prompt gets the comment when the human next writes in it.
 
 It comes back to you only when the assignee hands it back explicitly: assigned to you again, or set to
 waiting on you. Its own comments do not. Session tickets (kept by the hooks), closed tickets and a

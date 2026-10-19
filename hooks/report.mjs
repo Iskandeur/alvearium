@@ -3,7 +3,7 @@
 // Contract: never block the session, never fail. Always exit 0, swallow every error.
 import { existsSync } from 'node:fs';
 import { VERSION } from '../lib/core.mjs';
-import { applyAgentFlag, handleHook, oldPluginNotice, pluginUpdateNotice, staleCopyNotice } from '../lib/runtime.mjs';
+import { applyAgentFlag, handleHook, mentionsContext, oldPluginNotice, pluginUpdateNotice, staleCopyNotice } from '../lib/runtime.mjs';
 
 const MAX_STDIN = 2 * 1024 * 1024;
 const HARD_DEADLINE_MS = 4000;
@@ -47,6 +47,11 @@ try {
   const started = Date.now();
   const out = {};
   const status = await handleHook(event, input, { out });
+  // Comments that tagged this session on the board (@session/…): added to the turn the human just started.
+  if (event === 'UserPromptSubmit' && out.mentions?.length) {
+    const additionalContext = mentionsContext(out.mentions);
+    if (additionalContext) process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext } }) + '\n');
+  }
   if (process.env.SESSION_BOARD_DEBUG === '1') {
     const { loadConfig, routeOf } = await import('../lib/runtime.mjs');
     const cfg = loadConfig();

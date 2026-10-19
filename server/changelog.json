@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.0",
+      "date": "2026-10-19",
+      "items": [
+        "Tag one Claude Code session from a ticket: mention it in a comment, and the comment reaches that session at its next turn.",
+        "The mention list offers the sessions seen in the last 30 minutes, with their repo, subject and start time.",
+        "Only your own comments reach a session: an agent's comment never does."
+      ]
+    },
+    {
       "version": "0.8.1",
       "date": "2026-10-19",
       "items": [

@@ -40,6 +40,7 @@
 //   POST /api/tickets/:key/seen     you opened it: its replies are read (stored per reader, on every device)
 //   GET  /api/facets                values to filter on (repos, sessions, machines, labels, kinds)
 //   GET  /api/sessions              sessions, most recent first (?repo)
+//   GET  /api/sessions/taggable     sessions seen in the last 30 min, each with its @session/… handle
 //   POST /api/import                { board, machine, sessions, tickets }: a machine's local board.db,
 //                                   idempotent per (board, ticket id); the plugin sends it once
 //   DELETE /api/sessions/:id        a session and its tickets (cleanup, tests)
@@ -661,7 +662,10 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         const evt = sanitizeEvent(body);
         if (!evt) return send(res, 400, { error: 'invalid event' });
         const rec = store.ingest(scopeEvent(evt, auth));
-        return send(res, 202, { ok: true, state: rec.state, server_version: VERSION });
+        // `mentions: true` (sent by the prompt hook from 0.9.0): the owner's comments that tag this session.
+        // Never to an invited member: the owner's words are not an instruction for someone else's Claude.
+        const mentions = body.mentions === true && auth.kind !== 'member' ? store.takeSessionMentions(evt.identity.sessionId) : undefined;
+        return send(res, 202, { ok: true, state: rec.state, server_version: VERSION, ...(mentions ? { mentions } : {}) });
       }
       if (path === '/api/version' && m === 'GET') return send(res, 200, { version: VERSION, settings, attachments: { max_bytes: attachmentMax }, freshness: { stale_after_s: staleAfter } });
       if (path === '/api/changelog' && m === 'GET') return send(res, 200, { version: VERSION, releases: changelog });
@@ -752,6 +756,7 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         return send(res, out ? 200 : 404, { actor: out });
       }
       if (path === '/api/facets' && m === 'GET') return send(res, 200, store.facets());
+      if (path === '/api/sessions/taggable' && m === 'GET') return send(res, 200, { sessions: store.taggableSessions() });
       if (path === '/api/sessions' && m === 'GET') {
         const lim = Math.min(Number(url.searchParams.get('limit')) || 100, 500);
         return send(res, 200, store.listSessions({ repo: url.searchParams.get('repo') || undefined, limit: lim }));
