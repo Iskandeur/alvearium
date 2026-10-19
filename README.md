@@ -267,6 +267,16 @@ comment is delivered once. Only the owner's comments are queued (an agent's neve
 invited member's session, and a handle that matches two sessions reaches neither. A session idle at its
 prompt gets the comment when the human next writes in it.
 
+**A session opened on a ticket follows that ticket.** Start a session with `SESSION_BOARD_TICKET=ALV-12`
+in its environment (a launcher behind a "continue this ticket" button sets it) and the board links the
+two. At each of the session's prompts, its `UserPromptSubmit` hook receives the comments posted on
+ALV-12 since its previous turn (the reply carries `linked`), from every author except the session's own
+actor, each delivered once. The owner's comments are quoted as the owner's words; any other author's
+comment is quoted as information from that author, to check, not an instruction. Only the linked ticket,
+never another one; an invited member's session is never linked. This does not change tags: a tag
+(`@session/…`) still reaches a session only from the owner's comments. Taking up a ticket, read it whole
+with `ticket_get` and `full: true` (the default view keeps the last 15 entries, comments shortened).
+
 It comes back to you only when the assignee hands it back explicitly: assigned to you again, or set to
 waiting on you. Its own comments do not. Session tickets (kept by the hooks), closed tickets and a
 comment sent with its own status or assignee change are left as they are.
