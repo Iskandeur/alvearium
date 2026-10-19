@@ -264,9 +264,10 @@ function scopeEvent(evt, auth) {
     // 0.9.4: what this session asks (permissions, questions, review) waits on the member, not on the owner.
     return { ...evt, identity: { ...evt.identity, actor, human: auth.member, actorName: agentDisplayName(evt.identity.actorName) ?? (actor.endsWith('/claude') ? 'Claude' : undefined) } };
   }
-  if (auth.kind !== 'agent') return evt;
+  // Only a member token names the session's human: never the payload.
+  if (auth.kind !== 'agent') return { ...evt, identity: { ...evt.identity, human: undefined } };
   const actor = scopeActor(evt.identity.actor, auth.actor);
-  return { ...evt, identity: { ...evt.identity, actor, actorName: agentDisplayName(evt.identity.actorName) ?? undefined } };
+  return { ...evt, identity: { ...evt.identity, actor, human: undefined, actorName: agentDisplayName(evt.identity.actorName) ?? undefined } };
 }
 
 const forbidden = (res, what, auth) =>
