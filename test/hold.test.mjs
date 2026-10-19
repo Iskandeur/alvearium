@@ -131,6 +131,40 @@ test('refusals: nothing to wait for, a closed ticket, the bounce cap; status on_
   assert.throws(() => s.hold(b.key, { condition: { type: 'time', at: T0 + 1000 } }), /closed ticket/);
 });
 
+test('the bounce cap counts the wakes of the last 7 days, and starts again after a hold lifted by hand', async () => {
+  const { s, at } = await board({ holdMaxBounces: 2 });
+  const a = s.createTicket({ title: 'a' });
+  const wake = (t, ms) => {
+    at(ms);
+    s.hold(t.key, { condition: { type: 'time', at: T0 + ms + 1000 } });
+    at(ms + 1000);
+    s.tickHolds();
+  };
+  const holdAt = (t, ms) => s.hold(t.key, { condition: { type: 'time', at: T0 + ms + 60_000 } });
+  wake(a, 0);
+  wake(a, 10_000);
+  assert.throws(() => holdAt(a, 20_000), /woken 2 times already/);
+  // Eight days later the two old wakes no longer count.
+  const D8 = 8 * 86400_000;
+  wake(a, D8);
+  // An agent lifting its hold restarts nothing, and a comment with the same words neither.
+  at(D8 + 5000);
+  holdAt(a, D8 + 5000);
+  s.unhold(a.key, { actor: 'builder' });
+  s.comment(a.key, 'Hold lifted by hand', { actor: 'builder' });
+  wake(a, D8 + 10_000);
+  assert.throws(() => holdAt(a, D8 + 20_000), /woken 2 times already/);
+  // The human lifting a hold by hand starts the count over.
+  const b = s.createTicket({ title: 'b' });
+  wake(b, D8);
+  at(D8 + 5000);
+  holdAt(b, D8 + 5000);
+  s.unhold(b.key, { actor: 'user' });
+  wake(b, D8 + 10_000);
+  at(D8 + 20_000);
+  assert.equal(holdAt(b, D8 + 20_000).status, 'on_hold');
+});
+
 test('lifting a hold by hand, or moving the ticket, drops the hold without running the next step', async () => {
   const { s } = await board();
   const t = s.createTicket({ title: 't', assignee: 'builder', status: 'in_progress' }, { actor: 'builder' });
