@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.8.0",
+      "date": "2026-10-19",
+      "items": [
+        "A ticket can now wait for a state of the world: \"the motion sensor sees me come in\", \"the site answers again\". Say it in words, with an optional deadline.",
+        "A watcher, a script or an agent lifts that wait with a proof in words as soon as it sees the state; the ticket comes back with the proof in its history.",
+        "When the deadline passes and nothing was seen, the ticket comes back by itself and says so, with its own next step if you gave one (for example: back to you)."
+      ]
+    },
+    {
       "version": "0.7.0",
       "date": "2026-10-18",
       "items": [

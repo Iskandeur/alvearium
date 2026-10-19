@@ -148,17 +148,20 @@ const TOOLS = [
     annotations: WRITES,
     description:
       'Put a ticket on hold until something happens, instead of leaving it in To do: it leaves every lane and comes back by itself. ' +
-      'condition: {type:"blocked_by", keys?:["ALV-3"]} (all closed) | {type:"pr_merged", pr:"owner/repo#12"} | {type:"time", at:"2026-11-02T09:00:00Z"} | {type:"reply", from:"actor-id"}. ' +
+      'condition: {type:"blocked_by", keys?:["ALV-3"]} (all closed) | {type:"pr_merged", pr:"owner/repo#12"} | {type:"time", at:"2026-11-02T09:00:00Z"} | {type:"reply", from:"actor-id"} | ' +
+      '{type:"external", what:"the motion sensor sees someone come in", deadline?:"…Z", otherwise?:{…then…}} (a state of the world: a watcher or a script lifts it with fire_proof; past the deadline, otherwise runs with "not met"). ' +
       'then (optional): {type:"wake", actor, text?} (mention an agent and hand it the ticket) | {type:"assign", to, status?, text?} | {type:"comment", text}. ' +
-      'Without then, the agent that put it on hold is woken first to check it still makes sense. lift=true lifts the hold by hand.',
+      'Without then, the agent that put it on hold is woken first to check it still makes sense. lift=true lifts the hold by hand. ' +
+      'fire_proof="what was seen" says an external hold is met: its next step runs now.',
     inputSchema: {
       type: 'object',
       properties: {
         key: { type: 'string' },
-        condition: { type: 'object', description: 'What it waits for: type blocked_by | pr_merged | time | reply' },
+        condition: { type: 'object', description: 'What it waits for: type blocked_by | pr_merged | time | reply | external' },
         then: { type: 'object', description: 'Optional: what happens then: type wake | assign | comment' },
         note: { type: 'string', description: 'Optional: why it waits, one line' },
         lift: { type: 'boolean', description: 'true: lift the hold now, back to who had it' },
+        fire_proof: { type: 'string', description: 'For an external hold: what was seen, in words (the proof). Its next step runs now' },
       },
       required: ['key'],
     },
@@ -345,6 +348,10 @@ export async function callTool(name, args = {}, { backend, context, env = proces
       return `Commented on ${t.key} (${t.comments_count} comment${t.comments_count === 1 ? '' : 's'})`;
     }
     case 'ticket_hold': {
+      if (typeof args.fire_proof === 'string' && args.fire_proof.trim()) {
+        const f = must(await backend.fireHold(String(args.key), args.fire_proof), 'ticket_hold');
+        return `${f.key} is back: ${f.status}, ${f.assignee}`;
+      }
       const body = args.lift === true ? null : { condition: args.condition, then: args.then, note: args.note };
       const t = must(await backend.hold(String(args.key), body), 'ticket_hold');
       return t.hold ? `${t.key} on hold until ${t.hold.waits_for}, then ${t.hold.next_text}` : `${t.key} is back: ${t.status}, ${t.assignee}`;

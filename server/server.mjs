@@ -809,7 +809,7 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         if (!pr) return send(res, 400, { error: 'pr must read owner/repo#number' });
         return send(res, 200, store.signalPr(pr, String(body.state || 'merged')));
       }
-      const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move|\/answer|\/hold)?$/);
+      const tm = path.match(/^\/api\/tickets\/([\w-]{1,64})(\/comments|\/move|\/answer|\/hold|\/hold\/fire)?$/);
       if (tm) {
         const key = tm[1];
         if (m !== 'GET' && mustWrite()) return;
@@ -817,6 +817,11 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
           const body = await jsonBody(req);
           return send(res, 200, store.moveTicket(key, { after: body.after || null, before: body.before || null }, { actor: actorOf(req, store) }));
+        }
+        if (tm[2] === '/hold/fire') {
+          // 0.8.0: the external state a hold waits for is seen: { proof }. The hold's next step runs at once.
+          if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
+          return send(res, 200, store.fireHoldExternal(key, await jsonBody(req), { actor: actorOf(req, store) }));
         }
         if (tm[2] === '/hold') {
           // 0.6.0: put on hold { condition, then?, note? }, or lift the hold by hand (DELETE).
