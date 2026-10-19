@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, statSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { applyAgentFlag, handleHook, openBackend, rememberSessionCwd } from '../lib/runtime.mjs';
@@ -169,23 +169,17 @@ test('codex-setup: uninstall removes our hooks.json description only, and says n
   assert.doesNotMatch(setup({ home: none, remove: true }).join('\n'), /removed the hooks/);
 });
 
-test('codex-setup: the token comes from the environment or stdin; --token <value> still works with a warning', async () => {
-  const warnings = [];
-  const warn = (m) => warnings.push(m);
+test('codex-setup: the token comes from the environment or stdin; --token <value> is refused', async () => {
   const never = async () => assert.fail('stdin must not be read');
   const base = parseArgs(['--url', 'https://b.example.com']);
-  assert.equal((await resolveToken(base, { env: { SESSION_BOARD_TOKEN: 'from-env' }, read: never, warn })).token, 'from-env');
-  assert.equal((await resolveToken(parseArgs(['--url', 'https://b.example.com', '--token', '-']), { env: { SESSION_BOARD_TOKEN: 'from-env' }, read: async () => 'from-stdin', warn })).token, 'from-stdin');
-  assert.equal((await resolveToken(base, { env: {}, read: async () => 'typed', warn })).token, 'typed');
-  assert.deepEqual(warnings, []);
-  const legacy = await resolveToken(parseArgs(['--url', 'https://b.example.com', '--token', 'on-the-command-line']), { env: {}, read: never, warn });
-  assert.equal(legacy.token, 'on-the-command-line');
-  assert.equal(warnings.length, 1);
-  assert.match(warnings[0], /shell history/);
-  assert.doesNotMatch(warnings[0], /on-the-command-line/);
+  assert.equal((await resolveToken(base, { env: { SESSION_BOARD_TOKEN: 'from-env' }, read: never })).token, 'from-env');
+  assert.equal((await resolveToken(parseArgs(['--url', 'https://b.example.com', '--token', '-']), { env: { SESSION_BOARD_TOKEN: 'from-env' }, read: async () => 'from-stdin' })).token, 'from-stdin');
+  assert.equal((await resolveToken(base, { env: {}, read: async () => 'typed' })).token, 'typed');
+  await assert.rejects(resolveToken(parseArgs(['--url', 'https://b.example.com', '--token', 'on-the-command-line']), { env: {}, read: never }), (e) => /SESSION_BOARD_TOKEN/.test(e.message) && /--token -/.test(e.message) && !/on-the-command-line/.test(e.message));
+  await assert.rejects(resolveToken(parseArgs(['--token', 'abc']), { env: {}, read: never }), /no longer takes a value/);
   // Without --url nothing is read, and --uninstall never asks.
-  assert.equal((await resolveToken(parseArgs([]), { env: {}, read: never, warn })).token, '');
-  assert.equal((await resolveToken(parseArgs(['--uninstall', '--url', 'x']), { env: {}, read: never, warn })).token, '');
+  assert.equal((await resolveToken(parseArgs([]), { env: {}, read: never })).token, '');
+  assert.equal((await resolveToken(parseArgs(['--uninstall', '--url', 'x']), { env: {}, read: never })).token, '');
   assert.equal(parseArgs(['--auto-approve-writes']).approveWrites, true);
   assert.equal(parseArgs([]).approveWrites, false);
 });
@@ -202,6 +196,22 @@ test('codex-setup (the script itself): a token piped on stdin ends up in the con
   assert.equal(r.stderr, '');
   assert.deepEqual(JSON.parse(readFileSync(join(data, 'config.json'), 'utf8')), { url: 'https://b.example.com', token: 'piped-secret-token-1234567890' });
   assert.doesNotMatch(r.stdout, /piped-secret/);
+});
+
+test('codex-setup (the script itself): --token <value> is refused with a clear message, a non-zero exit and nothing written', () => {
+  const home = mkdtempSync(join(tmpdir(), 'sb-codex-home-'));
+  const data = mkdtempSync(join(tmpdir(), 'sb-codex-data-'));
+  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'codex-setup.mjs'), '--codex-home', home, '--url', 'https://b.example.com', '--token', 'abc'], {
+    input: '',
+    env: { ...process.env, ...CLEAN, SESSION_BOARD_DIR: data },
+    encoding: 'utf8',
+  });
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /SESSION_BOARD_TOKEN=/);
+  assert.match(r.stderr, /--token -/);
+  assert.doesNotMatch(r.stderr + r.stdout, /abc/);
+  assert.deepEqual(readdirSync(home), [], 'nothing written under the Codex home');
+  assert.deepEqual(readdirSync(data), [], 'no board config written');
 });
 
 test('Codex hook payloads: a session ticket with its repo and branch, in progress, then review with the last reply, then done; written by codex', async () => {

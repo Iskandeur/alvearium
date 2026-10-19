@@ -1049,8 +1049,8 @@ Code sessions, under the `codex` agent, with their repository and branch.
    SESSION_BOARD_TOKEN=… node ~/alvearium/scripts/codex-setup.mjs --url https://board.example.com
    printf '%s' "$TOKEN" | node ~/alvearium/scripts/codex-setup.mjs --url https://board.example.com --token -
    ```
-   `--token <token>` on the command line still works, with a warning: it is kept in your shell
-   history and shows in the process list.
+   `--token <token>` with the token on the command line is refused (nothing is written): it would
+   be kept in your shell history and show in the process list.
 3. **Trust the hooks.** Codex skips a new or changed hook until you trust it. Start `codex`: it
    says *Hooks need review*; review them and trust them (or later, type `/hooks`, then `t`). The
    ticket tools work without this step; the session ticket does not.

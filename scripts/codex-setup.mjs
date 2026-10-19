@@ -8,7 +8,7 @@
 // Running it again updates what it wrote; everything else in those files is kept as is.
 // Usage: node scripts/codex-setup.mjs [--print] [--uninstall] [--codex-home <dir>] [--auto-approve-writes]
 //        [--url <url>]   the token is read from SESSION_BOARD_TOKEN, or from stdin with `--token -`
-//                        (a prompt when stdin is a terminal); `--token <token>` still works but is discouraged
+//                        (a prompt when stdin is a terminal); `--token <token>` is refused, as it would show in `ps` and the shell history
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -280,15 +280,14 @@ async function readToken(stdin = process.stdin) {
 
 /**
  * The token for --url: SESSION_BOARD_TOKEN, or stdin with `--token -` (a prompt on a terminal).
- * `--token <token>` on the command line is still accepted, with a warning: it shows in the shell history and in `ps`.
+ * `--token <token>` on the command line is refused: it would show in the shell history and in `ps`.
  */
-export async function resolveToken(opts, { env = process.env, read = readToken, warn = (m) => console.error(m) } = {}) {
+export async function resolveToken(opts, { env = process.env, read = readToken } = {}) {
+  if (opts.token && opts.token !== '-') {
+    throw new Error('--token no longer takes a value: it would show in the process list and the shell history. Set SESSION_BOARD_TOKEN=… in the environment, or pass `--token -` to read it from stdin.');
+  }
   if (opts.remove || !opts.url) return opts;
   if (opts.token === '-') return { ...opts, token: await read() };
-  if (opts.token) {
-    warn('alvearium codex-setup: warning: --token <token> exposes the token in your shell history and in the process list; prefer SESSION_BOARD_TOKEN or `--token -` (stdin).');
-    return opts;
-  }
   if (env.SESSION_BOARD_TOKEN) return { ...opts, token: env.SESSION_BOARD_TOKEN };
   return { ...opts, token: await read() };
 }
