@@ -1,11 +1,13 @@
 // 0.5.12: lane scores. An installation's agent posts a score and a reason per ticket of the "Waiting on
-// you" lane, plus one line for the whole lane; the board orders the lane by score and shows "⚡ ROI".
+// you" lane, plus one line for the whole lane; the board shows "⚡" with the reason. 0.9.5: the score no
+// longer orders the lane (what a ticket is worth to the agents is not what it is worth to the owner), and
+// an optional badge replaces the bare number on the card.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { MAX_ROI_ITEMS, MAX_ROI_NOTE, ROI_TTL_MS, formatRoi, oneLine, roiFresh, sanitizeRoiInput } from '../lib/roi.mjs';
+import { MAX_ROI_BADGE, MAX_ROI_ITEMS, MAX_ROI_NOTE, ROI_TTL_MS, formatRoi, oneLine, roiFresh, sanitizeRoiInput } from '../lib/roi.mjs';
 import { compareWaiting } from '../lib/triage.mjs';
 import { openStore } from '../lib/store.mjs';
 import { createApp, mayPostRoi } from '../server/server.mjs';
@@ -24,15 +26,18 @@ test('sanitize: keys, scores from 0 up, one-line notes, the last score of a key 
     summary: '  3 jobs\nwait on you  ',
     scores: [
       { key: 'ALV-1', score: 12.345, note: 'unblocks 2 jobs\n(~1 pt)' },
-      { key: 'ALV-2', score: 0 },
+      { key: 'ALV-2', score: 0, badge: 'unblocks the agents\n~2 pts, and a very long tail after that' },
       { key: 'alv-1', score: 7 },
     ],
   });
   assert.equal(value.summary, '3 jobs wait on you');
-  assert.deepEqual(value.scores, [
-    { key: 'alv-1', score: 7, note: null },
-    { key: 'ALV-2', score: 0, note: null },
+  assert.ok(value.scores[1].badge.length <= MAX_ROI_BADGE && value.scores[1].badge.endsWith('…'));
+  assert.ok(value.scores[1].badge.startsWith('unblocks the agents ~2 pts'));
+  assert.deepEqual(value.scores.map((x) => [x.key, x.score, x.note]), [
+    ['alv-1', 7, null],
+    ['ALV-2', 0, null],
   ]);
+  assert.equal(value.scores[0].badge, null);
   assert.equal(sanitizeRoiInput({ scores: [{ key: 'A-1', score: 1.26 }] }).value.scores[0].score, 1.3);
   assert.equal(sanitizeRoiInput({}).value.summary, null);
   assert.deepEqual(sanitizeRoiInput({}).value.scores, []);
@@ -60,15 +65,15 @@ test('freshness and format', () => {
   assert.deepEqual([formatRoi(42.4), formatRoi(9.94), formatRoi(0.25), formatRoi('x')], ['42', '9.9', '0.3', '']);
 });
 
-test('lane order: scored first, highest first; then the 0.5.8 order among the others', () => {
+test('lane order (0.9.5): the score orders nothing; priority, then the oldest wait', () => {
   const lane = [
-    { key: 'unscored-unblocks', unlocks: 3, priority: 'P0', status_at: 1 },
+    { key: 'unscored-unblocks', unlocks: 3, priority: 'P0', status_at: 2 },
     { key: 'low', roi: { score: 2 }, unlocks: 0, priority: 'P3', status_at: 5 },
     { key: 'high', roi: { score: 40 }, unlocks: 0, priority: null, status_at: 9 },
     { key: 'unscored-p1', unlocks: 0, priority: 'P1', status_at: 2 },
     { key: 'zero', roi: { score: 0 }, unlocks: 5, priority: 'P0', status_at: 1 },
   ];
-  assert.deepEqual(lane.sort(compareWaiting).map((t) => t.key), ['high', 'low', 'zero', 'unscored-unblocks', 'unscored-p1']);
+  assert.deepEqual(lane.sort(compareWaiting).map((t) => t.key), ['zero', 'unscored-unblocks', 'unscored-p1', 'low', 'high']);
 });
 
 // ---- the store ------------------------------------------------------------------------------------
@@ -80,20 +85,20 @@ async function laneStore(opts = {}) {
   return { store, mk, tick: (ms) => (clock += ms), now: () => clock };
 }
 
-test('store: a snapshot orders the lane, carries the reason, and the lane line comes with the board', async () => {
+test('store: a snapshot rides on the cards without ordering the lane; the lane line comes with the board', async () => {
   const { store, mk } = await laneStore();
-  const a = mk('Approve the deploy', { priority: 'P0' });
+  const a = mk('Approve the deploy', { priority: 'P3' });
   const b = mk('Pick a name');
   const c = mk('Read the draft');
-  const out = store.setRoi({ summary: '~6 pts of agent work wait on you', scores: [{ key: b.key, score: 30, note: 'unblocks 3 jobs (~6 pts)' }, { key: c.key, score: 4 }, { key: 'ALV-999', score: 99 }] }, { actor: 'ops/scorer' });
+  const out = store.setRoi({ summary: '~6 pts of agent work wait on you', scores: [{ key: b.key, score: 30, note: 'unblocks 3 jobs (~6 pts)', badge: 'unblocks the agents ~6 pts' }, { key: c.key, score: 4 }, { key: 'ALV-999', score: 99 }] }, { actor: 'ops/scorer' });
   assert.deepEqual([out.scored, out.unknown], [2, ['ALV-999']]);
   const board = store.ticketBoard({});
-  assert.deepEqual(board.columns.waiting.map((t) => t.title), ['Pick a name', 'Read the draft', 'Approve the deploy']);
-  assert.deepEqual(board.columns.waiting[0].roi, { score: 30, note: 'unblocks 3 jobs (~6 pts)' });
-  assert.equal(board.columns.waiting[2].roi, null);
+  assert.deepEqual(board.columns.waiting.map((t) => t.title), ['Approve the deploy', 'Pick a name', 'Read the draft']);
+  assert.deepEqual(board.columns.waiting[1].roi, { score: 30, note: 'unblocks 3 jobs (~6 pts)', badge: 'unblocks the agents ~6 pts' });
+  assert.equal(board.columns.waiting[0].roi, null);
   assert.equal(board.roi_summary.text, '~6 pts of agent work wait on you');
   assert.equal(board.roi_summary.actor, 'ops/scorer');
-  assert.deepEqual(store.getTicket(b.key).roi, { score: 30, note: 'unblocks 3 jobs (~6 pts)' });
+  assert.deepEqual(store.getTicket(b.key).roi, { score: 30, note: 'unblocks 3 jobs (~6 pts)', badge: 'unblocks the agents ~6 pts' });
   assert.equal(store.getTicket(a.key).roi, null);
   // No ticket history for a score: it is a view, not an edit.
   assert.equal(store.getTicket(b.key).events.filter((e) => e.type !== 'created').length, 0);
@@ -106,20 +111,21 @@ test('store: a new snapshot replaces the old one entirely; an empty one clears t
   store.setRoi({ summary: 'first', scores: [{ key: a.key, score: 10 }, { key: b.key, score: 5 }] });
   store.setRoi({ scores: [{ key: b.key, score: 1 }] });
   const lane = store.ticketBoard({}).columns.waiting;
-  assert.deepEqual(lane.map((t) => [t.title, t.roi?.score ?? null]), [['two', 1], ['one', null]]);
+  assert.deepEqual(lane.map((t) => [t.title, t.roi?.score ?? null]), [['one', null], ['two', 1]]);
   assert.equal(store.ticketBoard({}).roi_summary, null);
   assert.deepEqual(store.getRoi().scores.map((s) => s.key), [b.key]);
 });
 
-test('store: a stale snapshot neither orders the lane nor shows, but GET says it is stale', async () => {
+test('store: a stale snapshot does not show, but GET says it is stale', async () => {
   const { store, mk, tick } = await laneStore({ roiTtlMs: 60_000 });
-  mk('first in 0.5.8 order', { priority: 'P0' });
+  mk('first by priority', { priority: 'P0' });
   const b = mk('scored');
   store.setRoi({ summary: 'line', scores: [{ key: b.key, score: 50 }] });
-  assert.equal(store.ticketBoard({}).columns.waiting[0].title, 'scored');
+  assert.equal(store.ticketBoard({}).columns.waiting[0].title, 'first by priority');
+  assert.equal(store.ticketBoard({}).columns.waiting[1].roi.score, 50);
   tick(60_001);
   const board = store.ticketBoard({});
-  assert.equal(board.columns.waiting[0].title, 'first in 0.5.8 order');
+  assert.equal(board.columns.waiting[0].title, 'first by priority');
   assert.equal(board.columns.waiting[1].roi, null);
   assert.equal(board.roi_summary, null);
   assert.equal(store.getTicket(b.key).roi, null);
@@ -128,13 +134,16 @@ test('store: a stale snapshot neither orders the lane nor shows, but GET says it
   assert.equal(g.summary, 'line');
 });
 
-test('store: the score orders the lane in SQL, before the 200-card cap', async () => {
+test('store: a score does not lift a ticket over the 200-card cap; priority does', async () => {
   const { store, mk } = await laneStore();
   let last;
-  for (let i = 0; i < 205; i++) last = mk(`t${i}`, { priority: 'P0' });
-  store.setRoi({ scores: [{ key: last.key, score: 3 }] });
-  const lane = store.ticketBoard({}).columns.waiting;
+  for (let i = 0; i < 205; i++) last = mk(`t${i}`, { priority: 'P2' });
+  store.setRoi({ scores: [{ key: last.key, score: 300 }] });
+  let lane = store.ticketBoard({}).columns.waiting;
   assert.equal(lane.length, 200);
+  assert.ok(!lane.some((t) => t.key === last.key));
+  store.updateTicket(last.key, { priority: 'P1' }, { actor: 'user' });
+  lane = store.ticketBoard({}).columns.waiting;
   assert.equal(lane[0].key, last.key);
 });
 
@@ -181,7 +190,7 @@ async function withApp(fn) {
 test('api: PUT /api/roi by the named agent, GET by anyone who reads; others get 403, bad bodies 400', async () => {
   await withApp(async ({ store, call, adminTok }) => {
     const t = store.createTicket({ title: 'Merge?', assignee: 'user', status: 'waiting_on_user', kind: 'decision' }, { actor: 'ops' });
-    const body = { summary: 'Bottleneck: ~4 pts', scores: [{ key: t.key, score: 12, note: 'unblocks 1 job' }] };
+    const body = { summary: 'Bottleneck: ~4 pts', scores: [{ key: t.key, score: 12, note: 'unblocks 1 job', badge: 'unblocks ~4 pts' }] };
     assert.equal((await call(null, 'PUT', '/api/roi', body)).status, 401);
     assert.equal((await call(OTHER, 'PUT', '/api/roi', body)).status, 403, 'an agent the deployment does not name');
     assert.equal((await call(adminTok, 'PUT', '/api/roi', body)).status, 403, 'an admin member');
@@ -192,7 +201,7 @@ test('api: PUT /api/roi by the named agent, GET by anyone who reads; others get 
     assert.deepEqual([ok.body.scored, ok.body.unknown], [1, []]);
     const g = await call(OTHER, 'GET', '/api/roi');
     assert.equal(g.status, 200);
-    assert.deepEqual(g.body.scores, [{ key: t.key, score: 12, note: 'unblocks 1 job' }]);
+    assert.deepEqual(g.body.scores, [{ key: t.key, score: 12, note: 'unblocks 1 job', badge: 'unblocks ~4 pts' }]);
     assert.equal(g.body.actor, 'ops');
     const board = await call(MAIN, 'GET', '/api/tickets/board');
     assert.equal(board.body.roi_summary.text, 'Bottleneck: ~4 pts');
@@ -207,7 +216,10 @@ test('api: PUT /api/roi by the named agent, GET by anyone who reads; others get 
 
 test('page: the badge, the lane line and the ticket line are drawn, escaped, from the API fields', () => {
   assert.match(page, /id="roi-waiting"/);
-  assert.match(page, /class="tag roi" title="\$\{esc\(t\.roi\.note/);
+  assert.match(page, /class="tag roi" title="\$\{esc\(roiTitle\(t\)\)\}"/);
+  // 0.9.5: the badge when the installation sent one, and the title says it orders nothing.
+  assert.match(page, /function roiText\(t\) \{ return t\.roi\?\.badge \|\|/);
+  assert.match(page, /it does not order your lane/);
   assert.match(page, /setHtml\(rn, rs \? `<b>⚡<\/b>\$\{esc\(rs\.text\)\}`/);
   assert.match(page, /\$\{roiLine\(t\)\}/);
   assert.match(page, /--roi:/);
@@ -220,4 +232,6 @@ test('text board (/board): the lane line on top, the score and its reason under 
   const text = renderTicketsText(store.ticketBoard({}));
   assert.match(text, /^⚡ ~2 pts wait on you\nWAITING ON YOU \(1\)/);
   assert.match(text, /⚡ ROI 12 · unblocks 1 job/);
+  store.setRoi({ scores: [{ key: a.key, score: 12, note: 'unblocks 1 job', badge: 'unblocks the agents ~2 pts' }] });
+  assert.match(renderTicketsText(store.ticketBoard({})), /⚡ unblocks the agents ~2 pts · unblocks 1 job/);
 });

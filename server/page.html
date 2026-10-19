@@ -685,6 +685,8 @@
     .prio.P1 { background: var(--danger-soft); color: var(--danger); }
     .prio.P2 { background: var(--accent-soft); color: var(--accent); }
     .head .prio { margin-top: 1px; }
+    .prio.proposed { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); font-weight: 500; }
+    .prioNote { grid-column: 2; font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     /* A reply you have not read (0.5.15): a dot on the card, a counter that filters in the bar. */
     .replyDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex: none; }
     .replyTag { display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 650; flex: none; margin-top: 1px; }
@@ -1170,7 +1172,13 @@
         return `<span class="who" data-actor="${esc(act)}"${canEditActorUi(act) ? ' data-act="editActor"' : ''}>${avatar(id)}<b>${esc(actorName(id))}</b></span>`;
       };
       const PRIO = { P0: 'P0 · now', P1: 'P1 · next', P2: 'P2 · normal', P3: 'P3 · later' };
-      const prio = (p) => (p ? `<span class="prio ${esc(p)}" title="Priority ${esc(PRIO[p] || p)}">${esc(p)}</span>` : '');
+      // 0.9.5: a priority an agent proposed on your ticket (or project) reads "P1?" until you set or confirm it.
+      const prio = (p, t) =>
+        p
+          ? t?.priority_proposed
+            ? `<span class="prio ${esc(p)} proposed" title="Priority ${esc(PRIO[p] || p)}, proposed by ${esc(t.priority_by_name || t.priority_by || 'an agent')}: not yours until you set or confirm it">${esc(p)}?</span>`
+            : `<span class="prio ${esc(p)}" title="Priority ${esc(PRIO[p] || p)}">${esc(p)}</span>`
+          : '';
       const FTYPE = { bug: 'Bug', suggestion: 'Suggestion', friction: 'Friction' };
 
       // ---- markdown ---------------------------------------------------------------------------
@@ -1402,7 +1410,7 @@
 
       function tags(t, now, opts = {}) {
         const out = [];
-        if (t.column === 'waiting' && t.roi) out.push(`<span class="tag roi" title="${esc(t.roi.note || 'Score posted by the installation')}" aria-label="ROI ${esc(roiNum(t.roi.score))}${t.roi.note ? ': ' + esc(t.roi.note) : ''}">⚡ ROI ${esc(roiNum(t.roi.score))}</span>`);
+        if (t.column === 'waiting' && t.roi) out.push(`<span class="tag roi" title="${esc(roiTitle(t))}" aria-label="${esc(roiText(t))}${t.roi.note ? ': ' + esc(t.roi.note) : ''}">⚡ ${esc(roiText(t))}</span>`);
         if (t.column === 'waiting' && t.unlocks > 0) out.push(`<span class="tag unlocks" title="Your answer unblocks ${t.unlocks} open ticket${t.unlocks === 1 ? '' : 's'} or job${t.unlocks === 1 ? '' : 's'}">unblocks ${t.unlocks}</span>`);
         if (t.column === 'waiting' && t.gesture && !t.ask?.complete && !opts.noReply) out.push(`<button type="button" class="tag reply" data-open="${esc(t.key)}" aria-label="Reply to ${esc(t.key)}">Reply ›</button>`);
         if (t.snoozed_until) out.push(`<span class="tag snoozed" title="Comes back on ${esc(when(t.snoozed_until))}">⏸ until ${esc(new Date(t.snoozed_until).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span><button type="button" class="tag" data-ask="wake" data-key="${esc(t.key)}" aria-label="Bring ${esc(t.key)} back to your lane now">Back now</button>`);
@@ -1480,9 +1488,12 @@
       }
       /** 0.5.12: a score the installation posted, as on the card (`⚡ ROI 42`), how much an answer is worth (lib/roi.mjs). */
       function roiNum(n) { const v = Number(n); return !Number.isFinite(v) ? '' : v >= 10 ? String(Math.round(v)) : String(Math.round(v * 10) / 10); }
+      /** 0.9.5: the installation's badge ("unblocks the agents ~2 pts"), else the bare score. Information: it orders nothing. */
+      function roiText(t) { return t.roi?.badge || `ROI ${roiNum(t.roi?.score)}`; }
+      function roiTitle(t) { return `${t.roi?.note || 'Score posted by the installation'}. What your answer is worth to the agents: shown for information, it does not order your lane.`; }
       function roiLine(t) {
         if (!t.roi || !isOpen(t)) return '';
-        return `<div class="roiLine"><span class="tag roi">⚡ ROI ${esc(roiNum(t.roi.score))}</span><span>${esc(t.roi.note || 'Score posted by the installation')}</span></div>`;
+        return `<div class="roiLine" title="${esc(roiTitle(t))}"><span class="tag roi">⚡ ${esc(roiText(t))}</span><span>${esc(t.roi.note || 'Score posted by the installation')}</span></div>`;
       }
       /** What we need from you, highlighted above the details of an open ticket. */
       function askBox(t) {
@@ -1565,14 +1576,26 @@
 
       // ---- matrix (0.5.14): important × urgent, from what the board already stores --------------
       // No new field: urgency comes from a deadline (a `due:YYYY-MM-DD` label, else the date in the
-      // ask block's "Without an answer" line) and from how long a ticket has waited on you; importance
-      // from the priority, the ⚡ ROI score the installation posted, and what an answer unblocks. Both
-      // scores run 0 to 1 and the line between the quadrants is 0.5, which is where the legend puts it.
+      // ask block's "Without an answer" line) and from how long a ticket has waited on you. Importance is
+      // what matters to you (0.9.5): your priority, or the one you gave the ticket's project. A priority an
+      // agent proposed counts as P2 at most until you set or confirm it, unless the ticket has a deadline.
+      // The ⚡ score and what an answer unblocks say what it is worth to the agents: shown, never counted.
+      // Both scores run 0 to 1 and the line between the quadrants is 0.5, which is where the legend puts it.
       const MX_DUE_DAYS = 2;
       const MX_WAIT_DAYS = 3;
-      const MX_LEGEND = `Urgent: a deadline within ${MX_DUE_DAYS} days, or waiting on you ${MX_WAIT_DAYS} days or more. Important: P0 or P1, a ⚡ ROI in the top half, or an answer that unblocks work.`;
+      const MX_LEGEND = `Urgent: a deadline within ${MX_DUE_DAYS} days, or waiting on you ${MX_WAIT_DAYS} days or more. Important: P0 or P1, yours or your project's. An agent's proposal counts as P2 at most until you confirm it, unless there is a deadline. What a ticket unblocks for the agents does not count.`;
       const MX_DAY = 86400000;
       const MX_PRIO = { P0: 1, P1: 0.75, P2: 0.4, P3: 0.15 };
+      const MX_RANK = { P0: 0, P1: 1, P2: 2, P3: 3 };
+      /** The priority that counts for you (lib/triage.mjs effectivePriority): proposals capped at P2 without a deadline, your project's when higher. */
+      function mxPriority(t, deadline) {
+        const own = MX_RANK[t.priority] !== undefined ? t.priority : null;
+        let p = own;
+        if (own && t.priority_proposed && !deadline && MX_RANK[own] < 2) p = 'P2';
+        const proj = MX_RANK[t.project_priority?.priority] !== undefined ? t.project_priority.priority : null;
+        if (proj && (!own || t.priority_proposed) && (p === null || MX_RANK[proj] < MX_RANK[p])) p = proj;
+        return p;
+      }
       const MX_QUADS = [
         { id: 'do', title: 'Do now', sub: 'Urgent and important', u: true, i: true },
         { id: 'plan', title: 'Schedule', sub: 'Important, not urgent', u: false, i: true },
@@ -1626,11 +1649,8 @@
         const v = a < MX_DAY ? `${Math.max(1, Math.round(a / 3600000))} h` : `${Math.round(a / MX_DAY)} d`;
         return late ? `${v} ago` : `in ${v}`;
       }
-      /**
-       * Places one ticket: { u, i, urgent, important, due, why: [...] }. `roiRank` maps a key to its
-       * place among the scored tickets on screen (0 = highest) and `roiCount` is how many there are.
-       */
-      function mxPlace(t, now, roiRank = new Map(), roiCount = 0) {
+      /** Places one ticket: { u, i, urgent, important, due, why: [...] }. */
+      function mxPlace(t, now) {
         const why = [];
         const due = t.snoozed_until ? null : mxDeadline(t, now);
         let uDue = 0, uWait = 0;
@@ -1641,17 +1661,12 @@
           uWait = mxClamp(waited / (2 * MX_WAIT_DAYS * MX_DAY));
           if (waited >= MX_DAY) why.push(`waiting ${Math.floor(waited / MX_DAY)} d`);
         }
-        const iPrio = MX_PRIO[t.priority] ?? 0.3;
-        let iRoi = 0;
-        if (t.roi && roiRank.has(t.key) && roiCount > 0) {
-          // Rank among the scores on screen: the top half reaches the line. A score is relative to the others.
-          const r = roiRank.get(t.key), half = Math.ceil(roiCount / 2);
-          iRoi = r < half ? 1 - (0.5 * r) / half : 0.45 * (1 - (r - half) / Math.max(1, roiCount - half));
-          if (iRoi >= 0.5) why.push(`⚡ ROI ${roiNum(t.roi.score)}`);
-        }
-        const iUnlock = t.unlocks > 0 ? mxClamp(0.55 + 0.05 * t.unlocks) : 0;
-        if (t.unlocks > 0) why.push(`unblocks ${t.unlocks}`);
-        const u = Math.max(uDue, uWait), i = Math.max(iPrio, iRoi, iUnlock);
+        const p = mxPriority(t, due !== null);
+        const i = MX_PRIO[p] ?? 0.3;
+        if (p && t.project_priority?.priority === p && (!t.priority || t.priority_proposed)) why.push(`project ${p}`);
+        else if (p && t.priority_proposed && p !== t.priority) why.push(`${t.priority} proposed, counted ${p}`);
+        else if (p && t.priority_proposed) why.push(`${p} proposed`);
+        const u = Math.max(uDue, uWait);
         return { u, i, urgent: u >= 0.5, important: i >= 0.5, due, why };
       }
       /**
@@ -1673,12 +1688,9 @@
             list.push(t);
           }
         }
-        const scored = list.filter((t) => t.roi && Number.isFinite(Number(t.roi.score))).sort((a, b) => Number(b.roi.score) - Number(a.roi.score));
-        const rank = new Map();
-        scored.forEach((t, n) => rank.set(t.key, n > 0 && Number(t.roi.score) === Number(scored[n - 1].roi.score) ? rank.get(scored[n - 1].key) : n));
         const quads = { do: [], plan: [], quick: [], later: [] };
         for (const t of list) {
-          const p = mxPlace(t, now, rank, scored.length);
+          const p = mxPlace(t, now);
           quads[p.urgent ? (p.important ? 'do' : 'quick') : p.important ? 'plan' : 'later'].push({ t, ...p });
         }
         for (const q of Object.values(quads)) q.sort((a, b) => b.u + b.i - (a.u + a.i) || (a.t.status_at ?? 0) - (b.t.status_at ?? 0));
@@ -1703,7 +1715,7 @@
           ? `<div class="pjState md">${md(p.state.text)}</div><div class="pjWhen">${p.state.dated ? 'State' : 'Last comment'} · ${esc(actorName(p.state.actor))} · ${esc(ago(p.state.at, now))}</div>`
           : `<div class="pjState none">No state posted yet</div>`;
         return `<article class="pjCard${asks ? ' ask' : ''}${state.ticket === p.key ? ' sel' : ''}" data-open="${esc(p.key)}" data-status="${esc(p.status)}" tabindex="0" role="listitem">
-          <div class="head"><span class="dot"></span><h3 class="title">${ttl(p.title)}</h3>${prio(p.priority)}<span class="key">${esc(p.key)}</span></div>
+          <div class="head"><span class="dot"></span><h3 class="title">${ttl(p.title)}</h3>${prio(p.priority, p)}<span class="key">${esc(p.key)}</span></div>
           <div class="pjStats"><span>${pjCount(p.tickets, 'ticket', 'tickets')}</span><span>${pjCount(p.jobs, 'job', 'jobs')}</span></div>
           ${st}
           ${asks ? `<div class="pjAsks">${asks}</div>` : ''}
@@ -1733,7 +1745,7 @@
         const t = p.t;
         const why = p.why.length ? p.why.join(' · ') : t.column === 'waiting' ? 'On you' : STATUS[t.status] || t.status;
         return `<article class="mxItem${p.due !== null && p.due < now ? ' late' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" tabindex="0" role="listitem">
-          <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${replyTag(t)}${prio(t.priority)}<span class="key">${esc(t.key)}</span></div>
+          <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${replyTag(t)}${prio(t.priority, t)}<span class="key">${esc(t.key)}</span></div>
           <div class="mxWhy">${esc(why)}</div>
         </article>`;
       }
@@ -1795,7 +1807,7 @@
         const live = t.status === 'in_progress' && t.kind === 'session' && t.session?.activity === 'working' ? '1' : '0';
         const drag = t.column === 'todo' ? ' draggable="true"' : '';
         return `<article class="card${t.stale || t.status === 'cancelled' ? ' dim' : ''}${t.blocked ? ' blocked' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" data-live="${live}" tabindex="0"${drag}>
-          <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${replyTag(t)}${prio(t.priority)}<span class="key">${esc(t.key)}</span>${doneBtn(t)}</div>
+          <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${replyTag(t)}${prio(t.priority, t)}<span class="key">${esc(t.key)}</span>${doneBtn(t)}</div>
           ${r ? `<div class="reason">${r}</div>` : ''}${note ? `<div class="note">${note}</div>` : ''}${ask?.complete ? `<div class="note askFb"><b>No answer:</b> ${esc(plain(ask.sansReponse))}</div>` : ''}
           ${asks(t)}
           <div class="tags">${tags(t, now)}</div>
@@ -2012,7 +2024,7 @@
         sub.push(`<span>${esc(t.key)}</span>`);
         return `<div class="nrow${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-s="${esc(t.status)}" draggable="true" tabindex="0">
           <span class="pos">${i + 1}</span>
-          <span>${prio(t.priority) || '<span class="prio">–</span>'}</span>
+          <span>${prio(t.priority, t) || '<span class="prio">–</span>'}</span>
           <span class="t"><span class="tt" title="${ttl(t.title)}">${ttl(t.title)}</span><span class="sub">${sub.join('<span>·</span>')}</span></span>
           <span>${avatar(t.assignee)}</span>
           <span class="when" title="${esc(updTitle(t))}">${ago(t.updated_at, now)}</span>
@@ -2698,6 +2710,8 @@
               <label>Status</label>${sel('status', t.status, Object.entries(STATUS))}
               <label>Assignee</label>${sel('assignee', t.assignee, assigneeOpts(t.assignee))}
               <label>Priority</label>${sel('priority', t.priority || '', [['', 'None'], ['P0', 'P0 · now'], ['P1', 'P1 · next'], ['P2', 'P2 · normal'], ['P3', 'P3 · later']])}
+              ${t.priority_proposed ? `<div class="prioNote"><span>Proposed by ${esc(t.priority_by_name || t.priority_by || 'an agent')}${t.priority !== 'P2' && t.priority !== 'P3' ? ', counted as P2 until you confirm it' : ''}</span><button type="button" class="tag" data-confirm-prio="${esc(t.key)}">Confirm ${esc(t.priority)}</button></div>` : ''}
+              ${!t.priority && t.project_priority ? `<div class="prioNote"><span>Counts as ${esc(t.project_priority.priority)}, the priority of its project ${esc(t.project_priority.key)}</span></div>` : ''}
               ${t.kind === 'feedback' ? `<label>Type</label>${sel('subtype', t.subtype || 'suggestion', [['bug', 'Bug'], ['suggestion', 'Suggestion'], ['friction', 'Friction']])}` : ''}
               <label>Labels</label><input name="labels" value="${esc((t.labels || []).join(', '))}" placeholder="comma, separated">
               <span class="lab">Session</span>${sess}
@@ -3467,6 +3481,19 @@
           refresh();
         } catch (err) { $('saveMsg').textContent = err.message; $('saveBar').hidden = false; }
       }
+      // 0.9.5: confirming an agent's proposed priority makes it yours (the same value, set by you).
+      document.addEventListener('click', async (e) => {
+        const b = e.target.closest?.('[data-confirm-prio]');
+        if (!b) return;
+        const t = $('panel').__ticket;
+        if (!t || t.key !== b.dataset.confirmPrio || !t.priority) return;
+        b.disabled = true;
+        try {
+          await api(`tickets/${encodeURIComponent(t.key)}`, { priority: t.priority });
+          await openPanel(t.key, false);
+          refresh();
+        } catch (err) { b.disabled = false; toast(err.message); }
+      });
       $('scrim').addEventListener('click', () => closePanel());
       let qTimer;
       $('q').addEventListener('input', () => {

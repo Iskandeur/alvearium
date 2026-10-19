@@ -6,7 +6,7 @@ import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { columnOf, sanitizeTicketInput } from '../lib/core.mjs';
-import { ANSWERS, askComplete, askOf, askView, compareWaiting, handbackOf, jobsWaiting, parseAskBlock, parseOptions, planAnswer, trustedActor } from '../lib/triage.mjs';
+import { ANSWERS, askComplete, askOf, askView, compareWaiting, effectivePriority, handbackOf, hasDueLabel, jobsWaiting, parseAskBlock, parseOptions, planAnswer, PROPOSAL_CAP, trustedActor } from '../lib/triage.mjs';
 import { openStore } from '../lib/store.mjs';
 import { createApp } from '../server/server.mjs';
 
@@ -188,7 +188,7 @@ test('plan: each button is a structured comment and a reversible move', () => {
 
 // ---- order ----------------------------------------------------------------------------------------
 
-test('order: what the answer unblocks first, then P0 to P3, then the oldest wait', () => {
+test('order (0.9.5): P0 to P3 as they count for you, then the oldest wait; what an answer unblocks orders nothing', () => {
   const t = (seq, o) => ({ seq, priority: null, status_at: seq, unlocks: 0, ...o });
   const lane = [
     t(1, { priority: 'P0' }),
@@ -198,8 +198,26 @@ test('order: what the answer unblocks first, then P0 to P3, then the oldest wait
     t(5, {}),
     t(6, { priority: 'P1', status_at: 0 }),
     t(7, { priority: 'P1', unlocks: 1 }),
+    t(8, { priority: 'P0', priority_proposed: true }),
+    t(9, { priority: 'P0', priority_proposed: true, labels: ['due:2026-11-02'] }),
+    t(10, { project_priority: { key: 'ALV-1', priority: 'P1' } }),
   ];
-  assert.deepEqual(lane.sort(compareWaiting).map((x) => x.seq), [3, 7, 2, 1, 6, 4, 5]);
+  assert.deepEqual(lane.sort(compareWaiting).map((x) => x.seq), [1, 9, 6, 4, 7, 10, 2, 8, 3, 5]);
+});
+
+test('effectivePriority: yours, an agent proposal capped at P2 unless due, your project when higher', () => {
+  assert.equal(PROPOSAL_CAP, 'P2');
+  assert.equal(effectivePriority({ priority: 'P0' }), 'P0');
+  assert.equal(effectivePriority({ priority: 'P0', priority_proposed: true }), 'P2');
+  assert.equal(effectivePriority({ priority: 'P0', priority_proposed: true }, { deadline: true }), 'P0');
+  assert.equal(effectivePriority({ priority: 'P3', priority_proposed: true }), 'P3');
+  assert.equal(effectivePriority({ priority: null, project_priority: { priority: 'P0' } }), 'P0');
+  assert.equal(effectivePriority({ priority: 'P3', project_priority: { priority: 'P0' } }), 'P3', 'your own wins');
+  assert.equal(effectivePriority({ priority: 'P1', priority_proposed: true, project_priority: { priority: 'P0' } }), 'P0');
+  assert.equal(effectivePriority({ priority: 'P0', priority_proposed: true, project_priority: { priority: 'P3' } }), 'P2');
+  assert.equal(effectivePriority({}), null);
+  assert.equal(hasDueLabel({ labels: ['due:2026-11-02'] }), true);
+  assert.equal(hasDueLabel({ labels: ['due:soon'] }), false);
 });
 
 test('jobs waiting: the label convention', () => {
@@ -214,7 +232,7 @@ test('jobs waiting: the label convention', () => {
   assert.equal(jobsWaiting(undefined), 0);
 });
 
-test('board: the lane is ordered by unlocks, and counts only open dependents and sub-tickets', async () => {
+test('board: the lane shows unlocks without being ordered by them, and counts only open dependents and sub-tickets', async () => {
   const store = await openStore(':memory:', { jobActors: ['planner'] });
   const mk = (title, o = {}) => store.createTicket({ title, assignee: 'user', status: 'waiting_on_user', kind: 'decision', ...o }, { actor: 'planner' });
   const old = mk('old and quiet');
@@ -231,13 +249,15 @@ test('board: the lane is ordered by unlocks, and counts only open dependents and
   store.createTicket({ title: 'child 3', assignee: 'claude', status: 'done', parent: parent.key }, { actor: 'planner' });
 
   const lane = store.ticketBoard({}).columns.waiting;
+  // 'urgent' is the planner's P0 on your ticket: a proposal, counted as P2 until you confirm it.
   assert.deepEqual(lane.map((t) => [t.title, t.unlocks]), [
+    ['urgent', 0],
     ['gate', 2],
     ['parent of two', 2],
     ['answer feeds a job', 1],
-    ['urgent', 0],
     ['old and quiet', 0],
   ]);
+  assert.equal(lane[0].priority_proposed, true);
   assert.equal(lane[0].gesture.type, 'yesno');
   assert.ok(lane.every((t) => t.column === 'waiting'));
   assert.equal(urgent.priority, 'P0');

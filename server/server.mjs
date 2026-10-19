@@ -45,7 +45,7 @@
 //                                   idempotent per (board, ticket id); the plugin sends it once
 //   DELETE /api/sessions/:id        a session and its tickets (cleanup, tests)
 //   GET  /api/roi                   lane scores posted by the installation: { summary, at, actor, stale, scores }
-//   PUT  /api/roi                   owner, or an agent in BOARD_JOB_ACTORS: { summary?, scores: [{ key, score, note? }] },
+//   PUT  /api/roi                   owner, or an agent in BOARD_JOB_ACTORS: { summary?, scores: [{ key, score, note?, badge? }] },
 //                                   replaces the snapshot (lib/roi.mjs); a snapshot older than 6 h is ignored
 //   GET  /api/actions               ticket actions declared by this installation (owner, admin; empty for others)
 //   POST /api/tickets/:key/actions/:id  owner, admin: run one (the server calls its webhook, see server/actions.mjs)
