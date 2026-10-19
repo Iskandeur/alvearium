@@ -1975,15 +1975,18 @@
         lastBoard = b;
         renderSearchProjects(b, now);
         const c = b.counts || {};
-        const col = (name, empty) => {
+        // 0.8.1: the counter is named by the lane that has one. On hold and Done are drawers with a label, not a
+        // counter: since 0.6.0 the On hold counter was looked up, did not exist, this threw, and every board render stopped here (the Done
+        // drawer stayed hidden, and a `?ticket=` link never opened its ticket).
+        const col = (name, empty, counter) => {
           const list = b.columns?.[name] || [];
           const more = (c[name] || 0) - list.length;
           reconcile($('col-' + name), list.map((t) => ({ key: t.key, html: card(t, now) })), { empty, tail: more > 0 ? `<div class="more">+ ${more} more — use the list view</div>` : '' });
-          if (name !== 'done') $('n-' + name).textContent = String(c[name] || 0);
+          if (counter) $(counter).textContent = String(c[name] || 0);
         };
-        col('waiting', EMPTY_WAITING);
-        col('inProgress', EMPTY('Nothing in progress'));
-        col('todo', EMPTY('Nothing to do'));
+        col('waiting', EMPTY_WAITING, 'n-waiting');
+        col('inProgress', EMPTY('Nothing in progress'), 'n-inProgress');
+        col('todo', EMPTY('Nothing to do'), 'n-todo');
         col('done', '');
         col('onHold', '');
         $('holdBox').hidden = !c.onHold;
@@ -4267,7 +4270,9 @@
         isLocked = false;
         await loadMe();
         loadFreshness(); // never throws, paints the line on its own when /api/version answers
-        await Promise.all([loadFacets(), refresh(), loadActions(), loadChangelog()]);
+        // 0.8.1: allSettled, so a failed render never swallows the ticket a link asked for, nor the live stream.
+        const loaded = await Promise.allSettled([loadFacets(), refresh(), loadActions(), loadChangelog()]);
+        for (const r of loaded) if (r.status === 'rejected') console.error(r.reason);
         if (state.ticket) openPanel(state.ticket, false);
         connectStream();
       }
