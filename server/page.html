@@ -2872,6 +2872,8 @@
           list.push({ id, name: actorName(id) });
         }
         list.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+        // Live Claude Code sessions after the actors: @session/1a2b3c4d puts the comment in that session.
+        for (const x of taggable.list) list.push({ id: x.handle, name: sessionLabel(x) });
         mentionActorsCache = list;
         return list;
       }
@@ -2919,12 +2921,34 @@
         const list = term ? all.filter(hit) : all;
         return { open: true, start: at, end: caret, q, list: list.slice(0, 20), sel: 0 };
       }
+      // Sessions the owner can tag (GET /api/sessions/taggable), fetched when the @ list opens, at most once a minute.
+      const taggable = { list: [], at: 0, busy: false };
+      function sessionLabel(x) {
+        const since = x.since ? new Date(x.since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        return ['Session', repoName(x.repo), x.title, since && 'since ' + since].filter(Boolean).join(' · ');
+      }
+      function loadTaggable() {
+        if (taggable.busy || Date.now() - taggable.at < 60000) return;
+        taggable.busy = true;
+        api('sessions/taggable')
+          .then((r) => {
+            taggable.list = Array.isArray(r?.sessions) ? r.sessions.filter((x) => x && MENTION_ID.test(x.handle || '')) : [];
+            mentionActorsCache = null;
+            if (mention.open) mentionUpdate($('comment'));
+          })
+          .catch(() => {})
+          .finally(() => {
+            taggable.at = Date.now();
+            taggable.busy = false;
+          });
+      }
       function mentionUpdate(ta) {
         if (!ta || ta.id !== 'comment') return;
         if (ta.selectionStart !== ta.selectionEnd) return void mentionClose();
         const caret = ta.selectionStart;
         const next = computeMention(ta.value, caret, mentionActors());
         if (!next) return void mentionClose();
+        loadTaggable();
         mention = next;
         mentionRender();
       }
