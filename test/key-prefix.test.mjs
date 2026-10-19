@@ -78,3 +78,13 @@ test('normalizeKeyPrefix: 2 to 8 letters, upper-cased; anything else is refused'
   assert.equal(normalizeKeyPrefix(' SB '), 'SB');
   for (const bad of ['', 'A', 'TOOLONGXX', 'A-B', '12', undefined, null]) assert.equal(normalizeKeyPrefix(bad), null);
 });
+
+test('search: the bare number finds the ticket, like its key', async () => {
+  const store = await openStore(':memory:');
+  for (let i = 0; i < 12; i++) store.createTicket({ title: `ticket ${'abcdefghijkl'[i]}` });
+  const keys = (q) => store.listTickets({ q }).tickets.map((t) => t.key);
+  assert.deepEqual(keys('ALV-7'), ['ALV-7']);
+  assert.deepEqual(keys('7'), ['ALV-7']);
+  assert.deepEqual(keys(' 12 '), ['ALV-12']);
+  assert.deepEqual(keys('999'), []);
+});
