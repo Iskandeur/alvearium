@@ -315,6 +315,9 @@ function mustFit(tool, text, max, what, { trim = false } = {}) {
   if (tooLong) throw new Error(`${tool}: ${tooLong}`);
 }
 
+/** Which board a backend reads, for messages: the server URL, or "the local board" (this machine's own store). */
+const boardWhere = (backend) => (backend?.source && backend.source !== 'local' ? `the board at ${backend.source}` : 'the local board (no server configured in this process)');
+
 /** `me` = the agent calling the tool (SESSION_BOARD_ACTOR, `codex` under Codex, else `claude`). */
 const who = (value, context) => (value === 'me' ? context.actor || 'claude' : value);
 
@@ -343,8 +346,10 @@ export async function callTool(name, args = {}, { backend, context, env = proces
       return `Updated ${line(t)}`;
     }
     case 'ticket_comment': {
-      mustFit('ticket_comment', String(args.text ?? ''), MAX_COMMENT_CHARS, 'comment', { trim: true });
-      const t = must(await backend.comment(String(args.key), String(args.text ?? ''), args.to ? String(args.to) : undefined), 'ticket_comment');
+      // `body` is how ticket_create names its text; accept it here too instead of an "empty comment" error.
+      const text = String(args.text ?? args.body ?? '');
+      mustFit('ticket_comment', text, MAX_COMMENT_CHARS, 'comment', { trim: true });
+      const t = must(await backend.comment(String(args.key), text, args.to ? String(args.to) : undefined), 'ticket_comment');
       return `Commented on ${t.key} (${t.comments_count} comment${t.comments_count === 1 ? '' : 's'})`;
     }
     case 'ticket_hold': {
@@ -357,7 +362,16 @@ export async function callTool(name, args = {}, { backend, context, env = proces
       return t.hold ? `${t.key} on hold until ${t.hold.waits_for}, then ${t.hold.next_text}` : `${t.key} is back: ${t.status}, ${t.assignee}`;
     }
     case 'ticket_get':
-      return describe(await backend.get(String(args.key)), { full: args.full === true });
+      try {
+        return describe(await backend.get(String(args.key)), { full: args.full === true });
+      } catch (e) {
+        // A 404 is ambiguous: the key may not exist, or this process may be reading another board than
+        // the one the key lives on (no SESSION_BOARD_URL / token here: an empty local board).
+        if (e?.status === 404) {
+          throw Object.assign(new Error(`${e.message}: ${args.key} is not on ${boardWhere(backend)}. If it exists on your server, this process is not reading that board.`), { status: 404 });
+        }
+        throw e;
+      }
     case 'ticket_next': {
       const scope = args.scope || 'repo';
       const params = { limit: Math.min(Number(args.limit) || 10, 50) };
@@ -424,7 +438,7 @@ export async function callTool(name, args = {}, { backend, context, env = proces
         params.repo = context.repo;
       }
       const r = await backend.list(params);
-      if (!r.tickets.length) return `No ${status === 'any' ? '' : status + ' '}tickets (${scope}).`;
+      if (!r.tickets.length) return `No ${status === 'any' ? '' : status + ' '}tickets (${scope}) on ${boardWhere(backend)}.`;
       return [`${r.total} ticket${r.total === 1 ? '' : 's'} (${scope}, ${status}):`, ...r.tickets.map(line), r.total > r.tickets.length ? `… ${r.total - r.tickets.length} more` : '']
         .filter(Boolean)
         .join('\n');

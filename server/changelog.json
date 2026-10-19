@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.1",
+      "date": "2026-10-19",
+      "items": [
+        "ticket_comment accepts body as well as text, like ticket_create.",
+        "A ticket_get that finds nothing says which board it read, so a missing server setting is easy to spot.",
+        "An empty ticket_list also names the board that answered."
+      ]
+    },
+    {
       "version": "0.9.0",
       "date": "2026-10-19",
       "items": [
