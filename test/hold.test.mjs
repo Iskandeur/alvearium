@@ -131,6 +131,30 @@ test('refusals: nothing to wait for, a closed ticket, the bounce cap; status on_
   assert.throws(() => s.hold(b.key, { condition: { type: 'time', at: T0 + 1000 } }), /closed ticket/);
 });
 
+test('the bounce cap counts the wakes of the last 7 days, and starts again after a hold lifted by hand', async () => {
+  const { s, at } = await board({ holdMaxBounces: 2 });
+  const a = s.createTicket({ title: 'a' });
+  const wake = (ms) => {
+    at(ms);
+    s.hold(a.key, { condition: { type: 'time', at: T0 + ms + 1000 } });
+    at(ms + 1000);
+    s.tickHolds();
+  };
+  wake(0);
+  wake(10_000);
+  assert.throws(() => s.hold(a.key, { condition: { type: 'time', at: T0 + 30_000 } }), /woken 2 times already/);
+  // Eight days later the two old wakes no longer count.
+  const D8 = 8 * 86400_000;
+  wake(D8);
+  // One fresh wake: a hold lifted by hand then starts the count over, so two more wakes still pass.
+  at(D8 + 5000);
+  s.hold(a.key, { condition: { type: 'time', at: T0 + D8 + 60_000 } });
+  s.unhold(a.key);
+  wake(D8 + 10_000);
+  wake(D8 + 20_000);
+  assert.throws(() => s.hold(a.key, { condition: { type: 'time', at: T0 + D8 + 60_000 } }), /woken 2 times already/);
+});
+
 test('lifting a hold by hand, or moving the ticket, drops the hold without running the next step', async () => {
   const { s } = await board();
   const t = s.createTicket({ title: 't', assignee: 'builder', status: 'in_progress' }, { actor: 'builder' });
