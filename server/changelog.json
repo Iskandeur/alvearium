@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.8.1",
+      "date": "2026-10-19",
+      "items": [
+        "A link to a ticket (?ticket=ALV-12) opens that ticket again, open or closed.",
+        "The Done and On hold drawers are back under the lanes, with their counts.",
+        "If one part of the page fails to load, the rest still loads: the ticket you asked for and live updates included."
+      ]
+    },
+    {
       "version": "0.8.0",
       "date": "2026-10-19",
       "items": [
