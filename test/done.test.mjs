@@ -100,7 +100,7 @@ test('done: a waiting ticket a hook opened (permission prompt) can be closed by 
 
 test('page: a round ✓ on open cards, rows and the panel, a toast with Undo, the d shortcut', () => {
   assert.match(page, /class="doneBtn" data-done="\$\{esc\(t\.key\)\}" data-from="\$\{esc\(t\.status\)\}" aria-label="Mark \$\{esc\(t\.key\)\} as done"/, 'one button per open ticket, labelled');
-  assert.match(page, /\$\{prio\(t\.priority\)\}<span class="key">\$\{esc\(t\.key\)\}<\/span>\$\{doneBtn\(t\)\}/, 'on board cards');
+  assert.match(page, /\$\{prio\(t\.priority, t\)\}<span class="key">\$\{esc\(t\.key\)\}<\/span>\$\{doneBtn\(t\)\}/, 'on board cards');
   assert.equal((page.match(/<span class="dn">\$\{doneBtn\(t\)\}<\/span>/g) || []).length, 2, 'on list rows and Next rows');
   assert.match(page, /class="pDone" data-done=/, 'in the detail panel header');
   assert.match(page, /const isOpen = \(t\) => t\.status !== 'done' && t\.status !== 'cancelled'/, 'closed tickets get no button');

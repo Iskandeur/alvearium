@@ -2,6 +2,16 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.5",
+      "date": "2026-10-20",
+      "items": [
+        "Important now means important to you: your priority, or the one you gave the ticket's project, places a ticket in the matrix.",
+        "A priority an agent set on your ticket reads P1? with who proposed it, and counts as P2 at most until you confirm it, unless there is a deadline.",
+        "Confirm a proposed priority in one click from the ticket, or by setting your own.",
+        "What your answer unblocks for the agents is still shown on the card, but no longer orders your lane or makes a ticket important."
+      ]
+    },
+    {
       "version": "0.9.4",
       "date": "2026-10-19",
       "items": [

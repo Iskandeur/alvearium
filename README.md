@@ -163,6 +163,18 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
   blocker remains), `blocked_by` and `blocking`. A blocked card is hatched with a ⛔ badge. When its
   last blocker is done (or cancelled), the ticket is unblocked by itself and its history says so;
   reopening the blocker blocks it again.
+- **Who set it (0.9.5)**: each priority remembers who set it (`priority_by`). On a ticket assigned to
+  you, or on a project, a priority an agent set is a **proposal**: the card reads **P1?**, its tooltip
+  and the ticket panel say who proposed it, and the panel offers **Confirm P1**. Setting a priority
+  yourself, or the same value again, makes it yours; an agent changing it makes it a proposal again.
+  Until you confirm it, a proposal above `P2` counts as `P2` in your lane and in the matrix, unless the
+  ticket has a deadline (`due:` label, or a date in the *Without an answer* line). An agent's priority
+  on its own work is just its priority. Ticket payloads carry `priority_by`, `priority_by_name` and
+  `priority_proposed`; an existing board reads who set each priority back from the history once.
+- **Your projects lend their priority (0.9.5)**: a ticket under a project (a sub-ticket, at any depth,
+  or one carrying `<label>-id:<name>` like the project) counts at the priority you gave the project when
+  it has no priority of yours and the project's is higher. A project priority an agent proposed lends
+  nothing. Payloads carry it as `project_priority: { key, title, priority }`.
 - **Manual order**: drag a card in the *To do* column or a row in *Next* (`POST
   /api/tickets/SB-5/move { before | after }`). Dropped among tickets of another priority, it takes
   that priority.
@@ -307,11 +319,15 @@ knows, and the line under the switch states it:
   request: an ISO date, a day/month date (`15/10`, `15.10.2026`, day first), *today*, *tomorrow*, or
   *in 48 h* / *within 2 days* counted from the ticket's last status change. A ticket put off with
   *Later* is not urgent until it comes back.
-- **Important** = P0 or P1, a ⚡ ROI score in the top half of the scores on screen (a score only
-  means something next to the others), or an answer that unblocks other tickets or jobs.
+- **Important** = P0 or P1 as it counts for you (0.9.5): your priority, or the one you gave the
+  ticket's project. A priority an agent proposed counts as P2 at most until you confirm it, unless the
+  ticket has a deadline (see *Who set it* under *Dependencies and priority*). What a ticket unblocks for
+  the agents (the ⚡ score, *unblocks N*) is shown on the card but does not count: what is worth the
+  most to the agents is not what matters most to you. Before 0.9.5 a top-half ⚡ score or an answer that
+  unblocked work made a ticket important.
 
 Inside a box, tickets are ordered by how far they sit from the centre of the grid (most urgent and
-important first), and each one says why it is there (*due in 5 h · ⚡ ROI 42*). Under 700 px the four
+important first), and each one says why it is there (*due in 5 h · project P0*, *P0 proposed, counted P2*). Under 700 px the four
 boxes stack, *Do now* first.
 
 ![The matrix, desktop, light](docs/screenshots/matrix-desktop-light.png)
@@ -481,12 +497,13 @@ answer unblocks.
   reversible: the toast offers **Undo**, which restores status, assignee and date. `POST
   /api/tickets/SB-5/answer { answer: option | yes | no | done | later | decline, choice, days }`
   does the same thing for any client and returns `{ ticket, previous }`.
-- **Order**: first the tickets whose answer unblocks something (most first), then `P0` to `P3`, then
-  the oldest wait. A card says **unblocks N**: open tickets it blocks, plus its open sub-tickets,
+- **Order** (0.9.5): `P0` to `P3` as they count for you (an agent's proposal capped at `P2` without a
+  deadline, your project's priority when higher; see *Dependencies and priority*), then the oldest wait.
+  Before 0.9.5 the tickets whose answer unblocked something came first. A card says **unblocks N**: open tickets it blocks, plus its open sub-tickets,
   plus jobs waiting on it (label `blocks-job`, or `blocks-jobs:3` for several, at most 9 per ticket).
   A job label only counts when it was set by a human or by an agent named in `BOARD_JOB_ACTORS`
   (comma-separated ids; `ops` also covers `ops/job-4`); any other writer's label is ignored, so
-  nobody can climb the lane by labelling. The lane is capped at 200 cards like the other columns, the
+  nobody could climb the lane by labelling (it no longer orders the lane at all). The lane is capped at 200 cards like the other columns, the
   counts being exact. Each lane card carries `unlocks`, `gesture` (called `ask` in 0.5.8) and `ask` (the block) in `GET /api/tickets/board`.
 - **Undo** only goes through while the ticket is exactly as the tap left it (status, assignee, date
   and last update); if an agent or another tab touched it since, nothing is undone and the toast says
@@ -497,24 +514,30 @@ answer unblocks.
 The board knows what your answer unblocks on the board itself; it cannot know what it is worth to the
 agents behind it: how much work a job waiting on you would do next, how long your gesture takes,
 which project matters most this week. An installation that knows (a daemon that runs your agents and
-measures what their jobs cost) can post it, and the lane follows:
+measures what their jobs cost) can post it, and the cards show it.
 
-- `PUT /api/roi { summary?, scores: [{ key, score, note? }] }` replaces the whole snapshot: a score
-  (a number from 0 up, higher first) and a one-line reason per ticket (at most 200 characters), plus one
-  line for the lane (at most 300). Keys that name no ticket come back in `unknown`. An empty `scores`
+Since 0.9.5 a score is information, not an order: it says what your answer is worth to the agents, which
+is not what it is worth to you. It no longer orders the lane, and no longer makes a ticket important in
+the matrix. A board where the agents' throughput sorted your queue pulled you toward the gestures that
+kept them busy, ahead of your own errands, health or deadlines.
+
+- `PUT /api/roi { summary?, scores: [{ key, score, note?, badge? }] }` replaces the whole snapshot: a
+  score (a number from 0 up) and a one-line reason per ticket (at most 200 characters), an optional
+  `badge` (at most 40 characters, *unblocks the agents ~2 pts*) shown on the card instead of the bare
+  number, plus one line for the lane (at most 300). Keys that name no ticket come back in `unknown`. An empty `scores`
   with no `summary` clears everything. No ticket history is written: a score is a view the installation
   recomputes, not an edit.
 - **Who may post**: the owner, or an agent token whose actor `BOARD_JOB_ACTORS` names (the same trust as
   the `blocks-job` label; `ops` also covers `ops/scorer`). Members, admins included, and any other
   agent get `403`. `GET /api/roi` (anyone who reads the board) returns the snapshot as stored, with `at`,
   `actor` and `stale`.
-- **The lane**: scored tickets come first, highest first, then the 0.5.8 order (what the answer unblocks,
-  priority, oldest wait) for the others. A card shows **⚡ ROI 42** with the reason on hover; the open
+- **The lane**: a score does not move a card. A card shows **⚡** with the badge (or **⚡ ROI 42**
+  without one) and the reason on hover; the open
   ticket shows the same line above "Needs your answer"; the lane line sits under the lane title.
-  `GET /api/tickets/board` carries `roi: { score, note }` on each lane card and `roi_summary: { text,
+  `GET /api/tickets/board` carries `roi: { score, note, badge }` on each lane card and `roi_summary: { text,
   at, actor }`; `GET /api/tickets/SB-12` carries `roi`.
-- **Stale**: a snapshot older than 6 hours is ignored (no badge, no order, no line), so an installation
-  that stops posting never leaves old scores ordering your lane. Post again at each pass.
+- **Stale**: a snapshot older than 6 hours is ignored (no badge, no line), so an installation that
+  stops posting never leaves old scores on your cards. Post again at each pass.
 
 The board never computes a score: the formula is the installation's.
 

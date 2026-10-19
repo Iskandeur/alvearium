@@ -61,12 +61,29 @@ test('urgency: two days to the deadline, or three days waiting, is the line', ()
   assert.equal(mxPlace(tk({ labels: ['due:2026-10-14'], snoozed_until: NOW + D }), NOW).urgent, false, 'put off = not urgent');
 });
 
-test('importance: P0 and P1, a top-half ROI, an answer that unblocks', () => {
+test('importance: P0 and P1; what a ticket unblocks for the agents does not count (0.9.5)', () => {
   for (const [p, want] of [['P0', true], ['P1', true], ['P2', false], ['P3', false], [null, false]]) assert.equal(mxPlace(tk({ priority: p }), NOW).important, want, String(p));
-  assert.equal(mxPlace(tk({ unlocks: 1 }), NOW).important, true);
-  const rank = new Map([['A', 0], ['B', 1], ['C', 2], ['E', 3]]);
-  const imp = (key) => mxPlace(tk({ key, roi: { score: 1 } }), NOW, rank, 4).important;
-  assert.deepEqual(['A', 'B', 'C', 'E'].map(imp), [true, true, false, false]);
+  assert.equal(mxPlace(tk({ unlocks: 9 }), NOW).important, false, 'unblocking agents is not importance');
+  assert.equal(mxPlace(tk({ roi: { score: 999, badge: 'unblocks the agents ~9 pts' } }), NOW).important, false, 'nor is the ⚡ score');
+});
+
+test('importance: an agent proposal counts as P2 at most until confirmed, unless there is a deadline', () => {
+  const proposed = tk({ priority: 'P0', priority_proposed: true, priority_by_name: 'Kaa' });
+  const p = mxPlace(proposed, NOW);
+  assert.equal(p.important, false);
+  assert.match(p.why.join(' '), /P0 proposed, counted P2/);
+  assert.equal(mxPlace(tk({ priority: 'P0', priority_proposed: false }), NOW).important, true, 'confirmed');
+  assert.equal(mxPlace(tk({ priority: 'P1', priority_proposed: true, labels: ['due:2026-10-30'] }), NOW).important, true, 'a real deadline lifts the cap');
+  assert.equal(mxPlace(tk({ priority: 'P3', priority_proposed: true }), NOW).i, 0.15, 'a low proposal keeps its level');
+});
+
+test('importance: the priority you gave the project lends itself to its tickets', () => {
+  const proj = { key: 'ALV-1', title: 'Health', priority: 'P0' };
+  const bare = mxPlace(tk({ project_priority: proj }), NOW);
+  assert.equal(bare.important, true);
+  assert.match(bare.why.join(' '), /project P0/);
+  assert.equal(mxPlace(tk({ priority: 'P3', project_priority: proj }), NOW).important, false, 'your own priority on the ticket wins');
+  assert.equal(mxPlace(tk({ priority: 'P3', priority_proposed: true, project_priority: proj }), NOW).important, true, 'a proposal does not');
 });
 
 test('projection: mine by default, all open on demand, quadrants ordered', () => {
@@ -74,8 +91,8 @@ test('projection: mine by default, all open on demand, quadrants ordered', () =>
     waiting: [
       tk({ key: 'W1', column: 'waiting', priority: 'P0', labels: ['due:2026-10-15'] }),
       tk({ key: 'W2', column: 'waiting', priority: 'P3', status_at: NOW - 4 * D }),
-      tk({ key: 'W3', column: 'waiting', roi: { score: 90 } }),
-      tk({ key: 'W4', column: 'waiting', roi: { score: 10 } }),
+      tk({ key: 'W3', column: 'waiting', roi: { score: 90 }, unlocks: 4 }),
+      tk({ key: 'W4', column: 'waiting', priority: 'P1', priority_proposed: true }),
     ],
     inProgress: [tk({ key: 'P1', status: 'in_progress', column: 'inProgress', assignee: 'claude', priority: 'P1' }), tk({ key: 'S1', kind: 'session', status: 'in_progress', column: 'inProgress', assignee: 'claude' })],
     todo: [tk({ key: 'T1', priority: 'P1' }), tk({ key: 'T2', assignee: 'claude' })],
@@ -85,8 +102,8 @@ test('projection: mine by default, all open on demand, quadrants ordered', () =>
   assert.equal(mine.total, 5);
   assert.deepEqual(keys(mine.quads.do), ['W1']);
   assert.deepEqual(keys(mine.quads.quick), ['W2']);
-  assert.deepEqual(keys(mine.quads.plan), ['W3', 'T1'], 'top ROI before a P1');
-  assert.deepEqual(keys(mine.quads.later), ['W4']);
+  assert.deepEqual(keys(mine.quads.plan), ['T1'], 'a P1 of yours; a top score is not important');
+  assert.deepEqual(keys(mine.quads.later), ['W4', 'W3'], 'a proposed P1 counts as P2, still above no priority');
   const all = mxProject(cols, NOW, true);
   assert.equal(all.total, 7, 'session traces stay out');
   assert.ok(keys(all.quads.plan).includes('P1') && keys(all.quads.later).includes('T2'));
@@ -97,6 +114,8 @@ test('legend and quadrants say what the code does', () => {
   assert.match(MX_LEGEND, /within 2 days/);
   assert.match(MX_LEGEND, /3 days or more/);
   assert.match(MX_LEGEND, /P0 or P1/);
+  assert.match(MX_LEGEND, /proposal counts as P2/);
+  assert.match(MX_LEGEND, /unblocks for the agents does not count/);
   assert.deepEqual(MX_QUADS.map((q) => q.id), ['do', 'plan', 'quick', 'later']);
 });
 
