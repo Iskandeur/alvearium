@@ -661,11 +661,16 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         }
         const evt = sanitizeEvent(body);
         if (!evt) return send(res, 400, { error: 'invalid event' });
+        // An invited member's session is never linked to a ticket: the board's comments stay off its turns.
+        if (auth.kind === 'member') delete evt.identity.ticket;
         const rec = store.ingest(scopeEvent(evt, auth));
-        // `mentions: true` (sent by the prompt hook from 0.9.0): the owner's comments that tag this session.
+        // `mentions: true` (sent by the prompt hook from 0.9.0): the owner's comments that tag this session,
+        // and (0.9.2) every new comment on the ticket the session was opened on, from any author.
         // Never to an invited member: the owner's words are not an instruction for someone else's Claude.
-        const mentions = body.mentions === true && auth.kind !== 'member' ? store.takeSessionMentions(evt.identity.sessionId) : undefined;
-        return send(res, 202, { ok: true, state: rec.state, server_version: VERSION, ...(mentions ? { mentions } : {}) });
+        const asked = body.mentions === true && auth.kind !== 'member';
+        const mentions = asked ? store.takeSessionMentions(evt.identity.sessionId) : undefined;
+        const linked = asked ? store.takeLinkedComments(evt.identity.sessionId) : undefined;
+        return send(res, 202, { ok: true, state: rec.state, server_version: VERSION, ...(mentions ? { mentions } : {}), ...(linked?.length ? { linked } : {}) });
       }
       if (path === '/api/version' && m === 'GET') return send(res, 200, { version: VERSION, settings, attachments: { max_bytes: attachmentMax }, freshness: { stale_after_s: staleAfter } });
       if (path === '/api/changelog' && m === 'GET') return send(res, 200, { version: VERSION, releases: changelog });

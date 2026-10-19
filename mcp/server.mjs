@@ -169,7 +169,7 @@ const TOOLS = [
   {
     name: 'ticket_get',
     annotations: READS,
-    description: 'Show one ticket with its history and sub-tickets. Long comments are shortened in the history; pass full=true to get the whole body and every comment, complete.',
+    description: 'Show one ticket with its history and sub-tickets. Long comments are shortened in the history; pass full=true to get the whole body and every comment, complete. When you take up a ticket (a session opened on it, a ticket handed to you), read it with full=true first: the default view hides older comments.',
     inputSchema: {
       type: 'object',
       properties: {

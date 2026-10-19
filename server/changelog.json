@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.2",
+      "date": "2026-10-19",
+      "items": [
+        "A session opened from a ticket receives every new comment on it at its next turn: yours as your words, an agent's as information to check.",
+        "Only the ticket the session was opened on, never another one, and never an invited member's session.",
+        "ticket_get reminds agents to read a ticket in full when they take it up."
+      ]
+    },
+    {
       "version": "0.9.1",
       "date": "2026-10-19",
       "items": [
@@ -16,7 +25,7 @@
       "items": [
         "Tag one Claude Code session from a ticket: mention it in a comment, and the comment reaches that session at its next turn.",
         "The mention list offers the sessions seen in the last 30 minutes, with their repo, subject and start time.",
-        "Only your own comments reach a session: an agent's comment never does."
+        "Only your own comments can tag a session. (From 0.9.2, a session opened from a ticket also gets that ticket's other comments, as information to check.)"
       ]
     },
     {
