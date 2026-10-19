@@ -6,7 +6,7 @@
       "date": "2026-10-19",
       "items": [
         "A ticket that waited a few times over its life can wait again: only the wakes of the last 7 days count toward the cap of 5.",
-        "Lifting a hold by hand starts that count over.",
+        "When you lift a hold by hand, that count starts over (an agent lifting its own hold does not reset it).",
         "A real loop between two tickets is still stopped, and goes to someone who decides."
       ]
     },

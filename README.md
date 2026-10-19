@@ -110,8 +110,8 @@ happens: its blockers closed (`blocked_by`), a pull request merged (`pr_merged`)
 reply (`reply`). 0.8.0 adds `external`: a state of the world the board cannot see itself.
 
 A ticket woken 5 times (`BOARD_HOLD_MAX_BOUNCES`) refuses a new hold: a loop goes to someone who
-decides. Since 0.9.3 only the wakes of the last 7 days count, and lifting a hold by hand starts the
-count again.
+decides. Since 0.9.3 only the wakes of the last 7 days count, and a person (not an agent) lifting a
+hold by hand starts the count again.
 
 ```json
 { "condition": { "type": "external", "what": "the hall motion sensor sees someone come in",
