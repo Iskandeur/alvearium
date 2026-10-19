@@ -223,6 +223,8 @@
 
     /* List */
     /* 0.5.17: projects view (renderProjects) */
+    .searchProjects { margin: 0 0 14px; }
+    .searchProjects[hidden] { display: none; }
     .pjHead { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0 0 12px; }
     .pjLegend { flex: 1 1 100%; margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
     .pjGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 10px; align-items: start; }
@@ -937,6 +939,7 @@
   <main class="wrap" id="main">
     <section class="news" id="news" hidden aria-labelledby="newsTitle"></section>
     <div id="boardView">
+      <section id="searchProjects" class="searchProjects" aria-label="Projects matching the search" hidden></section>
       <div class="grid">
         <section class="lane primary" aria-labelledby="h-waiting">
           <div class="laneHead"><h2 id="h-waiting">Waiting on you</h2><span class="count" id="n-waiting"></span></div>
@@ -1961,8 +1964,16 @@
         }
       }
 
+      /** 0.6.1: projects are out of the columns; a search still finds them, in a group above the lanes. */
+      function renderSearchProjects(b, now) {
+        const box = $('searchProjects');
+        const list = state.q ? pjOrder(b.projects) : [];
+        box.hidden = !list.length;
+        setHtml(box, list.length ? `<div class="pjHead"><span class="mxCount">Projects · ${list.length}</span></div><div class="pjGrid" role="list">${list.map((p) => pjCard(p, now)).join('')}</div>` : '');
+      }
       function renderBoard(b, now) {
         lastBoard = b;
+        renderSearchProjects(b, now);
         const c = b.counts || {};
         const col = (name, empty) => {
           const list = b.columns?.[name] || [];
