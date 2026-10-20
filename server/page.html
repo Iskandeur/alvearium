@@ -1143,6 +1143,21 @@
         const m = /\/[\p{L}-]*?-(\d{1,12})$/u.exec(String(id || ''));
         return m ? Number(m[1]) || 1 : 0;
       };
+      // 0.9.7: a named sibling of numbered runs (`bot/wake-news` next to `bot/wake-12`) is a run of the same kind and
+      // goes with them. Only a numbered run names a family, so `bot/crew-dev` stays lasting unless `bot/crew-3` exists.
+      // Returns a rank: the run's number, 0.5 for a named run (after the numbered ones), 0 for a lasting actor.
+      const runRanker = (ids) => {
+        const fams = new Set();
+        for (const id of ids) if (ephemeralActor(id)) fams.add(String(id).slice(0, String(id).lastIndexOf('-') + 1));
+        return (id) => {
+          const n = ephemeralActor(id);
+          if (n) return n;
+          const sid = String(id || '');
+          const dash = sid.lastIndexOf('-');
+          for (let i = sid.indexOf('-'); i > 0 && i <= dash; i = sid.indexOf('-', i + 1)) if (fams.has(sid.slice(0, i + 1))) return 0.5;
+          return 0;
+        };
+      };
       const actorIdTitle = (id) => {
         const sid = String(id || '');
         if (!sid || sid === 'user' || sid === 'claude' || sid === 'hook') return '';
@@ -2735,10 +2750,13 @@
         const names = new Map();
         for (const a of rest) names.set(actorName(a.id), (names.get(actorName(a.id)) || 0) + 1);
         const label = (a) => (a.type === 'subagent' ? '↳ ' : '') + actorName(a.id) + (names.get(actorName(a.id)) > 1 ? ` (${a.id})` : '');
-        const lasting = rest.filter((a) => !ephemeralActor(a.id)).sort((a, b) => actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id));
-        const oneOff = rest.filter((a) => ephemeralActor(a.id)).sort((a, b) => ephemeralActor(b.id) - ephemeralActor(a.id) || a.id.localeCompare(b.id));
-        const list = [['user', 'You'], ['claude', 'Claude'], ...lasting.map((a) => [a.id, label(a)]), ...oneOff.slice(0, 50).map((a) => [a.id, label(a), 'Others'])];
-        if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur) + (names.has(actorName(cur)) ? ` (${cur})` : ''), ephemeralActor(cur) ? 'Others' : undefined]);
+        const run = runRanker(actors.keys());
+        const lasting = rest.filter((a) => !run(a.id)).sort((a, b) => actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id));
+        const oneOff = rest.filter((a) => run(a.id)).sort((a, b) => run(b.id) - run(a.id) || actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id));
+        // The 50 newest numbered runs, then every named run (a few, and they stay: they would never make the 50).
+        const shown = [...oneOff.filter((a) => run(a.id) >= 1).slice(0, 50), ...oneOff.filter((a) => run(a.id) < 1)];
+        const list = [['user', 'You'], ['claude', 'Claude'], ...lasting.map((a) => [a.id, label(a)]), ...shown.map((a) => [a.id, label(a), 'Others'])];
+        if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur) + (names.has(actorName(cur)) ? ` (${cur})` : ''), run(cur) ? 'Others' : undefined]);
         return list;
       };
       // 0.6.0: on hold — what it waits for, what happens then; or the form to put it on hold.
@@ -2972,10 +2990,11 @@
       function mentionActors() {
         if (mentionActorsCache) return mentionActorsCache;
         const list = [];
+        const run = runRanker(actors.keys());
         for (const id of actors.keys()) {
           if (!id || id === 'user' || id === 'claude' || id === 'hook') continue;
           if (!MENTION_ID.test(id)) continue;
-          list.push({ id, name: actorName(id), ephemeral: ephemeralActor(id) });
+          list.push({ id, name: actorName(id), ephemeral: run(id) });
         }
         // Lasting actors by name, then one-off runs newest first (they would bury the rest).
         list.sort((a, b) => !!a.ephemeral - !!b.ephemeral || b.ephemeral - a.ephemeral || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));

@@ -48,6 +48,24 @@ test('ephemeralActor: a sub-actor ending in a number is a one-off run, newest ha
   assert.equal(ephemeralActor('ci-2'), 0, 'a top-level actor is never a run');
 });
 
+test('runRanker: a named sibling of numbered runs (bot/wake-news next to bot/wake-12) goes with the runs', () => {
+  const i = page.indexOf('const ephemeralActor = (id) => {');
+  const j = page.indexOf('const actorIdTitle = ', i);
+  assert.ok(i > 0 && j > i && page.slice(i, j).includes('const runRanker = (ids) => {'), 'runRanker() is in the page');
+  const runRanker = new Function(`${page.slice(i, j)}; return runRanker;`)();
+  const ids = ['bot', 'bot/wake-12', 'bot/wake-news', 'bot/wake-disk-usage', 'bot/crew-dev', 'bot/crew-ops', 'bot/job-7', 'my-bot/wake-3', 'my-bot/wake-feed', 'wake-x'];
+  const run = runRanker(ids);
+  assert.equal(run('bot/wake-12'), 12, 'a numbered run keeps its number');
+  assert.equal(run('bot/wake-news'), 0.5);
+  assert.equal(run('bot/wake-disk-usage'), 0.5, 'a name with dashes is still in the family');
+  assert.equal(run('my-bot/wake-feed'), 0.5, 'a parent with a dash');
+  assert.equal(run('bot/crew-dev'), 0, 'no numbered crew-N: a lasting agent');
+  assert.equal(run('bot'), 0);
+  assert.equal(run('wake-x'), 0, 'a top-level actor is never a run');
+  assert.ok(run('bot/wake-12') > run('bot/wake-news'), 'numbered runs before named ones');
+  assert.equal(runRanker(['bot/crew-dev', 'bot/crew-ops'])('bot/crew-dev'), 0, 'siblings alone make no family');
+});
+
 test('mentions: @ inside a word is ignored', () => {
   const all = [{ id: 'fern', name: 'Fern' }];
   assert.equal(computeMention('x@f', 3, all), null);
