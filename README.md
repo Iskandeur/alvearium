@@ -909,7 +909,7 @@ as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without 
 | `GET`, `PUT`, `DELETE /api/actors/<id>/avatar` | the picture: `PUT` the raw PNG, JPEG or WebP bytes (≤ 256 KiB, ≤ 1024 px) |
 | `POST /api/tickets` | create `{ title, body, status, kind, subtype, assignee, priority, labels, parent, blocked_by, links, session_id, repo, branch }` |
 | `GET /api/tickets/SB-12` | one ticket with its history and sub-tickets |
-| `POST` or `PATCH /api/tickets/SB-12` | update any field, `blocked_by_add` / `blocked_by_remove`, optional `comment` (and `to`) in the same call |
+| `POST` or `PATCH /api/tickets/SB-12` | update any field (`labels` replaces the whole list; `labels_add` / `labels_remove` keep the others), `blocked_by_add` / `blocked_by_remove`, optional `comment` (and `to`) in the same call |
 | `POST /api/tickets/SB-12/comments` | `{ text, to? }` |
 | `POST`, `DELETE /api/tickets/SB-12/hold` | put on hold `{ condition, then?, note? }`, or lift the hold by hand (see *Waiting for the world*) |
 | `POST /api/tickets/SB-12/hold/fire` | `{ proof }`: the external state an `external` hold waits for is seen; its next step runs now |
