@@ -7,8 +7,7 @@
       "items": [
         "The Actor and Assignee filters list people and lasting agents first; one-off runs are grouped under Others.",
         "Under Others, runs with open tickets come first, then the newest, 50 at most.",
-        "The Assignee filter shows how many open tickets are yours, like the other names.",
-        "A filter you already picked stays shown as its chip, even when that run is not in the shorter list."
+        "The Assignee filter shows how many open tickets are yours, like the other names."
       ]
     },
     {
