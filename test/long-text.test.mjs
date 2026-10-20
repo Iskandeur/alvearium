@@ -300,6 +300,15 @@ test('page helpers match core: digit grouping, and the near-limit count derived 
   assert.doesNotMatch(page, /class="readerBody"[^>]*autofocus/);
 });
 
+test('a long hold tag ends in an ellipsis inside its card (block box, capped at the card width)', () => {
+  const page = readFileSync(join(import.meta.dirname, '..', 'server', 'page.html'), 'utf8');
+  const base = page.match(/^\s*\.tag \{([^}]*)\}/m)?.[1] ?? '';
+  for (const d of [/max-width: 100%/, /overflow: hidden/, /text-overflow: ellipsis/, /white-space: nowrap/]) assert.match(base, d);
+  // text-overflow does nothing on the text of a flex container: the hold tag must leave inline-flex.
+  const hold = page.match(/^\s*\.tag\.hold \{([^}]*)\}/m)?.[1] ?? '';
+  assert.match(hold, /display: inline-block/);
+});
+
 test('a server says whether its actors listing is complete', async () => {
   const store = await openStore(':memory:');
   await withServer(store, async (base) => {
