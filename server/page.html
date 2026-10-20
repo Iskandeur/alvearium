@@ -1015,6 +1015,8 @@
   <div class="help" id="help" hidden role="dialog" aria-modal="true" aria-label="Shortcuts and gestures"></div>
 
   <script>
+    // 0.9.12: the page is the directory its relative api/ requests live in: under /alvearium (no slash) they went to /api/.
+    if (!location.pathname.endsWith('/')) history.replaceState(null, '', location.pathname + '/' + location.search + location.hash);
     // ---- i18n (0.9.9) ----------------------------------------------------------------------------
     // The interface reads English or French. What a ticket says (title, description, comments, its ask block) is
     // never translated: a French ticket on an English board stays French, and the other way round.
@@ -2460,6 +2462,13 @@
         box.hidden = !list.length;
         setHtml(box, list.length ? `<div class="pjHead"><span class="mxCount">Projects · ${list.length}</span></div><div class="pjGrid" role="list">${list.map((p) => pjCard(p, now)).join('')}</div>` : '');
       }
+      /** 0.9.12: the ticket a search names by its key (ALV-12, SB-12 or 12), when it is in `list`; else null. */
+      function searchedKey(q, list) {
+        const m = /^\s*(?:[A-Za-z]+-)?(\d+)\s*$/.exec(String(q || ''));
+        if (!m) return null;
+        const hit = (list || []).find((t) => (/-(\d+)$/.exec(String(t.key)) || [])[1] === String(Number(m[1])));
+        return hit ? hit.key : null;
+      }
       function renderBoard(b, now) {
         lastBoard = b;
         renderSearchProjects(b, now);
@@ -2492,6 +2501,8 @@
         // "How is this computed?" (roiHow) keeps its open state across redraws: `toggle` does not bubble, so capture it.
         if (!rn.__roiHow) { rn.__roiHow = true; rn.addEventListener('toggle', (e) => { if (e.target.classList?.contains('roiHow')) roiHowOpen = e.target.open; }, true); }
         $('doneBox').hidden = !c.done;
+        // A closed ticket found by its key sits in Done: open the drawer, or the search looks empty.
+        if (searchedKey(state.q, b.columns?.done)) $('doneBox').open = true;
         $('doneLabel').textContent = tr('{n} done', { n: c.done || 0 });
         summary(c);
       }
