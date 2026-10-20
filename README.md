@@ -109,6 +109,13 @@ A ticket on hold (`ticket_hold`, 0.6.0) leaves every lane and comes back by itse
 happens: its blockers closed (`blocked_by`), a pull request merged (`pr_merged`), a time (`time`), a
 reply (`reply`). 0.8.0 adds `external`: a state of the world the board cannot see itself.
 
+The ticket's panel says what it waits for and what happens then, with a button to lift the hold by
+hand; a ticket that waits for nothing yet has a *Put on hold…* form.
+
+![The panel of a ticket on hold: it waits for a pull request to be merged, then wakes an agent](docs/screenshots/on-hold-panel-desktop-light.png)
+([dark](docs/screenshots/on-hold-panel-desktop-dark.png), [the form at 390 px](docs/screenshots/hold-form-mobile-light.png),
+[the form at 390 px, dark](docs/screenshots/hold-form-mobile-dark.png).)
+
 A ticket woken 5 times (`BOARD_HOLD_MAX_BOUNCES`) refuses a new hold: a loop goes to someone who
 decides. Since 0.9.3 only the wakes of the last 7 days count, and a person (not an agent) lifting a
 hold by hand starts the count again.
