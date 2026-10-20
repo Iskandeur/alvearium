@@ -16,6 +16,9 @@ test('mergeTicketPr reads the pull request a merge ticket carries', () => {
   assert.equal(mergeTicketPr('Merge Acme/Repo#12'), 'acme/repo#12');
   assert.equal(mergeTicketPr('Fusionner Acme/Repo#12 (squash)'), 'acme/repo#12');
   assert.equal(mergeTicketPr('Merge pull request acme/repo#3.'), 'acme/repo#3');
+  assert.equal(mergeTicketPr('Merge PR acme/repo#12'), 'acme/repo#12');
+  assert.equal(mergeTicketPr('Fusionner la PR acme/repo#12'), 'acme/repo#12');
+  assert.equal(mergeTicketPr('Merge the branch'), null);
   assert.equal(mergeTicketPr('Deploy after acme/repo#12 merges'), null);
   assert.equal(mergeTicketPr('Merge the branch'), null);
 });
