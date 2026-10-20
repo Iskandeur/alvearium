@@ -265,7 +265,8 @@ function pageRoi() {
 
 test('page: the badge is the badge as sent, else the bare score; never "ROI", never a bare 0', () => {
   const { roiNum, roiText, roiBadge } = pageRoi();
-  assert.deepEqual([0, 0.04, 0.05, 0.25, 2.5, 9.96, 12.4].map(roiNum), [0, 0.04, 0.05, 0.25, 2.5, 9.96, 12.4].map(formatRoi), 'the same rule as lib/roi.mjs');
+  const grid = [0, 0.04, 0.049, 0.05, 0.25, 2.5, 9.94, 9.96, 10, 12.4, 42.6, 1_000_000, 'x'];
+  assert.deepEqual(grid.map(roiNum), grid.map(formatRoi), 'the same rule as lib/roi.mjs');
   const card = (roi) => ({ key: 'ALV-7', column: 'waiting', status: 'waiting_on_user', roi });
   assert.equal(roiText(card({ score: 12.4 })), '12');
   assert.equal(roiText(card({ score: 0.03 })), '<0.1');
@@ -335,4 +336,15 @@ test('text board (/board): the lane line on top, the score and its reason under 
   assert.match(renderTicketsText(store.ticketBoard({})), /⚡ <0\.1 · unblocks a little/, 'never a bare 0');
   store.setRoi({ scores: [{ key: a.key, score: 12, note: 'unblocks 1 job', badge: 'unblocks the agents ~2 pts' }] });
   assert.match(renderTicketsText(store.ticketBoard({})), /⚡ unblocks the agents ~2 pts · unblocks 1 job/);
+});
+
+test('text board: a bare score follows lib/roi.mjs formatRoi (core.mjs keeps its own copy of the rule)', () => {
+  const NOW = 1_800_000_000_000;
+  const scores = [0, 0.04, 0.049, 0.05, 0.1, 0.25, 2.5, 9.94, 9.96, 10, 12.4, 42.6, 1_000_000];
+  for (const score of scores) {
+    const t = { key: 'ALV-7', title: 'Approve it', status: 'waiting_on_user', column: 'waiting', updated_at: NOW, roi: { score, note: 'why' } };
+    const text = renderTicketsText({ now: NOW, counts: { waiting: 1 }, columns: { waiting: [t] } });
+    const shown = text.match(/^ +⚡ (.*) · why$/m)?.[1];
+    assert.equal(shown, formatRoi(score), `score ${score}`);
+  }
 });
