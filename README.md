@@ -380,12 +380,12 @@ optional link to open and an optional message. The board knows nothing about wha
 | :- | :- |
 | `id` | 1 to 32 lowercase letters, digits, `-` or `_`; unique |
 | `label`, `icon` | the button: up to 40 characters, and an emoji (optional). Since 0.9.11 `label` may also be one text per language, `{ "en": "Continue in Claude Code", "fr": "Continuer dans Claude Code" }`: the page shows the one of its language, else `en` |
-
-The page itself reads English or French (0.9.11): French when the browser's language is French, English otherwise. `?lang=en` or `?lang=fr` in the address, or `alvearium.lang` in the browser's local storage, chooses. Dates follow it. What tickets say is never translated.
 | `url` | the webhook, without credentials. `https`, or plain `http` only on this machine or a private network: `localhost`, `127.0.0.0/8`, `::1`, `host.docker.internal`, `10/8`, `172.16/12`, `192.168/16` (the token must not cross the internet in clear). Redirects are not followed |
 | `token_env` | the **name** of the environment variable that holds the webhook's token (at least 16 characters), sent as `Authorization: Bearer <token>`. The token itself never goes in the file |
 | `allow_hosts` | the only hosts a returned link may point to (https, default port). Empty: the action opens nothing |
 | `timeout_ms` | how long the server waits for the webhook, 1 000 to 120 000 (default 10 000) |
+
+The page itself reads English or French (0.9.11): French when the browser's language is French, English otherwise. `?lang=en` or `?lang=fr` in the address, or `alvearium.lang` in the browser's local storage, chooses. Dates follow it. What tickets say is never translated.
 
 An unreadable file, a mistake in it or a missing token stops the server at startup, with a message
 that names the action and the field: a typo never leaves a button that silently does nothing. With

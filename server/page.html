@@ -3118,7 +3118,7 @@
         const at = `<time title="${esc(new Date(e.at).toLocaleString(tr.locale))}">${esc(when(e.at))}</time>`;
         if (e.type === 'comment') return `<div class="ev comment mdHost" data-md-src="ev:${Number(i) || 0}"><div class="evHead">${tr('{by} commented', { by })}${at}${mdActs('comment')}</div><div class="said md">${md(e.text)}</div>${picsHtml(e.attachments)}</div>`;
         if (e.type === 'created') return `<div class="ev">${tr('{who} created it', { who: who(e.actor) })}${e.to_status ? tr(' as {s}', { s: esc(STATUS[e.to_status] || e.to_status) }) : ''}${e.target ? `<span class="arrow">→</span>${who(e.target)}` : ''}${at}${picsHtml(e.attachments)}</div>`;
-        if (e.type === 'status' || e.type === 'reopened') return `<div class="ev">${by} ${e.type === 'reopened' ? tr('reopened it') : tr('moved it')}${tr.lang === 'fr' ? ' :' : ':'}${esc(STATUS[e.from_status] || e.from_status)} → <b>${esc(STATUS[e.to_status] || e.to_status)}</b>${at}${e.text ? `<div class="said">${md(e.text)}</div>` : ''}</div>`;
+        if (e.type === 'status' || e.type === 'reopened') return `<div class="ev">${by} ${e.type === 'reopened' ? tr('reopened it') : tr('moved it')}${tr.lang === 'fr' ? ' :' : ':'} ${esc(STATUS[e.from_status] || e.from_status)} → <b>${esc(STATUS[e.to_status] || e.to_status)}</b>${at}${e.text ? `<div class="said">${md(e.text)}</div>` : ''}</div>`;
         if (e.type === 'assigned') return `<div class="ev">${who(e.actor)} handed it over<span class="arrow">→</span>${who(e.target || e.text)}${at}</div>`;
         if (e.type === 'edit') return `<div class="ev">${by} edited ${esc(e.text || 'it')}${at}</div>`;
         if (e.type === 'agent') return `<div class="ev agent">${by} ${md(e.text || '')}${at}</div>`;
