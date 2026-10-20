@@ -116,6 +116,13 @@ hand; a ticket that waits for nothing yet has a *Put on hold…* form.
 ([dark](docs/screenshots/on-hold-panel-desktop-dark.png), [the form at 390 px](docs/screenshots/hold-form-mobile-light.png),
 [the form at 390 px, dark](docs/screenshots/hold-form-mobile-dark.png).)
 
+The tickets on hold sit in the *On hold* drawer under the lanes, each with what it waits for; a long
+wait ends in "…" inside its card, and its tooltip keeps the full text.
+
+![The On hold drawer: three tickets on hold, the longest wait ends in an ellipsis inside its card](docs/screenshots/on-hold-drawer-desktop-light.png)
+([dark](docs/screenshots/on-hold-drawer-desktop-dark.png), [at 390 px](docs/screenshots/on-hold-drawer-phone-light.png),
+[at 390 px, dark](docs/screenshots/on-hold-drawer-phone-dark.png).)
+
 A ticket woken 5 times (`BOARD_HOLD_MAX_BOUNCES`) refuses a new hold: a loop goes to someone who
 decides. Since 0.9.3 only the wakes of the last 7 days count, and a person (not an agent) lifting a
 hold by hand starts the count again.
