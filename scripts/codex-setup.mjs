@@ -284,8 +284,9 @@ async function readToken(stdin = process.stdin) {
  */
 export async function resolveToken(opts, { env = process.env, read = readToken } = {}) {
   if (opts.token && opts.token !== '-') {
-    throw new Error('--token no longer takes a value: it would show in the process list and the shell history. Set SESSION_BOARD_TOKEN=… in the environment, or pass `--token -` to read it from stdin.');
+    throw new Error('--token no longer takes a value: it would show in the process list and the shell history. Nothing was installed or uninstalled: set SESSION_BOARD_TOKEN=… in the environment, or pass `--token -` to read it from stdin, and run it again.');
   }
+  if (opts.token === '-' && !opts.remove && !opts.url) throw new Error('`--token -` goes with --url, the board server it is for. Nothing was installed.');
   if (opts.remove || !opts.url) return opts;
   if (opts.token === '-') return { ...opts, token: await read() };
   if (env.SESSION_BOARD_TOKEN) return { ...opts, token: env.SESSION_BOARD_TOKEN };

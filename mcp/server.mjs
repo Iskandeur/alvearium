@@ -73,8 +73,10 @@ const TOOLS = [
         body: { type: 'string', description: `Markdown (${LIMIT})` },
         assignee: ASSIGNEE,
         priority: { type: 'string', enum: [...PRIORITIES, ''], description: 'P0…P3, or "" to clear' },
-        labels: { type: 'array', items: { type: 'string' } },
-        blocked_by_add: { type: 'array', items: { type: 'string' }, description: 'Keys of tickets that block this one (must be done first)' },
+        labels: { type: 'array', items: { type: 'string' }, description: 'REPLACES the whole list of labels: any label you leave out is removed. To change some, use labels_add / labels_remove.' },
+        labels_add: { type: 'array', items: { type: 'string' }, description: 'Labels to add, the others kept' },
+        labels_remove: { type: 'array', items: { type: 'string' }, description: 'Labels to remove, the others kept' },
+        blocked_by_add:{ type: 'array', items: { type: 'string' }, description: 'Keys of tickets that block this one (must be done first)' },
         blocked_by_remove: { type: 'array', items: { type: 'string' }, description: 'Keys of blockers to remove' },
         comment: { type: 'string', description: `Optional note recorded in the ticket history (${LIMIT})` },
       },
@@ -342,12 +344,25 @@ export async function callTool(name, args = {}, { backend, context, env = proces
       mustFit('ticket_update', args.body, MAX_BODY_CHARS, 'body');
       mustFit('ticket_update', args.comment, MAX_COMMENT_CHARS, 'comment', { trim: true });
       const { key, ...rest } = args;
+      // `labels` replaces the list: say which labels it dropped (two sessions once erased each other's labels).
+      let before = null;
+      if (Array.isArray(rest.labels)) {
+        try {
+          before = (await backend.get(String(key)))?.labels;
+        } catch {} // the warning is a courtesy: never lose the update over it
+      }
       const t = must(await backend.update(String(key), rest), 'ticket_update');
-      return `Updated ${line(t)}`;
+      const dropped = Array.isArray(before) ? before.filter((l) => !(t.labels || []).includes(l)) : [];
+      const warn = dropped.length ? `\nWarning: labels replaced the whole list; removed ${dropped.map((l) => '#' + l).join(' ')}. Use labels_add / labels_remove to change some without replacing the rest.` : '';
+      return `Updated ${line(t)}${warn}`;
     }
     case 'ticket_comment': {
       // `body` is how ticket_create names its text; accept it here too instead of an "empty comment" error.
       const text = String(args.text ?? args.body ?? '');
+      // `@/path` reads a file in some CLIs; here it would be posted as it is. Refuse a text that is only such a path.
+      if (/^@(?:\/|~\/|\.{1,2}\/)\S*$/.test(text.trim())) {
+        throw new Error(`ticket_comment: the text is only a file path (${text.trim()}) and this tool does not read files, so it would be posted as is. Put the text itself in "text".`);
+      }
       mustFit('ticket_comment', text, MAX_COMMENT_CHARS, 'comment', { trim: true });
       const t = must(await backend.comment(String(args.key), text, args.to ? String(args.to) : undefined), 'ticket_comment');
       return `Commented on ${t.key} (${t.comments_count} comment${t.comments_count === 1 ? '' : 's'})`;
