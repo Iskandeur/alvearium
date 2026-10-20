@@ -152,6 +152,10 @@ the server and restart it. The choice is kept in the database. Only the number i
 `SB-523`, `ALV-523` and `523` open the same one everywhere (API, MCP tools, `/ticket`, search, and
 page links like `?ticket=SB-523`), so switching renumbers nothing and breaks no old link.
 
+A key typed in the search (0.9.12) puts that ticket first in its lane, closed or archived, and opens
+the Done drawer when it is closed; the other matches are the tickets that cite that exact key. The
+page also works under a sub-path of a reverse proxy opened without its trailing slash (`/alvearium`).
+
 ## Realtime
 
 The page keeps one connection open to `GET /api/stream` (Server-Sent Events) and redraws only the
