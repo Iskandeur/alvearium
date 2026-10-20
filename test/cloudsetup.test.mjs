@@ -136,6 +136,31 @@ test('cloud-setup.sh raw fallback lists every file the copy needs', () => {
   for (const f of [...vendored, 'scripts/install-repo.mjs', 'scripts/cloud-apply.mjs', 'skills/tickets/SKILL.md']) assert.ok(listed.includes(f), f);
 });
 
+test('install-repo vendors every module its vendored files import', () => {
+  const install = readFileSync(join(ROOT, 'scripts', 'install-repo.mjs'), 'utf8');
+  const vendored = [.../const FILES = \[([\s\S]*?)\];/.exec(install)[1].matchAll(/'([^']+)'/g)].map((m) => m[1]);
+  // Left out on purpose: the cloud copy has no local board to sync, its two callers import it lazily on that path only.
+  const notVendored = ['lib/sync.mjs'];
+  const missing = [];
+  for (const f of vendored) {
+    const src = readFileSync(join(ROOT, f), 'utf8');
+    // static `from './x.mjs'` and dynamic `import('./x.mjs')`
+    for (const m of src.matchAll(/(?:from\s+|import\(\s*)'(\.{1,2}\/[^']+)'/g)) {
+      const dep = join(f, '..', m[1]);
+      if (!vendored.includes(dep) && !notVendored.includes(dep)) missing.push(`${f} → ${dep}`);
+    }
+  }
+  assert.deepEqual(missing, []);
+});
+
+test('the cloud copy written by install-repo loads its store', async () => {
+  const dir = tmp();
+  git(dir, 'init', '-q', '-b', 'main');
+  execFileSync(process.execPath, [join(ROOT, 'scripts', 'install-repo.mjs'), dir, '--no-local'], { encoding: 'utf8', env: ENV });
+  const store = await import(join(dir, '.claude', 'session-board', 'lib', 'store.mjs'));
+  assert.equal(typeof store.openStore, 'function');
+});
+
 const REFRESH = join(ROOT, 'scripts', 'cloud-refresh.sh');
 
 test('cloud-refresh.sh and cloud-setup.sh fetch the same files', () => {

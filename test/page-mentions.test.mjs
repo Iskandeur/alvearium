@@ -66,6 +66,28 @@ test('runRanker: a named sibling of numbered runs (bot/wake-news next to bot/wak
   assert.equal(runRanker(['bot/crew-dev', 'bot/crew-ops'])('bot/crew-dev'), 0, 'siblings alone make no family');
 });
 
+test('filter bar: Actor and Assignee list lasting actors first, at most 50 numbered runs under Others (ALV-2857)', () => {
+  const i = page.indexOf('const ephemeralActor = (id) => {');
+  const j = page.indexOf('const actorIdTitle = ', i);
+  assert.ok(i > 0 && j > i && page.slice(i, j).includes('const runPicks = (list, name) => {'), 'runPicks() is in the page');
+  const runPicks = new Function(`${page.slice(i, j)}; return runPicks;`)();
+  const runs = Array.from({ length: 200 }, (_, n) => ({ id: `crew/job-${n + 1}`, open: 0 }));
+  runs[4].open = 2; // crew/job-5 holds open tickets: it comes first despite being old
+  const list = [...runs, { id: 'crew/job-nightly', open: 0 }, { id: 'zed', open: 1 }, { id: 'crew', open: 0 }, { id: 'crew/reviewer', open: 0 }];
+  const name = (id) => ({ zed: 'Zed', crew: 'Crew' })[id] || id.split('/').pop();
+  const { lasting, others } = runPicks(list, name);
+  assert.deepEqual(lasting.map((a) => a.id), ['crew', 'crew/reviewer', 'zed'], 'lasting actors by name, no run among them');
+  assert.equal(others.length, 51, '50 numbered runs, then the named run');
+  assert.deepEqual(others.slice(0, 3).map((a) => a.id), ['crew/job-5', 'crew/job-200', 'crew/job-199'], 'open first, then newest');
+  assert.equal(others.at(-1).id, 'crew/job-nightly');
+  // The filter bar uses it for both pickers, with the runs in an optgroup.
+  const f = page.indexOf('function options(k) {');
+  const src = page.slice(f, page.indexOf('const PICK_LABEL', f));
+  assert.match(src, /k === 'assignee' \|\| k === 'actor'/);
+  assert.match(src, /runPicks\(/);
+  assert.match(src, /<optgroup label="Others">/);
+});
+
 test('mentions: @ inside a word is ignored', () => {
   const all = [{ id: 'fern', name: 'Fern' }];
   assert.equal(computeMention('x@f', 3, all), null);

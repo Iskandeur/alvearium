@@ -25,16 +25,21 @@ export const COMMANDS = ['board', 'ticket'];
 export const COMMAND_TAG = '<!-- session-board cloud copy -->';
 const FILES = [
   'hooks/report.mjs',
+  'lib/attachment.mjs',
+  'lib/avatar.mjs',
   'lib/core.mjs',
+  'lib/hold.mjs',
+  'lib/roi.mjs',
   'lib/runtime.mjs',
   'lib/store.mjs',
+  'lib/triage.mjs',
   'mcp/server.mjs',
   'scripts/board.mjs',
   'scripts/doctor.mjs',
   'scripts/ticket.mjs',
 ];
 /** Added after 0.3.3 (whose refresh script does not fetch them): never required. Keep new files here. */
-const OPTIONAL_FILES = new Set(['scripts/doctor.mjs']);
+const OPTIONAL_FILES = new Set(['scripts/doctor.mjs', 'lib/attachment.mjs', 'lib/avatar.mjs', 'lib/hold.mjs', 'lib/roi.mjs', 'lib/triage.mjs']);
 
 // event → async? (same choices as the plugin's hooks/hooks.json)
 export const EVENTS = {

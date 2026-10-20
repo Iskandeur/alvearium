@@ -743,7 +743,7 @@
     .roiNote { margin: -4px 8px 10px; padding: 7px 10px; border-radius: 8px; background: var(--roi-soft); color: var(--text); font-size: 12.5px; line-height: 1.4; }
     .roiNote b { color: var(--roi); font-weight: 600; margin-right: 4px; }
     .roiNote .roiWhen { margin-left: 6px; color: var(--muted); font-size: 11.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
-    /* 0.9.8: "How is this computed?" under the lane line (roiHow) */
+    /* 0.9.10: "How is this computed?" under the lane line (roiHow) */
     .roiNote .roiHow { margin-top: 4px; color: var(--muted); font-size: 12px; }
     .roiNote .roiHow summary { cursor: pointer; color: var(--roi); font-weight: 600; width: fit-content; }
     .roiNote .roiHow ul { margin: 4px 0 0; padding-left: 18px; }
@@ -1165,6 +1165,16 @@
           return 0;
         };
       };
+      // 0.9.9: the filter bar's Actor and Assignee lists, ordered like the assignee menu. `list` is the facets' actors
+      // ({ id, open }). Lasting actors by name; one-off runs go to `others`: those holding open tickets first, then the
+      // newest, 50 numbered runs at most, then the named runs. A busy board has hundreds of runs, one option each.
+      const runPicks = (list, name) => {
+        const run = runRanker(list.map((a) => a.id));
+        const by = (a, b) => name(a.id).localeCompare(name(b.id)) || String(a.id).localeCompare(String(b.id));
+        const lasting = list.filter((a) => !run(a.id)).sort(by);
+        const oneOff = list.filter((a) => run(a.id)).sort((a, b) => (b.open > 0) - (a.open > 0) || run(b.id) - run(a.id) || by(a, b));
+        return { lasting, others: [...oneOff.filter((a) => run(a.id) >= 1).slice(0, 50), ...oneOff.filter((a) => run(a.id) < 1)] };
+      };
       const actorIdTitle = (id) => {
         const sid = String(id || '');
         if (!sid || sid === 'user' || sid === 'claude' || sid === 'hook') return '';
@@ -1550,7 +1560,7 @@
       /** 0.9.5: the installation's badge ("unblocks the agents ~2 pts"), shown as sent, else the bare score. Information: it orders nothing. */
       function roiText(t) { return t.roi?.badge || roiNum(t.roi?.score); }
       /**
-       * Every sentence the lane's scores show, in one place (0.9.8, ALV-2861), so a translation takes them as a block.
+       * Every sentence the lane's scores show, in one place (0.9.10, ALV-2861), so a translation takes them as a block.
        * What ⚡ and "pt" mean, in the README's words: the installation's own points, not the board's. The board is never
        * told what one point is worth, so it says whose unit it is, which way is better, and why the numbers move.
        */
@@ -1993,8 +2003,14 @@
         if (k === 'repo') return facets.repos.map((r) => o(r.value, repoName(r.value) + (facets.repos.filter((x) => repoName(x.value) === repoName(r.value)).length > 1 ? ' (' + r.value + ')' : ''), r.open || ''));
         if (k === 'session') return facets.sessions.filter((s) => !state.f.repo || s.repo === state.f.repo || repoName(s.repo) === state.f.repo).slice(0, 80).map((s) => o(s.id, `${s.title || 'Session ' + s.id.slice(0, 6)}${s.repo ? ' — ' + repoName(s.repo) : ''}`, s.open || ''));
         if (k === 'status') return [['open', 'Open'], ['todo', 'To do'], ['in_progress', 'In progress'], ['waiting_on_user', 'Waiting on you'], ['review', 'Review'], ['failed', 'Failed'], ['on_hold', 'On hold'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([v, l]) => o(v, l));
-        if (k === 'assignee') return [o('user', actorName('user')), ...(facets.actors || []).filter((a) => a.id !== 'user' && a.type !== 'system').map((a) => o(a.id, actorName(a.id), a.open || ''))];
-        if (k === 'actor') return (facets.actors || []).filter((a) => a.type !== 'system').map((a) => o(a.id, (a.type === 'subagent' ? '↳ ' : '') + actorName(a.id), a.open || ''));
+        if (k === 'assignee' || k === 'actor') {
+          const all = (facets.actors || []).filter((a) => a.type !== 'system');
+          const { lasting, others } = runPicks(all.filter((a) => a.id !== 'user'), actorName);
+          const you = all.find((a) => a.id === 'user');
+          const ao = (a) => o(a.id, (k === 'actor' && a.type === 'subagent' ? '↳ ' : '') + actorName(a.id), a.open || '');
+          const head = k === 'assignee' ? [o('user', actorName('user'), you?.open || '')] : you ? [ao(you)] : [];
+          return [...head, ...lasting.map(ao), ...(others.length ? [`<optgroup label="Others">${others.map(ao).join('')}</optgroup>`] : [])];
+        }
         if (k === 'priority') return [o('P0', 'P0 · now'), o('P1', 'P1 · next'), o('P2', 'P2 · normal'), o('P3', 'P3 · later'), o('none', 'No priority')];
         if (k === 'subtype') return [o('bug', 'Bug'), o('suggestion', 'Suggestion'), o('friction', 'Friction')];
         if (k === 'label') return facets.labels.map((l) => o(l.value, '#' + l.value, l.total));
