@@ -538,13 +538,17 @@ kept them busy, ahead of your own errands, health or deadlines.
   the `blocks-job` label; `ops` also covers `ops/scorer`). Members, admins included, and any other
   agent get `403`. `GET /api/roi` (anyone who reads the board) returns the snapshot as stored, with `at`,
   `actor` and `stale`.
-- **The lane**: a score does not move a card. A card shows **⚡** with the badge (or **⚡ ROI 42**
-  without one) and the reason on hover; the open
-  ticket shows the same line above "Needs your answer"; the lane line sits under the lane title.
-  `GET /api/tickets/board` carries `roi: { score, note, badge }` on each lane card and `roi_summary: { text,
-  at, actor }`; `GET /api/tickets/SB-12` carries `roi`.
+- **The lane**: a score does not move a card. A card shows **⚡** with the badge as sent (or the bare
+  score without one: **⚡ 42**, **⚡ 2.5**, **⚡ <0.1** under 0.05, never a bare 0). The score has no unit
+  the board knows of: it is in the installation's own points (*pt*), which the ⚡ tooltip says. The reason
+  shows on hover, and under the badge when you tap it (a phone has no hover); the open ticket shows the
+  same line above "Needs your answer"; the lane line sits under the lane title with when the scores were
+  posted (*updated 12 min ago*, *just now*). `GET /api/tickets/board` carries `roi: { score, note, badge }`
+  on each lane card, `roi_summary: { text, at, actor }` and `roi_snapshot: { at, actor, scores, summary,
+  stale }` (null when nothing was posted); `GET /api/tickets/SB-12` carries `roi`.
 - **Stale**: a snapshot older than 6 hours is ignored (no badge, no line), so an installation that
-  stops posting never leaves old scores on your cards. Post again at each pass.
+  stops posting never leaves old scores on your cards. The lane says *Scores out of date* with when
+  they were last posted, instead of letting them vanish without a word. Post again at each pass.
 
 The board never computes a score: the formula is the installation's.
 

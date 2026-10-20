@@ -65,6 +65,11 @@ test('freshness and format', () => {
   assert.deepEqual([formatRoi(42.4), formatRoi(9.94), formatRoi(0.25), formatRoi('x')], ['42', '9.9', '0.3', '']);
 });
 
+test('format: never a bare 0; "<0.1" under 0.05, a decimal point, the integer from 10 up', () => {
+  assert.deepEqual([0, 0.04, 0.049, 0.05, 0.1, 9.96, 10, 1_000_000].map(formatRoi), ['<0.1', '<0.1', '<0.1', '0.1', '0.1', '10', '10', '1000000']);
+  for (const n of [0, 0.04, 0.3, 2.5, 12]) assert.doesNotMatch(formatRoi(n), /,|^0$|ROI/, String(n));
+});
+
 test('lane order (0.9.5): the score orders nothing; priority, then the oldest wait', () => {
   const lane = [
     { key: 'unscored-unblocks', unlocks: 3, priority: 'P0', status_at: 2 },
@@ -132,6 +137,24 @@ test('store: a stale snapshot does not show, but GET says it is stale', async ()
   const g = store.getRoi();
   assert.equal(g.stale, true);
   assert.equal(g.summary, 'line');
+});
+
+test('store: the board says when the snapshot was posted, and that it is stale rather than nothing', async () => {
+  const { store, mk, tick, now } = await laneStore({ roiTtlMs: 60_000 });
+  const a = mk('scored');
+  assert.equal(store.ticketBoard({}).roi_snapshot, null, 'nothing posted yet');
+  const at = now();
+  store.setRoi({ summary: 'line', scores: [{ key: a.key, score: 3 }] }, { actor: 'ops/scorer' });
+  assert.deepEqual(store.ticketBoard({}).roi_snapshot, { at, actor: 'ops/scorer', scores: 1, summary: true, stale: false });
+  tick(60_001);
+  const board = store.ticketBoard({});
+  assert.equal(board.columns.waiting[0].roi, null, 'the stale score still does not show');
+  assert.deepEqual(board.roi_snapshot, { at, actor: 'ops/scorer', scores: 1, summary: true, stale: true });
+  // Scores without a lane line: the time is known, the poster is not (it is kept with the line).
+  store.setRoi({ scores: [{ key: a.key, score: 3 }] });
+  assert.deepEqual(store.ticketBoard({}).roi_snapshot, { at: now(), actor: null, scores: 1, summary: false, stale: false });
+  store.setRoi({ scores: [] });
+  assert.equal(store.ticketBoard({}).roi_snapshot, null, 'an empty snapshot clears it');
 });
 
 test('store: a score does not lift a ticket over the 200-card cap; priority does', async () => {
@@ -216,13 +239,89 @@ test('api: PUT /api/roi by the named agent, GET by anyone who reads; others get 
 
 test('page: the badge, the lane line and the ticket line are drawn, escaped, from the API fields', () => {
   assert.match(page, /id="roi-waiting"/);
-  assert.match(page, /class="tag roi" title="\$\{esc\(roiTitle\(t\)\)\}"/);
+  // The card's badge is a button (a tap shows the reason), its reason box follows the tags.
+  assert.match(page, /if \(t\.column === 'waiting' && t\.roi\) out\.push\(roiBadge\(t\)\)/);
+  assert.match(page, /<div class="tags">\$\{tags\(t, now\)\}<\/div>\$\{roiTap\(t\)\}/);
+  assert.match(page, /if \(act === 'roiNote'\) \{/);
   // 0.9.5: the badge when the installation sent one, and the title says it orders nothing.
   assert.match(page, /function roiText\(t\) \{ return t\.roi\?\.badge \|\|/);
   assert.match(page, /it does not order your lane/);
-  assert.match(page, /setHtml\(rn, rs \? `<b>⚡<\/b>\$\{esc\(rs\.text\)\}`/);
+  assert.match(page, /const rh = roiHead\(b\.roi_summary, b\.roi_snapshot,/);
   assert.match(page, /\$\{roiLine\(t\)\}/);
   assert.match(page, /--roi:/);
+});
+
+// The helpers run as shipped: lifted out of server/page.html, with the page's own esc and freshness.
+function pageRoi() {
+  const cut = (a, b) => {
+    const from = page.indexOf(a);
+    const to = page.indexOf(b, from);
+    assert.ok(from > 0 && to > from, `${a} found in page.html`);
+    return page.slice(from, to);
+  };
+  const src = [page.match(/^\s*const esc = .*$/m)[0], cut('function freshness(', '// ---- end freshness'), cut('// ---- roi helpers', '// ---- end of roi helpers ----'), cut('function ago(ms, now)', 'const when = (ms)')].join('\n');
+  return new Function('isOpen', `${src}\nreturn { roiNum, roiText, roiTitle, roiBadge, roiTap, roiHead, roiOpen, agoPhrase, ROI_DEFINITION };`)((t) => t.status !== 'done' && t.status !== 'cancelled');
+}
+
+test('page: the badge is the badge as sent, else the bare score; never "ROI", never a bare 0', () => {
+  const { roiNum, roiText, roiBadge } = pageRoi();
+  assert.deepEqual([0, 0.04, 0.05, 0.25, 2.5, 9.96, 12.4].map(roiNum), [0, 0.04, 0.05, 0.25, 2.5, 9.96, 12.4].map(formatRoi), 'the same rule as lib/roi.mjs');
+  const card = (roi) => ({ key: 'ALV-7', column: 'waiting', status: 'waiting_on_user', roi });
+  assert.equal(roiText(card({ score: 12.4 })), '12');
+  assert.equal(roiText(card({ score: 0.03 })), '<0.1');
+  assert.equal(roiText(card({ score: 0 })), '<0.1');
+  assert.equal(roiText(card({ score: 2.5, badge: 'unblocks the agents ~0.1 pt' })), 'unblocks the agents ~0.1 pt', 'a badge shows as sent');
+  const html = roiBadge(card({ score: 0.03, note: 'unblocks <1 job' }));
+  assert.match(html, /^<button type="button" class="tag roi" data-act="roiNote" data-key="ALV-7" aria-expanded="false"/);
+  assert.match(html, />⚡ &lt;0\.1<\/button>$/);
+  assert.doesNotMatch(html, /ROI \d|⚡ 0</);
+  assert.match(html, /unblocks &lt;1 job/, 'the reason is escaped');
+});
+
+test('page: the tooltip says what pt is, in the README\'s words; a tap opens the reason', () => {
+  const { roiTitle, roiTap, roiOpen, ROI_DEFINITION } = pageRoi();
+  assert.match(ROI_DEFINITION, /installation posted, in its own points \(pt\)/);
+  assert.match(ROI_DEFINITION, /The board never computes it/);
+  assert.match(roiTitle({ roi: { score: 1, note: 'unblocks 1 job' } }), /^unblocks 1 job\. ⚡ is a score/);
+  const t = { key: 'ALV-7', column: 'waiting', status: 'waiting_on_user', roi: { score: 1, note: 'unblocks 1 job' } };
+  assert.match(roiTap(t), /^<div class="roiTap" id="roiTap-ALV-7" hidden>unblocks 1 job<small>/);
+  roiOpen.add('ALV-7');
+  assert.match(roiTap(t), /^<div class="roiTap" id="roiTap-ALV-7">/, 'stays open across redraws');
+  assert.equal(roiTap({ ...t, column: 'todo' }), '', 'only on the lane');
+  assert.equal(roiTap({ ...t, roi: null }), '');
+});
+
+test('page: the lane head says when the scores were posted, and says they are out of date', () => {
+  const { roiHead } = pageRoi();
+  const NOW = 1_800_000_000_000;
+  const rs = { text: '~2 pts wait on you', at: NOW - 12 * 60_000, actor: 'ops' };
+  const fresh = roiHead(rs, { at: rs.at, actor: 'ops', scores: 3, summary: true, stale: false }, true, NOW);
+  assert.equal(fresh.stale, false);
+  assert.match(fresh.html, /^<b>⚡<\/b>~2 pts wait on you<span class="roiWhen" id="roi-when" data-at="\d+">updated 12 min ago<\/span>$/);
+  assert.match(fresh.title, /^Posted by ops, /);
+  const now = roiHead({ ...rs, at: NOW - 20_000 }, { at: NOW - 20_000, scores: 1, summary: true, stale: false }, true, NOW);
+  assert.match(now.html, /updated just now/);
+  assert.doesNotMatch(now.html, /now ago/);
+  // Scores without a lane line still say when they were posted.
+  assert.match(roiHead(null, { at: NOW - 2 * 3600_000, actor: null, scores: 2, summary: false, stale: false }, true, NOW).html, /updated 2 h ago/);
+  // Past 6 h the scores are gone from the cards, and the lane says so instead of nothing.
+  const stale = roiHead(null, { at: NOW - 7 * 3600_000, actor: 'ops', scores: 3, summary: true, stale: true }, false, NOW);
+  assert.equal(stale.stale, true);
+  assert.equal(stale.html, '<b>⚡</b>Scores out of date: last posted 7 h ago. They come back when the installation posts again.');
+  assert.match(stale.title, /^Last posted by ops, /);
+  assert.equal(roiHead(null, null, false, NOW), null, 'nothing posted, nothing shown');
+  assert.equal(roiHead(null, { at: NOW - 60_000, scores: 0, summary: false, stale: false }, false, NOW), null, 'an empty snapshot');
+  // An older server sends no roi_snapshot: the lane line's own time.
+  assert.match(roiHead(rs, undefined, false, NOW).html, /updated 12 min ago/);
+});
+
+test('page: "ago" in a sentence never reads "now ago"', () => {
+  const { agoPhrase } = pageRoi();
+  const NOW = 1_800_000_000_000;
+  assert.equal(agoPhrase(NOW - 10_000, NOW), 'just now');
+  assert.equal(agoPhrase(NOW - 5 * 60_000, NOW), '5m ago');
+  assert.equal(agoPhrase(NOW - 3 * 86400_000, NOW), '3d ago');
+  assert.match(agoPhrase(NOW - 90 * 86400_000, NOW), /^on \S/);
 });
 
 test('text board (/board): the lane line on top, the score and its reason under the card', async () => {
@@ -231,7 +330,9 @@ test('text board (/board): the lane line on top, the score and its reason under 
   store.setRoi({ summary: '~2 pts wait on you', scores: [{ key: a.key, score: 12, note: 'unblocks 1 job' }] });
   const text = renderTicketsText(store.ticketBoard({}));
   assert.match(text, /^⚡ ~2 pts wait on you\nWAITING ON YOU \(1\)/);
-  assert.match(text, /⚡ ROI 12 · unblocks 1 job/);
+  assert.match(text, /⚡ 12 · unblocks 1 job/);
+  store.setRoi({ scores: [{ key: a.key, score: 0.04, note: 'unblocks a little' }] });
+  assert.match(renderTicketsText(store.ticketBoard({})), /⚡ <0\.1 · unblocks a little/, 'never a bare 0');
   store.setRoi({ scores: [{ key: a.key, score: 12, note: 'unblocks 1 job', badge: 'unblocks the agents ~2 pts' }] });
   assert.match(renderTicketsText(store.ticketBoard({})), /⚡ unblocks the agents ~2 pts · unblocks 1 job/);
 });

@@ -725,8 +725,16 @@
     .tag.unlocks { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
     /* 0.5.12: a score the installation posted (lib/roi.mjs), its reason on hover and in the ticket */
     .tag.roi { background: var(--roi-soft); color: var(--roi); font-weight: 600; cursor: help; }
+    /* 0.9.x: on a card the badge is a button; a tap shows the reason under it (a phone has no hover) */
+    button.tag.roi { font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+    button.tag.roi:hover, button.tag.roi[aria-expanded="true"] { color: var(--roi); background: var(--roi-soft); box-shadow: inset 0 0 0 1px var(--roi); }
+    .roiTap { margin: 8px 0 0 17px; padding: 6px 9px; border-radius: 8px; background: var(--roi-soft); color: var(--text); font-size: 12.5px; line-height: 1.4; }
+    .roiTap small { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; }
     .roiNote { margin: -4px 8px 10px; padding: 7px 10px; border-radius: 8px; background: var(--roi-soft); color: var(--text); font-size: 12.5px; line-height: 1.4; }
     .roiNote b { color: var(--roi); font-weight: 600; margin-right: 4px; }
+    .roiNote .roiWhen { margin-left: 6px; color: var(--muted); font-size: 11.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .roiNote.stale { background: var(--chip); border: 1px dashed var(--line-strong); color: var(--muted); }
+    .roiNote.stale b { color: #d8a03a; }
     .roiLine { display: flex; gap: 8px; align-items: baseline; margin: 0 0 12px; font-size: 13px; color: var(--muted); }
     .roiLine .tag { flex: none; }
     .tag.snoozed { background: var(--chip); color: var(--muted); }
@@ -1073,6 +1081,11 @@
         const d = Math.round(h / 24);
         return d < 45 ? `${d}d` : new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
       }
+      /** `ago` inside a sentence: "just now", "12m ago", or "on Oct 3" past 45 days (never "now ago"). */
+      function agoPhrase(ms, now) {
+        const a = ago(ms, now);
+        return a === 'now' ? 'just now' : /^\d+[mhd]$/.test(a) ? `${a} ago` : `on ${a}`;
+      }
       const when = (ms) => new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       const repoName = (r) => (r ? r.split('/').pop() : '');
       const STATUS = { todo: 'To do', in_progress: 'In progress', waiting_on_user: 'Waiting on you', review: 'Review', done: 'Done', cancelled: 'Cancelled', failed: 'Failed', on_hold: 'On hold' };
@@ -1411,7 +1424,7 @@
 
       function tags(t, now, opts = {}) {
         const out = [];
-        if (t.column === 'waiting' && t.roi) out.push(`<span class="tag roi" title="${esc(roiTitle(t))}" aria-label="${esc(roiText(t))}${t.roi.note ? ': ' + esc(t.roi.note) : ''}">⚡ ${esc(roiText(t))}</span>`);
+        if (t.column === 'waiting' && t.roi) out.push(roiBadge(t));
         if (t.column === 'waiting' && t.unlocks > 0) out.push(`<span class="tag unlocks" title="Your answer unblocks ${t.unlocks} open ticket${t.unlocks === 1 ? '' : 's'} or job${t.unlocks === 1 ? '' : 's'}">unblocks ${t.unlocks}</span>`);
         if (t.column === 'waiting' && t.gesture && !t.ask?.complete && !opts.noReply) out.push(`<button type="button" class="tag reply" data-open="${esc(t.key)}" aria-label="Reply to ${esc(t.key)}">Reply ›</button>`);
         if (t.snoozed_until) out.push(`<span class="tag snoozed" title="Comes back on ${esc(when(t.snoozed_until))}">⏸ until ${esc(new Date(t.snoozed_until).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span><button type="button" class="tag" data-ask="wake" data-key="${esc(t.key)}" aria-label="Bring ${esc(t.key)} back to your lane now">Back now</button>`);
@@ -1487,15 +1500,49 @@
         const q = t.ask?.question || plain(t.title);
         return `<div class="replyBar" id="replyBar"><div class="rbQ" title="${esc(q)}">${esc(q)}</div>${b}</div>`;
       }
-      /** 0.5.12: a score the installation posted, as on the card (`⚡ ROI 42`), how much an answer is worth (lib/roi.mjs). */
-      function roiNum(n) { const v = Number(n); return !Number.isFinite(v) ? '' : v >= 10 ? String(Math.round(v)) : String(Math.round(v * 10) / 10); }
-      /** 0.9.5: the installation's badge ("unblocks the agents ~2 pts"), else the bare score. Information: it orders nothing. */
-      function roiText(t) { return t.roi?.badge || `ROI ${roiNum(t.roi?.score)}`; }
-      function roiTitle(t) { return `${t.roi?.note || 'Score posted by the installation'}. What your answer is worth to the agents: shown for information, it does not order your lane.`; }
+      // ---- roi helpers (0.5.12): a score the installation posted, how much an answer is worth to the agents (lib/roi.mjs)
+      /** The score as a card reads it (lib/roi.mjs formatRoi): an integer from 10 up, one decimal below, "<0.1" under 0.05, never a bare 0. */
+      function roiNum(n) { const v = Number(n); return !Number.isFinite(v) ? '' : v < 0.05 ? '<0.1' : v >= 10 ? String(Math.round(v)) : String(Math.round(v * 10) / 10); }
+      /** 0.9.5: the installation's badge ("unblocks the agents ~2 pts"), shown as sent, else the bare score. Information: it orders nothing. */
+      function roiText(t) { return t.roi?.badge || roiNum(t.roi?.score); }
+      /** What ⚡ and "pt" mean, in the README's words: the installation's own points, not the board's. */
+      /** Cards whose reason is open (a tap on ⚡): kept across redraws. */
+      const roiOpen = new Set();
+      const ROI_DEFINITION ='⚡ is a score the installation posted, in its own points (pt): what your answer is worth to the agents. The board never computes it, the formula is the installation\'s. Shown for information, it does not order your lane.';
+      function roiTitle(t) { return `${t.roi?.note || 'Score posted by the installation'}. ${ROI_DEFINITION}`; }
+      /** The card's badge: a button, so a tap shows the reason on a phone (roiTap); the title stays for a mouse. */
+      function roiBadge(t) {
+        const k = esc(t.key), open = roiOpen.has(t.key);
+        return `<button type="button" class="tag roi" data-act="roiNote" data-key="${k}" aria-expanded="${open}" aria-controls="roiTap-${k}" title="${esc(roiTitle(t))}" aria-label="⚡ ${esc(roiText(t))}: ${esc(t.roi.note || 'Score posted by the installation')}">⚡ ${esc(roiText(t))}</button>`;
+      }
+      /** The reason under the badge, open while its key is in roiOpen. */
+      function roiTap(t) {
+        if (t.column !== 'waiting' || !t.roi) return '';
+        const k = esc(t.key);
+        return `<div class="roiTap" id="roiTap-${k}"${roiOpen.has(t.key) ? '' : ' hidden'}>${esc(t.roi.note || 'Score posted by the installation')}<small>${esc(ROI_DEFINITION)}</small></div>`;
+      }
       function roiLine(t) {
         if (!t.roi || !isOpen(t)) return '';
         return `<div class="roiLine" title="${esc(roiTitle(t))}"><span class="tag roi">⚡ ${esc(roiText(t))}</span><span>${esc(t.roi.note || 'Score posted by the installation')}</span></div>`;
       }
+      /**
+       * The note at the head of the lane: the installation's line and when the scores were posted, or, once the
+       * snapshot is past its 6 h, a "scores out of date" line instead of scores that vanish without a word.
+       * `snap` is the board's roi_snapshot ({ at, actor, scores, stale }); an older server sends none.
+       */
+      function roiHead(rs, snap, anyScore, now) {
+        const at = Number(snap?.at ?? rs?.at);
+        const by = snap?.actor || rs?.actor || 'the installation';
+        const since = freshness(at, now, Infinity);
+        if (snap?.stale && (snap.scores > 0 || snap.summary)) {
+          return { stale: true, title: `Last posted by ${by}, ${since.title.replace(/^Data as of /, '')}`, html: `<b>⚡</b>Scores out of date: last posted ${esc(since.text.replace(/^updated /, ''))}. They come back when the installation posts again.` };
+        }
+        if (!rs && !anyScore) return null;
+        const text = rs ? esc(rs.text) : 'Scores posted by the installation, what your answers are worth to the agents';
+        const when = since.text ? `<span class="roiWhen" id="roi-when" data-at="${at}">${esc(since.text)}</span>` : '';
+        return { stale: false, title: since.title ? `Posted by ${by}, ${since.title.replace(/^Data as of /, '')}` : `Posted by ${by}`, html: `<b>⚡</b>${text}${when}` };
+      }
+      // ---- end of roi helpers ----
       /** What we need from you, highlighted above the details of an open ticket. */
       function askBox(t) {
         const a = t.ask;
@@ -1811,7 +1858,7 @@
           <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${replyTag(t)}${prio(t.priority, t)}<span class="key">${esc(t.key)}</span>${doneBtn(t)}</div>
           ${r ? `<div class="reason">${r}</div>` : ''}${note ? `<div class="note">${note}</div>` : ''}${ask?.complete ? `<div class="note askFb"><b>No answer:</b> ${esc(plain(ask.sansReponse))}</div>` : ''}
           ${asks(t)}
-          <div class="tags">${tags(t, now)}</div>
+          <div class="tags">${tags(t, now)}</div>${roiTap(t)}
         </article>`;
       }
 
@@ -2005,12 +2052,14 @@
         $('holdBox').hidden = !c.onHold;
         $('holdLabel').textContent = `${c.onHold || 0} on hold, back by themselves`;
         $('n-waiting').classList.toggle('hot', (c.waiting || 0) > 0);
-        // 0.5.12: the installation's line for the whole lane ("what waits on you"), when a fresh one was posted.
-        const rs = b.roi_summary;
+        // 0.5.12: the installation's line for the whole lane ("what waits on you"), when a fresh one was posted;
+        // when the scores were posted, and a word when they are out of date (roiHead).
+        const rh = roiHead(b.roi_summary, b.roi_snapshot, (b.columns?.waiting || []).some((t) => t.roi), now);
         const rn = $('roi-waiting');
-        rn.hidden = !rs;
-        setHtml(rn, rs ? `<b>⚡</b>${esc(rs.text)}` : '');
-        rn.title = rs ? `Posted by ${rs.actor || 'the installation'}, ${ago(rs.at, now)} ago` : '';
+        rn.hidden = !rh;
+        rn.classList.toggle('stale', !!rh?.stale);
+        setHtml(rn, rh ? rh.html : '');
+        rn.title = rh ? rh.title : '';
         $('doneBox').hidden = !c.done;
         $('doneLabel').textContent = `${c.done || 0} done`;
         summary(c);
@@ -2391,6 +2440,9 @@
           p.title = g.title;
           p.classList.toggle('stale', g.stale);
         }
+        // When the lane's scores were posted (roiHead), kept current between two redraws.
+        const rw = $('roi-when');
+        if (rw) rw.textContent = freshness(Number(rw.dataset.at), Date.now(), Infinity).text;
       }
       async function loadFreshness() {
         try {
@@ -2654,7 +2706,7 @@
       function holdSection(t) {
         const h = t.hold;
         if (h) {
-          const by = h.set_by ? ` · set by ${esc(actorName(h.set_by))}, ${esc(ago(h.set_at, Date.now()))} ago` : '';
+          const by = h.set_by ? ` · set by ${esc(actorName(h.set_by))}, ${esc(agoPhrase(h.set_at, Date.now()))}` : '';
           return `<div class="sect">On hold</div><div class="holdBox"><div class="holdNow">Waits for <b>${esc(h.waits_for)}</b>, then <b>${esc(h.next_text)}</b>.${h.note ? ' ' + esc(h.note) : ''}${h.stuck ? `<br><span class="tag hold stuck">⚠ ${esc(h.stuck)}</span>` : ''}<div class="muted">It comes back by itself${by}.</div></div><div class="row"><button type="button" class="btn" data-act="unhold">Lift the hold now</button></div></div>`;
         }
         const open = (t.blocked_by || []).filter((b) => b.status !== 'done' && b.status !== 'cancelled').map((b) => b.key).join(', ');
@@ -2718,7 +2770,7 @@
               <span class="lab">Session</span>${sess}
               <span class="lab">Context</span><div class="ctx">${ctx.join('')}</div>
               ${t.parent_key ? `<span class="lab">Parent</span><div class="ctx"><button type="button" class="tag" data-open="${esc(t.parent_key)}">${esc(t.parent_key)} ${esc((t.parent_title || '').slice(0, 50))}</button></div>` : ''}
-              <span class="lab">Created</span><span>${t.created_by ? who(t.created_by) + ' · ' : ''}${esc(when(t.created_at))} · updated ${ago(t.updated_at, now)} ago</span>
+              <span class="lab">Created</span><span>${t.created_by ? who(t.created_by) + ' · ' : ''}${esc(when(t.created_at))} · updated ${agoPhrase(t.updated_at, now)}</span>
             </div>
             ${t.kind === 'feedback' && t.status !== 'done' && t.status !== 'cancelled' ? `<div class="resolve"><textarea id="resolution" data-limit="comment" placeholder="Resolution: what was done, or why not (kept in the history)"></textarea><div class="acts"><button type="button" class="btn" data-act="fbCancel">Won't do</button><button type="button" class="btn primary" data-act="fbDone">Mark handled</button></div></div>` : ''}
             <div class="formActs" id="saveBar" hidden><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="revert">Discard</button><button type="submit" class="btn primary" title="${esc(sendHint('save'))}">Save</button></div>
@@ -3043,6 +3095,17 @@
         }
         if (el.dataset.open) return openPanel(el.dataset.open);
         const act = el.dataset.act;
+        if (act === 'roiNote') {
+          // The ⚡ badge of a card: show or hide its reason, without opening the card.
+          e.preventDefault();
+          e.stopPropagation();
+          const k = el.dataset.key, open = !roiOpen.has(k);
+          if (open) roiOpen.add(k); else roiOpen.delete(k);
+          el.setAttribute('aria-expanded', String(open));
+          const box = document.getElementById('roiTap-' + k);
+          if (box) box.hidden = !open;
+          return;
+        }
         if (act === 'helpClose') return closeHelp();
         if (act === 'close') return closePanel();
         if (act === 'expand') return isNarrow() ? readWholeTicket() : setExpanded(!isExpanded());
