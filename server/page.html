@@ -829,6 +829,8 @@
     .dep.closed .tt { color: var(--faint); text-decoration: line-through; }
     .dep .rm { border: 0; background: none; color: var(--faint); width: 22px; height: 22px; border-radius: 6px; font-size: 15px; }
     .dep .rm:hover { background: var(--danger-soft); color: var(--danger); }
+    .dep .relWhy { color: var(--faint); font-size: 11px; white-space: nowrap; }
+    .relRow.closed { opacity: 0.6; }
     .depAdd { display: flex; gap: 6px; margin-top: 6px; }
     .depAdd input { width: 110px; height: 28px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--card); padding: 0 8px; }
     .depAdd .btn { height: 28px; }
@@ -1295,6 +1297,9 @@
       'Dependencies': 'Dépendances',
       'Blocked by': 'Bloqué par',
       'Blocks': 'Bloque',
+      'Related': 'Liées',
+      'Sub-ticket': 'Sous-ticket',
+      'Same front': 'Même front',
       'Add a ticket that blocks this one': 'Ajouter un ticket qui bloque celui-ci',
       'Add a ticket this one blocks': 'Ajouter un ticket que celui-ci bloque',
       'Add': 'Ajouter',
@@ -3130,6 +3135,17 @@
           .map((d) => `<div class="dep${d.status === 'done' || d.status === 'cancelled' ? ' closed' : ''}" data-open="${esc(d.key)}"><span class="dot" data-s="${esc(d.status)}"></span><span class="k">${esc(d.key)}</span><span class="tt" title="${ttl(d.title)}">${ttl(d.title)}</span><button type="button" class="rm" data-undep="${esc(d.key)}" data-rel="${rel}" title="Remove this dependency" aria-label="Remove">×</button></div>`)
           .join('');
       }
+      // ---- related (0.9.13)
+      /** The "Related" section of the detail: sub-tickets, blockers, blocked, same front; closed ones greyed. Open at 5 entries or fewer. */
+      function relatedSection(list) {
+        if (!list?.length) return '';
+        const REL = { child: tr('Sub-ticket'), blocked_by: tr('Blocked by'), blocks: tr('Blocks'), front: tr('Same front') };
+        const rows = list
+          .map((r) => `<div class="dep relRow${r.status === 'done' || r.status === 'cancelled' ? ' closed' : ''}" data-open="${esc(r.key)}" tabindex="0"><span class="dot" data-s="${esc(r.status)}"></span><span class="k">${esc(r.key)}</span><span class="tt" title="${ttl(r.title)}">${ttl(r.title)}</span><span class="relWhy">${esc(REL[r.rel] || r.rel)}</span></div>`)
+          .join('');
+        return `<details class="related"${list.length <= 5 ? ' open' : ''}><summary class="sect" style="cursor:pointer">${tr('Related')} · ${list.length}</summary><div class="deps">${rows}</div></details>`;
+      }
+      // ---- end of related
       // The people and lasting agents first, by name; one-off runs (`…/job-12`, `…/wake-7`) under « Others », newest
       // first. Two actors with the same name show their id, so « Kaa » and « Kaa » can be told apart.
       const assigneeOpts = (cur) => {
@@ -3231,6 +3247,7 @@
               <div><h4>${tr('Blocked by')}</h4><div class="deps">${depList(t.blocked_by, 'by')}</div><div class="depAdd"><input id="addBlocker" placeholder="${keyPrefix(t.key)}-12" aria-label="${tr('Add a ticket that blocks this one')}" autocomplete="off"><button type="button" class="btn" data-act="addBlocker">${tr('Add')}</button></div></div>
               <div><h4>${tr('Blocks')}</h4><div class="deps">${depList(t.blocking, 'blocks')}</div><div class="depAdd"><input id="addBlocked" placeholder="${keyPrefix(t.key)}-14" aria-label="${tr('Add a ticket this one blocks')}" autocomplete="off"><button type="button" class="btn" data-act="addBlocked">${tr('Add')}</button></div></div>
             </div>`}
+            ${relatedSection(t.related)}
             <div class="sect">${tr('History')}</div>
             <div class="timeline">${(t.events || []).map(eventLine).join('')}</div>
             <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" data-limit="comment" placeholder="${tr('Add a comment…')}" aria-label="${tr('Comment')}"></textarea><div class="pend" id="pendingPics"></div><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts">${attachButton('attachFile')}<button type="button" class="btn" data-act="newChild">${tr('Add sub-ticket')}</button><button type="button" class="btn" data-act="comment">${tr('Comment')}</button></div></div>

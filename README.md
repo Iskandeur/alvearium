@@ -196,6 +196,13 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
   nothing blocks (to do and in progress), most important first, then your manual order, then the
   oldest. Session, question and feedback tickets are not work and stay out. Same filters as the list
   (repo, session, actor, assignee, label…), plus the number of blocked tickets left aside.
+- **Related (0.9.13)**: the ticket panel lists, under *Related*, its sub-tickets, the tickets blocking
+  it, the tickets it blocks, and the tickets of the same front: when the ticket carries
+  `<label>-id:<name>` (`front-id:<name>` by default), every ticket with a label ending in `:<name>`
+  (the same id, or a label such as `card-of:<name>` that points at it). Closed ones are greyed, each
+  opens on a click; the section is open up to 5 entries, collapsed above, absent when empty. The
+  server computes it: `GET /api/tickets/SB-12` carries `related: [{ key, title, status, rel }]`
+  (`rel` is `child`, `blocked_by`, `blocks` or `front`), 50 entries at most.
 
 ## Reading and writing long tickets (0.5.10)
 
