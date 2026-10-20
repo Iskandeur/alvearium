@@ -39,6 +39,7 @@
     { "method": "POST", "path": "/api/actors/:id", "from": ["clients"], "proxy": true, "example": "/api/actors/user" },
     { "method": "GET", "path": "/api/facets", "from": ["page", "clients"], "proxy": true },
     { "method": "GET", "path": "/api/sessions", "from": ["clients"], "proxy": true },
+    { "method": "GET", "path": "/api/sessions/taggable", "from": ["page"], "proxy": true, "note": "the sessions the @ list of a comment offers" },
     { "method": "DELETE", "path": "/api/sessions/:id", "from": ["clients"], "proxy": true, "example": "/api/sessions/s1" },
     { "method": "GET", "path": "/api/me", "from": ["page"], "proxy": true },
     { "method": "POST", "path": "/api/session", "from": ["page"], "proxy": false, "note": "échange un jeton contre un cookie : le proxy porte déjà son propre Bearer, un cookie du serveur n'y a pas de sens" },

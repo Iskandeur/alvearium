@@ -126,6 +126,16 @@
     .news.update { align-items: center; padding-top: 9px; padding-bottom: 9px; padding-right: 14px; }
     @media (min-width: 1100px) { .news ul { columns: 2; column-gap: 32px; } }
     @media (max-width: 600px) { .news { gap: 10px; padding: 10px 40px 10px 12px; } .news .newsIc { display: none; } .news .newsActs { margin-left: 0; } .news.update .newsActs { margin-left: auto; } }
+    /* 0.9.6: on a phone the note is one line until opened (it pushed « Waiting on you » below the fold); hidden while searching */
+    .news .newsFold { display: none; }
+    .news.searching:not(.update) { display: none; }
+    @media (max-width: 600px) {
+      .news:not(.update) { margin-bottom: 10px; padding-top: 6px; padding-bottom: 6px; }
+      .news .newsFold { display: inline; }
+      .news:not(.unfolded):not(.update) ul, .news:not(.unfolded):not(.update) .newsMore, .news:not(.unfolded):not(.update) .newsActs { display: none; }
+      .news .x { top: 2px; }
+    }
+    @media (max-width: 420px) { .filters .seg button { padding: 0 7px; font-size: 12.5px; } .filters .seg button svg { display: none; } }
 
     /* Filter bar */
     .filters { display: flex; align-items: center; gap: 8px; padding-top: 2px; padding-bottom: 12px; flex-wrap: wrap; }
@@ -836,6 +846,10 @@
     @media (max-width: 900px) {
       .nrow { grid-template-columns: 30px minmax(0, 1fr) auto 30px 32px; gap: 8px; padding: 10px 12px; }
       .nrow .pos { display: none; }
+      /* 0.9.6: on a phone the title takes two lines and the meta line wraps, so the ticket key is never cut */
+      .nrow .tt { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow-wrap: anywhere; }
+      .nrow .sub { flex-wrap: wrap; white-space: normal; row-gap: 2px; }
+      .nrow .sub > span { white-space: nowrap; }
       .depCols { grid-template-columns: 1fr; }
       .fbList .row { grid-template-columns: minmax(0, 1fr) auto; }
       .fbList .row .ft { grid-column: 1; grid-row: 2; padding-left: 16px; }
@@ -871,6 +885,8 @@
       body { overflow-x: hidden; }
       .filters::-webkit-scrollbar { display: none; }
       .filters > * { flex: none; }
+      /* 0.9.6: the row scrolls sideways; a fading right edge says there is more (it looked cut), and the end can scroll past it */
+      .filters { padding-right: 28px; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
       .row { grid-template-columns: minmax(0, 1fr) auto 32px; gap: 4px 10px; }
       .row .dn { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
       .row .k { order: 2; grid-column: 2; grid-row: 1; text-align: right; }
@@ -1121,6 +1137,12 @@
         return { id, type: sub ? 'subagent' : 'agent', name: sub ? sid.split('/').pop() : sid || '?' };
       }
       const actorName = (id) => actor(id).name;
+      // A one-off run of an agent (`bot/job-1365`, `bot/wake-12`): a sub-actor whose own part ends in a number. Returns
+      // that number (to sort newest first), or 0 for a lasting actor.
+      const ephemeralActor = (id) => {
+        const m = /\/[\p{L}-]*?-(\d{1,12})$/u.exec(String(id || ''));
+        return m ? Number(m[1]) || 1 : 0;
+      };
       const actorIdTitle = (id) => {
         const sid = String(id || '');
         if (!sid || sid === 'user' || sid === 'claude' || sid === 'hook') return '';
@@ -1940,7 +1962,10 @@
         const seg = [['board', 'Board'], ['next', 'Next'], ['list', 'List'], ['matrix', 'Matrix'], ['projects', 'Projects']].map(([v, l]) => `<button type="button" data-view="${v}" aria-pressed="${state.view === v}"${v === 'matrix' ? ' title="Important × urgent: your tickets on a 2 × 2 grid (m)"' : v === 'projects' ? ' title="Long-running projects, out of the task columns (p)"' : ''}>${v === 'matrix' ? '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="1" width="4.2" height="4.2" rx="1" fill="currentColor"/><rect x="6.8" y="1" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.8" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>' : ''}${l}</button>`).join('');
         const parts = [`<div class="seg" role="group" aria-label="View">${seg}${state.view === 'feedback' ? '<button type="button" data-view="feedback" aria-pressed="true">Feedback</button>' : ''}</div>`];
         // Replies you have not read (0.5.15): a count that filters the view when pressed.
-        if (unread.size || state.unread) parts.push(`<button type="button" class="unreadBtn" data-act="unread" aria-pressed="${state.unread}" title="Tickets where someone answered you since you last opened them (u)"><span class="replyDot" aria-hidden="true"></span>${unread.size} unread ${unread.size === 1 ? 'reply' : 'replies'}</button>`);
+        // The number counts open tickets only: a reply on a closed one asks nothing, and counting it kept the number
+        // from ever going down. The filter still lists the closed ones.
+        const unreadOpen = [...unread.values()].filter((x) => x.status !== 'done' && x.status !== 'cancelled').length;
+        if (unreadOpen || state.unread) parts.push(`<button type="button" class="unreadBtn" data-act="unread" aria-pressed="${state.unread}" title="Open tickets where someone answered you since you last opened them (u)"><span class="replyDot" aria-hidden="true"></span>${unreadOpen} unread</button>`);
         for (const k of FILTERS) {
           if (!state.f[k]) continue;
           parts.push(`<span class="chip"><span><em>${esc(PICK_LABEL[k] || k)}</em> ${k === 'actor' || k === 'assignee' ? avatar(state.f[k], '', { edit: false }) + ' ' : ''}${esc(chipLabel(k, state.f[k]))}</span><button type="button" data-unfilter="${k}" aria-label="Remove filter">×</button></span>`);
@@ -1957,6 +1982,7 @@
         parts.push('<span class="spacer"></span>');
         parts.push(`<button type="button" class="clear" data-act="archived" title="Done and cancelled tickets closed more than 30 days ago">${state.archived ? 'Hide archived' : 'Show archived'}</button>`);
         setHtml($('filters'), parts.join(''));
+        $('news')?.classList.toggle('searching', !!state.q);
         $('fbBtn').setAttribute('aria-pressed', String(state.view === 'feedback'));
         $('mbBtn').setAttribute('aria-pressed', String(state.view === 'members'));
       }
@@ -2470,11 +2496,11 @@
         const n = whatsNew(served.version, prefs.get(SEEN_KEY), served.releases);
         if (!n) return void (box.hidden = true);
         const more = n.missed.length ? `<span class="newsMore">also ${n.missed.length === 1 ? esc(n.missed[0]) : n.missed.length + ' earlier versions'} since your last visit</span>` : '';
-        box.className = 'news';
+        box.className = 'news' + (state.q ? ' searching' : '');
         box.innerHTML = `
           <span class="newsIc">${ICON_NEW}</span>
           <div class="newsMain">
-            <div class="newsTop"><h2 id="newsTitle">What's new in ${esc(n.version)}</h2>${more}<div class="newsActs"><button type="button" class="linkBtn" data-act="newsAll">See all changes</button></div></div>
+            <div class="newsTop"><h2 id="newsTitle">What's new in ${esc(n.version)}</h2><button type="button" class="linkBtn newsFold" data-act="newsFold" aria-expanded="false">Show</button>${more}<div class="newsActs"><button type="button" class="linkBtn" data-act="newsAll">See all changes</button></div></div>
             <ul>${n.items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
           </div>
           <button type="button" class="x" data-act="newsClose" aria-label="Dismiss what's new in ${esc(n.version)}" title="Dismiss">×</button>`;
@@ -2574,7 +2600,12 @@
         document.querySelectorAll('.card.sel, .row.sel').forEach((el) => el.classList.remove('sel'));
         if (state.ticket) document.querySelectorAll(`[data-open="${CSS.escape(state.ticket)}"]`).forEach((el) => el.classList.add('sel'));
       }
-      const sel = (name, value, opts) => `<select name="${name}">${opts.map(([v, l]) => `<option value="${esc(v)}"${String(value ?? '') === v ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+      // An option may name a group (third item): grouped options go after the others, in one <optgroup> per group.
+      const sel = (name, value, opts) => {
+        const opt = ([v, l]) => `<option value="${esc(v)}"${String(value ?? '') === v ? ' selected' : ''}>${esc(l)}</option>`;
+        const groups = [...new Set(opts.filter((o) => o[2]).map((o) => o[2]))];
+        return `<select name="${name}">${opts.filter((o) => !o[2]).map(opt).join('')}${groups.map((g) => `<optgroup label="${esc(g)}">${opts.filter((o) => o[2] === g).map(opt).join('')}</optgroup>`).join('')}</select>`;
+      };
       /** "CI bot → You": who acted, and who it was for when there is someone. */
       function fromTo(e) {
         return who(e.actor) + (e.target ? `<span class="arrow">→</span>${who(e.target)}` : '');
@@ -2697,9 +2728,17 @@
           .map((d) => `<div class="dep${d.status === 'done' || d.status === 'cancelled' ? ' closed' : ''}" data-open="${esc(d.key)}"><span class="dot" data-s="${esc(d.status)}"></span><span class="k">${esc(d.key)}</span><span class="tt" title="${ttl(d.title)}">${ttl(d.title)}</span><button type="button" class="rm" data-undep="${esc(d.key)}" data-rel="${rel}" title="Remove this dependency" aria-label="Remove">×</button></div>`)
           .join('');
       }
+      // The people and lasting agents first, by name; one-off runs (`…/job-12`, `…/wake-7`) under « Others », newest
+      // first. Two actors with the same name show their id, so « Kaa » and « Kaa » can be told apart.
       const assigneeOpts = (cur) => {
-        const list = [['user', 'You'], ['claude', 'Claude'], ...[...actors.values()].filter((a) => !['user', 'claude', 'hook'].includes(a.id) && a.type !== 'system').map((a) => [a.id, (a.type === 'subagent' ? '↳ ' : '') + actorName(a.id)])];
-        if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur)]);
+        const rest = [...actors.values()].filter((a) => !['user', 'claude', 'hook'].includes(a.id) && a.type !== 'system');
+        const names = new Map();
+        for (const a of rest) names.set(actorName(a.id), (names.get(actorName(a.id)) || 0) + 1);
+        const label = (a) => (a.type === 'subagent' ? '↳ ' : '') + actorName(a.id) + (names.get(actorName(a.id)) > 1 ? ` (${a.id})` : '');
+        const lasting = rest.filter((a) => !ephemeralActor(a.id)).sort((a, b) => actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id));
+        const oneOff = rest.filter((a) => ephemeralActor(a.id)).sort((a, b) => ephemeralActor(b.id) - ephemeralActor(a.id) || a.id.localeCompare(b.id));
+        const list = [['user', 'You'], ['claude', 'Claude'], ...lasting.map((a) => [a.id, label(a)]), ...oneOff.slice(0, 50).map((a) => [a.id, label(a), 'Others'])];
+        if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur) + (names.has(actorName(cur)) ? ` (${cur})` : ''), ephemeralActor(cur) ? 'Others' : undefined]);
         return list;
       };
       // 0.6.0: on hold — what it waits for, what happens then; or the form to put it on hold.
@@ -2936,9 +2975,10 @@
         for (const id of actors.keys()) {
           if (!id || id === 'user' || id === 'claude' || id === 'hook') continue;
           if (!MENTION_ID.test(id)) continue;
-          list.push({ id, name: actorName(id) });
+          list.push({ id, name: actorName(id), ephemeral: ephemeralActor(id) });
         }
-        list.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+        // Lasting actors by name, then one-off runs newest first (they would bury the rest).
+        list.sort((a, b) => !!a.ephemeral - !!b.ephemeral || b.ephemeral - a.ephemeral || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
         // Live Claude Code sessions after the actors: @session/1a2b3c4d puts the comment in that session.
         for (const x of taggable.list) list.push({ id: x.handle, name: sessionLabel(x) });
         mentionActorsCache = list;
@@ -2981,11 +3021,14 @@
         if (!/^[\p{L}0-9-]{0,64}(?:\/[\p{L}0-9-]{0,64})?$/u.test(q)) return null;
         const term = q.toLowerCase();
         // A sub-actor matches by its full id, its own part after the slash, or its name.
-        const hit = (a) => {
+        // Best first: a name that starts with the term, then the actor's own part, then the full id (every sub-actor of
+        // `bot/` matches « bo »: they must not push the named ones out of the 20 shown). One-off runs come last.
+        const rank = (a) => {
           const id = a.id.toLowerCase();
-          return id.startsWith(term) || id.slice(id.indexOf('/') + 1).startsWith(term) || a.name.toLowerCase().startsWith(term);
+          const r = a.name.toLowerCase().startsWith(term) ? 0 : id.slice(id.indexOf('/') + 1).startsWith(term) ? 1 : id.startsWith(term) ? 2 : -1;
+          return r < 0 ? -1 : r + (a.ephemeral ? 3 : 0);
         };
-        const list = term ? all.filter(hit) : all;
+        const list = term ? all.map((a, i) => ({ a, i, r: rank(a) })).filter((x) => x.r >= 0).sort((x, y) => x.r - y.r || x.i - y.i).map((x) => x.a) : all;
         return { open: true, start: at, end: caret, q, list: list.slice(0, 20), sel: 0 };
       }
       // Sessions the owner can tag (GET /api/sessions/taggable), fetched when the @ list opens, at most once a minute.
@@ -3111,6 +3154,12 @@
         if (act === 'expand') return isNarrow() ? readWholeTicket() : setExpanded(!isExpanded());
         if (act === 'help') return openHelp();
         if (act === 'newsAll') { newsSeen(); return openChangelog(); }
+        if (act === 'newsFold') {
+          const open = $('news').classList.toggle('unfolded');
+          el.setAttribute('aria-expanded', String(open));
+          el.textContent = open ? 'Hide' : 'Show';
+          return;
+        }
         if (act === 'newsClose') { newsSeen(); $('news').hidden = true; return $('helpBtn').focus({ preventScroll: true }); }
         if (act === 'reload') return location.reload();
         if ((act === 'readerRendered' || act === 'readerRaw') && reader) {

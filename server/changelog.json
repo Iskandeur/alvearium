@@ -2,6 +2,17 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.6",
+      "date": "2026-10-20",
+      "items": [
+        "The Assignee menu lists people and lasting agents first; one-off runs are grouped under Others, and two actors with the same name show their id.",
+        "When you mention someone in a comment, the names that match come first and one-off runs last.",
+        "The unread counter counts open tickets only, so it goes back to zero.",
+        "On a phone: this note folds to one line, the Next view shows two-line titles and full ticket keys, and the view tabs fit.",
+        "A session is named after its first real line, not after a bracketed header a tool put above the prompt."
+      ]
+    },
+    {
       "version": "0.9.5",
       "date": "2026-10-20",
       "items": [
