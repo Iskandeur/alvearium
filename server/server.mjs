@@ -777,7 +777,8 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
       // 0.5.15: replies this reader has not read yet, and "I opened it" (any reader, viewers too).
       if (path === '/api/unread' && m === 'GET') {
         const tickets = store.unreadReplies(actorOf(req, store));
-        return send(res, 200, { count: tickets.length, tickets });
+        // 0.9.6: `open` leaves out closed tickets, a reply there asks nothing (the page shows this number).
+        return send(res, 200, { count: tickets.length, open: tickets.filter((t) => t.status !== 'done' && t.status !== 'cancelled').length, tickets });
       }
       const seenM = path.match(/^\/api\/tickets\/([\w-]{1,64})\/seen$/);
       if (seenM) {

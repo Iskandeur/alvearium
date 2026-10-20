@@ -21,7 +21,17 @@ const covers = (template, concrete) => {
   const c = segs(concrete);
   return t.length === c.length && t.every((s, i) => s.startsWith(':') || s === c[i]);
 };
-const known = (path, method) => routes.some((r) => covers(r.path, path) && (!method || r.method === method));
+/**
+ * Is this call in the contract? `:x` only stands for a segment the code fills in (`${…}`, normalized to `x`): a written
+ * word must be written in the contract too. Before 0.9.6 `/api/sessions/:id` (DELETE) covered the literal
+ * `/api/sessions/taggable`, so that route never entered the contract and a proxy kept it out (404 on the @ list).
+ */
+const coversStrict = (template, concrete) => {
+  const t = segs(template);
+  const c = segs(concrete);
+  return t.length === c.length && t.every((s, i) => (s.startsWith(':') ? c[i] === 'x' : s === c[i]));
+};
+const known = (path, method) => routes.some((r) => coversStrict(r.path, path) && (!method || r.method === method));
 /** `api/tickets/${encodeURIComponent(k)}/move?x=1` → `/api/tickets/x/move` */
 const normalize = (raw) => '/' + raw.replace(/\$\{[^}]*\}/g, 'x').replace(/\?.*$/, '').replace(/^\/+|\/+$/g, '');
 

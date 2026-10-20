@@ -10,6 +10,7 @@ import {
   findPrUrl,
   isExpired,
   promptTitle,
+  skipHeaderLines,
   label,
   renderText,
   repoFromRemote,
@@ -164,6 +165,15 @@ test('sanitizeEvent: rejects junk, clamps strings, keeps only https links', () =
   assert.equal(e.identity.url, undefined);
   assert.equal(e.identity.repo.length, 200);
   assert.equal(e.transition.pr, 'https://github.com/a/b/pull/3');
+});
+
+test('promptTitle: bracketed header lines a harness puts on top do not name the session', () => {
+  const p = '[Usage limits] 5 h: 25 % (reset 03:50) · week: 40 %\n[Load policy: save] shared plan.\n\n[Background job — isolated session]\nAudit the board on a phone\n\nMore context.';
+  assert.equal(promptTitle(p), 'Audit the board on a phone More context.');
+  assert.equal(skipHeaderLines('[WIP] fix the login\nsecond line'), '[WIP] fix the login\nsecond line', 'a one-word tag is a title');
+  assert.equal(skipHeaderLines('[Only a header here]'), '[Only a header here]', 'nothing after the headers: kept whole');
+  assert.equal(skipHeaderLines('[Image #1] what is this?\nthanks'), '[Image #1] what is this?\nthanks', 'Claude Code placeholders stay');
+  assert.equal(promptTitle('plain [two words] inside'), 'plain [two words] inside');
 });
 
 test('promptTitle: an attached upload becomes a short « 📎 name » at the end, not a path at the start', () => {

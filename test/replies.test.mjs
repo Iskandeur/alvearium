@@ -136,7 +136,16 @@ test('unread replies over HTTP: count, filter, seen from any device', async () =
     store.comment(t.key, 'answered', { actor: 'crew' });
     const u = await (await fetch(`${base}/api/unread`, { headers: h })).json();
     assert.equal(u.count, 1);
+    assert.equal(u.open, 1);
     assert.equal(u.tickets[0].key, t.key);
+    // A reply on a closed ticket stays listed, but `open` (the number the page shows) leaves it out.
+    const closed = store.createTicket({ title: 'Closed', assignee: 'crew' }, { actor: 'user' });
+    store.comment(closed.key, 'answered', { actor: 'crew' });
+    store.updateTicket(closed.key, { status: 'done' }, { actor: 'crew' });
+    const u2 = await (await fetch(`${base}/api/unread`, { headers: h })).json();
+    assert.equal(u2.count, 2);
+    assert.equal(u2.open, 1);
+    store.markSeen(closed.key, 'user');
     const board = await (await fetch(`${base}/api/tickets/board?unread=1`, { headers: h })).json();
     const keys = Object.values(board.columns).flat().map((x) => x.key);
     assert.deepEqual(keys, [t.key]);
