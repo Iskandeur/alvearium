@@ -922,36 +922,36 @@
       </div>
       <label class="search">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="m11 11 3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <input id="q" type="search" placeholder="Search tickets, comments, keys…" autocomplete="off" spellcheck="false" aria-label="Search">
+        <input id="q" type="search" placeholder="Search tickets, comments, keys…" autocomplete="off" spellcheck="false" aria-label="Search" data-i18n-attr="placeholder,aria-label">
       </label>
       <div class="summary">
         <span id="summary"></span>
-        <span class="live" id="live" title=""><i></i><span class="opt" id="liveText">Connecting</span></span>
+        <span class="live" id="live" title=""><i></i><span class="opt" id="liveText" data-i18n>Connecting</span></span>
         <span class="fresh" id="fresh" role="status" title=""></span>
       </div>
-      <button class="btn fbBtn" type="button" data-view="feedback" id="fbBtn" title="Feedback inbox: bugs, suggestions and frictions reported by sessions">
+      <button class="btn fbBtn" type="button" data-view="feedback" id="fbBtn" title="Feedback inbox: bugs, suggestions and frictions reported by sessions" data-i18n-attr="title">
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-        <span class="opt">Feedback</span><span class="n zero" id="fbCount">0</span>
+        <span class="opt" data-i18n>Feedback</span><span class="n zero" id="fbCount">0</span>
       </button>
-      <button class="btn mbBtn" type="button" data-view="members" id="mbBtn" title="Members, roles, invitations and your tokens">
+      <button class="btn mbBtn" type="button" data-view="members" id="mbBtn" title="Members, roles, invitations and your tokens" data-i18n-attr="title">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="6" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 13.5c.6-2.4 2.3-3.6 4.5-3.6s3.9 1.2 4.5 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M10.5 3.2a2.4 2.4 0 0 1 0 4.6M12.2 9.9c1.2.5 2 1.6 2.3 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-        <span class="opt">Members</span>
+        <span class="opt" data-i18n>Members</span>
       </button>
-      <button class="btn helpBtn" type="button" id="helpBtn" data-act="help" aria-label="Shortcuts and gestures" title="Shortcuts and gestures (?)">?</button>
+      <button class="btn helpBtn" type="button" id="helpBtn" data-act="help" aria-label="Shortcuts and gestures" title="Shortcuts and gestures (?)" data-i18n-attr="aria-label,title">?</button>
       <button class="btn primary" type="button" data-act="new">
         <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v9M1.5 6h9" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-        <span>New</span>
+        <span data-i18n>New</span>
       </button>
     </div>
     <div class="wrap filters" id="filters"></div>
   </header>
 
   <section id="auth" hidden>
-    <h2>Access token needed</h2>
-    <p>Paste your token once. This browser keeps a session cookie, never the token itself.</p>
+    <h2 data-i18n>Access token needed</h2>
+    <p data-i18n>Paste your token once. This browser keeps a session cookie, never the token itself.</p>
     <form id="authForm">
-      <input id="tok" type="password" placeholder="Token" autocomplete="off" spellcheck="false">
-      <button class="btn primary" type="submit">Open board</button>
+      <input id="tok" type="password" placeholder="Token" autocomplete="off" spellcheck="false" data-i18n-attr="placeholder">
+      <button class="btn primary" type="submit" data-i18n>Open board</button>
     </form>
   </section>
 
@@ -973,19 +973,19 @@
   <main class="wrap" id="main">
     <section class="news" id="news" hidden aria-labelledby="newsTitle"></section>
     <div id="boardView">
-      <section id="searchProjects" class="searchProjects" aria-label="Projects matching the search" hidden></section>
+      <section id="searchProjects" class="searchProjects" aria-label="Projects matching the search" data-i18n-attr="aria-label" hidden></section>
       <div class="grid">
         <section class="lane primary" aria-labelledby="h-waiting">
-          <div class="laneHead"><h2 id="h-waiting">Waiting on you</h2><span class="count" id="n-waiting"></span></div>
+          <div class="laneHead"><h2 id="h-waiting" data-i18n>Waiting on you</h2><span class="count" id="n-waiting"></span></div>
           <div class="roiNote" id="roi-waiting" role="note" hidden></div>
           <div class="cards" id="col-waiting"></div>
         </section>
         <section class="lane" aria-labelledby="h-progress">
-          <div class="laneHead"><h2 id="h-progress">In progress</h2><span class="count" id="n-inProgress"></span></div>
+          <div class="laneHead"><h2 id="h-progress" data-i18n>In progress</h2><span class="count" id="n-inProgress"></span></div>
           <div class="cards" id="col-inProgress"></div>
         </section>
         <section class="lane" aria-labelledby="h-todo">
-          <div class="laneHead"><h2 id="h-todo">To do</h2><span class="count" id="n-todo"></span></div>
+          <div class="laneHead"><h2 id="h-todo" data-i18n>To do</h2><span class="count" id="n-todo"></span></div>
           <div class="cards" id="col-todo"></div>
         </section>
       </div>
@@ -1012,6 +1012,333 @@
   <div class="helpScrim" id="helpScrim" hidden></div>
   <div class="help" id="help" hidden role="dialog" aria-modal="true" aria-label="Shortcuts and gestures"></div>
 
+  <script>
+    // ---- i18n (0.9.9) ----------------------------------------------------------------------------
+    // The interface reads English or French. What a ticket says (title, description, comments, its ask block) is
+    // never translated: a French ticket on an English board stays French, and the other way round.
+    // The language: ?lang=en|fr in the address, else the one this browser keeps (localStorage "alvearium.lang"),
+    // else navigator.language (fr, fr-FR, fr-CA… read French; anything else English). Dates follow it.
+    const LANGS = ['en', 'fr'];
+    function pickLang(search, stored, language) {
+      const forced = new URLSearchParams(search || '').get('lang');
+      if (LANGS.includes(forced)) return forced;
+      if (LANGS.includes(stored)) return stored;
+      return /^fr(?![a-z])/i.test(String(language || '')) ? 'fr' : 'en';
+    }
+    /** The locale of dates: French for fr; for en, the browser's own when it is an English one, else plain English. */
+    function dateLocale(lang, language) {
+      if (lang === 'fr') return 'fr-FR';
+      return /^en(?![a-z])/i.test(String(language || '')) ? String(language) : 'en';
+    }
+    // Keyed by the English text. An array is [one, several], picked by `n` (French: 0 and 1 are singular).
+    const I18N_EN = {
+      'Your answer unblocks {n} open tickets or jobs': ['Your answer unblocks {n} open ticket or job', 'Your answer unblocks {n} open tickets or jobs'],
+      '{n} sub-tickets still open': ['{n} sub-ticket still open', '{n} sub-tickets still open'],
+    };
+    const I18N_FR = {
+      // fixed markup
+      'Search tickets, comments, keys…': 'Chercher dans les tickets, commentaires, clés…',
+      'Search': 'Rechercher',
+      'Connecting': 'Connexion',
+      'Feedback inbox: bugs, suggestions and frictions reported by sessions': 'Boîte des retours : bugs, suggestions et frictions signalés par les sessions',
+      'Feedback': 'Retours',
+      'Members, roles, invitations and your tokens': 'Membres, rôles, invitations et tes jetons',
+      'Members': 'Membres',
+      'Shortcuts and gestures': 'Raccourcis et gestes',
+      'Shortcuts and gestures (?)': 'Raccourcis et gestes (?)',
+      'New': 'Nouveau',
+      'Access token needed': 'Jeton d’accès requis',
+      'Paste your token once. This browser keeps a session cookie, never the token itself.': 'Colle ton jeton une fois. Ce navigateur garde un cookie de session, jamais le jeton lui-même.',
+      'Token': 'Jeton',
+      'Open board': 'Ouvrir le tableau',
+      'Projects matching the search': 'Projets qui correspondent à la recherche',
+      'Waiting on you': 'En attente de toi',
+      'In progress': 'En cours',
+      'To do': 'À faire',
+      // live, freshness
+      'Live': 'En direct',
+      'Polling': 'Actualisation',
+      'Offline': 'Hors ligne',
+      'Locked': 'Verrouillé',
+      'Live: changes appear as they happen': 'En direct : les changements apparaissent au fil de l’eau',
+      'Live updates unavailable: refreshing every 10 s': 'Direct indisponible : actualisation toutes les 10 s',
+      'just now': 'à l’instant',
+      '{n} min ago': 'il y a {n} min',
+      '{n} h ago': 'il y a {n} h',
+      '{n} d ago': 'il y a {n} j',
+      'updated {ago}': 'mis à jour {ago}',
+      'loaded {ago}': 'chargé {ago}',
+      'Data as of {exact}': 'Données du {exact}',
+      ' — older than {n} min, may be out of date': ' — plus de {n} min, peut-être périmées',
+      // short ages
+      'now': 'à l’instant',
+      '{n}m': '{n} min',
+      '{n}h': '{n} h',
+      '{n}d': '{n} j',
+      '{a} ago': 'il y a {a}',
+      'on {a}': 'le {a}',
+      'Updated {u} · created {c}': 'Mis à jour le {u} · créé le {c}',
+      // statuses, activity, priorities
+      'Review': 'Relecture',
+      'Done': 'Terminé',
+      'Cancelled': 'Annulé',
+      'Failed': 'Échec',
+      'On hold': 'En suspens',
+      'Open': 'Ouverts',
+      'working': 'au travail',
+      'needs you': 'a besoin de toi',
+      'idle': 'inactive',
+      'closed': 'fermée',
+      'P0 · now': 'P0 · tout de suite',
+      'P1 · next': 'P1 · ensuite',
+      'P2 · normal': 'P2 · normale',
+      'P3 · later': 'P3 · plus tard',
+      'No priority': 'Sans priorité',
+      'None': 'Aucune',
+      'Priority {p}': 'Priorité {p}',
+      'Priority {p}, proposed by {by}: not yours until you set or confirm it': 'Priorité {p}, proposée par {by} : pas la tienne tant que tu ne la fixes ou ne la confirmes pas',
+      'an agent': 'un agent',
+      'You': 'Toi',
+      'Owner': 'Propriétaire',
+      'Others': 'Autres',
+      // cards
+      'Ask': 'Demande',
+      'No answer:': 'Sans réponse :',
+      'No activity for a while': 'Aucune activité depuis un moment',
+      'Waiting for you in the session': 'T’attend dans la session',
+      'the last turn errored': 'le dernier tour a échoué',
+      'Approve': 'Approuver',
+      'in the session': 'dans la session',
+      'Question': 'Question',
+      'answer in the session': 'réponds dans la session',
+      'the turn ended': 'le tour est terminé',
+      'Your answer unblocks {n} open tickets or jobs': ['Ta réponse débloque {n} ticket ou tâche ouverts', 'Ta réponse débloque {n} tickets ou tâches ouverts'],
+      'unblocks {n}': 'débloque {n}',
+      'Reply ›': 'Répondre ›',
+      'Reply to {k}': 'Répondre à {k}',
+      'Comes back on {d}': 'Revient le {d}',
+      '⏸ until {d}': '⏸ jusqu’au {d}',
+      'Bring {k} back to your lane now': 'Ramener {k} dans ta colonne maintenant',
+      'Back now': 'Ramener',
+      'Filter on {v}': 'Filtrer sur {v}',
+      'Session: {s}': 'Session : {s}',
+      'Cannot happen any more: {s}': 'Ne peut plus arriver : {s}',
+      'On hold until {w}, then {n}': 'En suspens jusqu’à : {w}, puis {n}',
+      '⚠ stuck': '⚠ bloqué',
+      'Blocked by {list}': 'Bloqué par {list}',
+      'blocked': 'bloqué',
+      'Blocks {list}': 'Bloque {list}',
+      'blocks {n}': 'bloque {n}',
+      'Sub-tickets': 'Sous-tickets',
+      'Comments': 'Commentaires',
+      ' · opened by {who}': ' · ouvert par {who}',
+      'Mark {k} as done': 'Marquer {k} comme terminé',
+      'Mark done (d)': 'Marquer terminé (d)',
+      'Reply': 'Réponse',
+      '{who} answered, not read yet': '{who} a répondu, pas encore lu',
+      // answers
+      'Tomorrow': 'Demain',
+      'In a week': 'Dans une semaine',
+      'In a month': 'Dans un mois',
+      'Option {id}: {text}': 'Option {id} : {text}',
+      ' (default)': ' (par défaut)',
+      'Yes': 'Oui',
+      'No': 'Non',
+      'Mark {k} done': 'Marquer {k} terminé',
+      'Reply in a comment': 'Répondre en commentaire',
+      'Remind me…': 'Me le rappeler…',
+      'Cancel': 'Annuler',
+      'Later: put {k} off': 'Plus tard : reporter {k}',
+      'Later': 'Plus tard',
+      'Not for me: hand {k} back': 'Pas pour moi : rendre {k}',
+      'Not for me': 'Pas pour moi',
+      'Answer {k}': 'Répondre à {k}',
+      'What we need from you': 'Ce qu’on attend de toi',
+      'Needs your answer': 'Attend ta réponse',
+      'default': 'par défaut',
+      'If no answer:': 'Sans réponse :',
+      'answered {c}': 'répondu {c}',
+      'answered yes': 'répondu oui',
+      'answered no': 'répondu non',
+      'done': 'terminé',
+      'back on {d}': 'revient le {d}',
+      'handed back to {who}': 'rendu à {who}',
+      'Undo': 'Annuler',
+      '{k} already taken over, nothing undone': '{k} déjà repris, rien n’est annulé',
+      '{k} is back in your lane': '{k} est de retour dans ta colonne',
+      '{n} sub-tickets still open': ['{n} sous-ticket encore ouvert', '{n} sous-tickets encore ouverts'],
+      // lanes, counters
+      'Nothing waiting on you': 'Rien ne t’attend',
+      'Questions, approvals and reviews show up here.': 'Les questions, approbations et relectures arrivent ici.',
+      'No tickets match': 'Aucun ticket ne correspond',
+      'Try another filter or search.': 'Essaie un autre filtre ou une autre recherche.',
+      'Nothing in progress': 'Rien en cours',
+      'Nothing to do': 'Rien à faire',
+      '+ {n} more — use the list view': '+ {n} de plus — voir la vue Liste',
+      '{n} on hold, back by themselves': ['{n} en suspens, revient tout seul', '{n} en suspens, reviennent tout seuls'],
+      '{n} done': ['{n} terminé', '{n} terminés'],
+      '{n} for you': '{n} pour toi',
+      '{n} in progress': '{n} en cours',
+      '{n} to do': '{n} à faire',
+      'All clear': 'Rien en attente',
+      // filter bar
+      'Board': 'Tableau',
+      'Next': 'Suite',
+      'List': 'Liste',
+      'Matrix': 'Matrice',
+      'Projects': 'Projets',
+      'View': 'Vue',
+      'Important × urgent: your tickets on a 2 × 2 grid (m)': 'Important × urgent : tes tickets sur une grille 2 × 2 (m)',
+      'Long-running projects, out of the task columns (p)': 'Les projets au long cours, hors des colonnes de tâches (p)',
+      'Open tickets where someone answered you since you last opened them (u)': 'Les tickets ouverts où quelqu’un t’a répondu depuis ta dernière visite (u)',
+      '{n} unread': '{n} non lu(s)',
+      'Remove filter': 'Retirer le filtre',
+      'Filter by {f}': 'Filtrer par {f}',
+      'Clear': 'Effacer',
+      'Done and cancelled tickets closed more than 30 days ago': 'Tickets terminés ou annulés fermés il y a plus de 30 jours',
+      'Hide archived': 'Masquer les archives',
+      'Show archived': 'Afficher les archives',
+      'Assigned to you': 'Assigné à toi',
+      'Assigned to {who}': 'Assigné à {who}',
+      'Repo': 'Dépôt',
+      'Actor': 'Acteur',
+      'Priority': 'Priorité',
+      'Status': 'Statut',
+      'Assignee': 'Assigné à',
+      'Type': 'Type',
+      'Label': 'Étiquette',
+      'Kind': 'Genre',
+      'Origin': 'Origine',
+      'Machine': 'Machine',
+      'Terminal': 'Terminal',
+      'Cloud': 'Cloud',
+      // the open ticket
+      'Resize the ticket panel': 'Redimensionner le panneau du ticket',
+      'Drag to widen · double-click to reset': 'Glisser pour élargir · double-clic pour revenir',
+      'Read the whole ticket in the reading view': 'Lire tout le ticket en vue lecture',
+      'Read the whole ticket': 'Lire tout le ticket',
+      'Back to the side panel': 'Revenir au panneau latéral',
+      'Expand the ticket': 'Agrandir le ticket',
+      'Back to the side panel (Esc)': 'Revenir au panneau latéral (Échap)',
+      'Expand': 'Agrandir',
+      'Copy the {what} as markdown': 'Copier {what} en markdown',
+      'Read the {what} in a wide view': 'Lire {what} en vue large',
+      'Copy as markdown': 'Copier en markdown',
+      'Read in a wide view': 'Lire en vue large',
+      'description': 'la description',
+      'comment': 'le commentaire',
+      'Attach files (or drop, or paste)': 'Joindre des fichiers (ou les déposer, ou les coller)',
+      'Attach files': 'Joindre des fichiers',
+      '{mod}+↵ to send': '{mod}+↵ pour envoyer',
+      '{mod}+↵ to save': '{mod}+↵ pour enregistrer',
+      '{by} commented': '{by} a commenté',
+      '{who} created it': '{who} l’a créé',
+      ' as {s}': ' en « {s} »',
+      'reopened it': 'l’a rouvert',
+      'moved it': 'l’a déplacé',
+      '{who} handed it over': '{who} l’a confié',
+      '{by} edited {what}': '{by} a modifié {what}',
+      'it': 'le ticket',
+      'Remove this dependency': 'Retirer cette dépendance',
+      'Remove': 'Retirer',
+      ' · set by {who}, {when}': ' · posé par {who}, {when}',
+      'Waits for <b>{w}</b>, then <b>{n}</b>.': 'Attend <b>{w}</b>, puis <b>{n}</b>.',
+      'It comes back by itself{by}.': 'Il revient tout seul{by}.',
+      'Lift the hold now': 'Lever la suspension maintenant',
+      'Put on hold…': 'Mettre en suspens…',
+      'Until': 'Jusqu’à',
+      'What it waits for': 'Ce qu’il attend',
+      'these tickets are closed': 'ce que ces tickets soient fermés',
+      'a pull request is merged': 'qu’une pull request soit fusionnée',
+      'a date and time': 'une date et une heure',
+      'someone replies': 'que quelqu’un réponde',
+      'Tickets, pull request, date or actor': 'Tickets, pull request, date ou acteur',
+      'Then': 'Puis',
+      'What happens then': 'Ce qui se passe ensuite',
+      'wake who put it on hold': 'réveiller qui l’a suspendu',
+      'wake an agent': 'réveiller un agent',
+      'hand it to someone': 'le confier à quelqu’un',
+      'back to you': 'te le rendre',
+      'agent id': 'id de l’agent',
+      'Who': 'Qui',
+      'Why it waits (optional)': 'Pourquoi il attend (facultatif)',
+      'Why it waits': 'Pourquoi il attend',
+      'Put on hold': 'Mettre en suspens',
+      'It leaves every lane and comes back by itself, with a line in the history.': 'Il quitte toutes les colonnes et revient tout seul, avec une ligne dans l’historique.',
+      'from {src}': 'depuis {src}',
+      'hooks': 'les hooks',
+      'Open ↗': 'Ouvrir ↗',
+      'Pull request {pr}': 'Pull request {pr}',
+      'Cloud session': 'Session cloud',
+      'Close': 'Fermer',
+      'Title': 'Titre',
+      'Labels': 'Étiquettes',
+      'comma, separated': 'séparées, par des virgules',
+      'Proposed by {by}': 'Proposée par {by}',
+      ', counted as P2 until you confirm it': ', comptée P2 tant que tu ne la confirmes pas',
+      'Confirm {p}': 'Confirmer {p}',
+      'Counts as {p}, the priority of its project {k}': 'Compte comme {p}, la priorité de son projet {k}',
+      'Session': 'Session',
+      'Context': 'Contexte',
+      'Parent': 'Parent',
+      'Created': 'Créé',
+      'Resolution: what was done, or why not (kept in the history)': 'Résolution : ce qui a été fait, ou pourquoi pas (gardé dans l’historique)',
+      "Won't do": 'Ne sera pas fait',
+      'Mark handled': 'Marquer traité',
+      'Discard': 'Abandonner',
+      'Save': 'Enregistrer',
+      'Description': 'Description',
+      'Edit': 'Modifier',
+      'Everything is in the box above.': 'Tout est dans l’encadré au-dessus.',
+      'No description.': 'Pas de description.',
+      'Links': 'Liens',
+      'Dependencies': 'Dépendances',
+      'Blocked by': 'Bloqué par',
+      'Blocks': 'Bloque',
+      'Add a ticket that blocks this one': 'Ajouter un ticket qui bloque celui-ci',
+      'Add a ticket this one blocks': 'Ajouter un ticket que celui-ci bloque',
+      'Add': 'Ajouter',
+      'History': 'Historique',
+      'Mention suggestions': 'Suggestions de mention',
+      'Add a comment…': 'Ajouter un commentaire…',
+      'Comment': 'Commenter',
+      'Add sub-ticket': 'Ajouter un sous-ticket',
+      'Actions on {k}': 'Actions sur {k}',
+      'Opening…': 'Ouverture…',
+      'the action answered with a link this page will not open': 'l’action a répondu par un lien que cette page n’ouvrira pas',
+      'Open again': 'Rouvrir',
+      'Open it': 'L’ouvrir',
+      'Opened in a new tab.': 'Ouvert dans un nouvel onglet.',
+      'Ready.': 'Prêt.',
+      ' The browser blocked the new tab:': ' Le navigateur a bloqué le nouvel onglet :',
+      'Done.': 'Fait.',
+    };
+    /** `tr(english, vars)`: the text in the page's language, `{name}` filled from `vars`. */
+    function makeTr(lang, locale) {
+      const table = lang === 'fr' ? I18N_FR : I18N_EN;
+      const tr = (s, v) => {
+        let out = Object.hasOwn(table, s) ? table[s] : s;
+        if (Array.isArray(out)) out = out[Math.abs(Number(v?.n)) >= 2 ? 1 : 0];
+        return v ? out.replace(/\{(\w+)\}/g, (m, k) => (v[k] ?? m)) : out;
+      };
+      tr.lang = lang;
+      tr.locale = locale;
+      return tr;
+    }
+    /** The fixed markup: an element with data-i18n gets its text translated, data-i18n-attr names the attributes to translate. */
+    function translateMarkup(root, tr) {
+      if (tr.lang === 'en') return;
+      for (const el of root.querySelectorAll('[data-i18n]')) el.textContent = tr(el.textContent.trim());
+      for (const el of root.querySelectorAll('[data-i18n-attr]')) {
+        for (const a of el.dataset.i18nAttr.split(',')) if (el.hasAttribute(a)) el.setAttribute(a, tr(el.getAttribute(a)));
+      }
+    }
+    // ---- end i18n
+    const LANG = pickLang(location.search, (() => { try { return localStorage.getItem('alvearium.lang'); } catch { return null; } })(), navigator.language);
+    const tr = makeTr(LANG, dateLocale(LANG, navigator.language));
+    document.documentElement.lang = LANG;
+    translateMarkup(document, tr);
+  </script>
   <script>
     (() => {
       const KEY = 'session-board-token';
@@ -1069,6 +1396,8 @@
         if (state.ticket) p.set('ticket', state.ticket);
         const theme = new URLSearchParams(location.search).get('theme');
         if (theme) p.set('theme', theme);
+        const lang = new URLSearchParams(location.search).get('lang');
+        if (lang) p.set('lang', lang);
         const url = location.pathname + (p.toString() ? '?' + p : '');
         if (url === location.pathname + location.search) return;
         (push ? history.pushState : history.replaceState).call(history, null, '', url);
@@ -1093,26 +1422,33 @@
 
       // ---- formatting ---------------------------------------------------------------------------
       /** The tooltip of the short date on every listed ticket: its last update, then its creation. */
-      const updTitle = (t) => `Updated ${when(t.updated_at)} · created ${when(t.created_at)}`;
-      function ago(ms, now) {
+      const updTitle = (t) => tr('Updated {u} · created {c}', { u: when(t.updated_at), c: when(t.created_at) });
+      /** 0.9.9: which unit `ago` reads ('now', 'm', 'h', 'd', or 'date' past 45 days), and its number. */
+      function agoUnit(ms, now) {
         const s = Math.max(0, Math.round((now - ms) / 1000));
-        if (s < 45) return 'now';
+        if (s < 45) return ['now', 0];
         const m = Math.round(s / 60);
-        if (m < 60) return `${m}m`;
+        if (m < 60) return ['m', m];
         const h = Math.round(m / 60);
-        if (h < 24) return `${h}h`;
+        if (h < 24) return ['h', h];
         const d = Math.round(h / 24);
-        return d < 45 ? `${d}d` : new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        return d < 45 ? ['d', d] : ['date', 0];
+      }
+      function ago(ms, now) {
+        const [u, n] = agoUnit(ms, now);
+        if (u === 'now') return tr('now');
+        return u === 'date' ? new Date(ms).toLocaleDateString(tr.locale, { month: 'short', day: 'numeric' }) : tr(`{n}${u}`, { n });
       }
       /** `ago` inside a sentence: "just now", "12m ago", or "on Oct 3" past 45 days (never "now ago"). */
       function agoPhrase(ms, now) {
+        const u = agoUnit(ms, now)[0];
         const a = ago(ms, now);
-        return a === 'now' ? 'just now' : /^\d+[mhd]$/.test(a) ? `${a} ago` : `on ${a}`;
+        return u === 'now' ? tr('just now') : u !== 'date' ? tr('{a} ago', { a }) : tr('on {a}', { a });
       }
-      const when = (ms) => new Date(ms).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      const when = (ms) => new Date(ms).toLocaleString(tr.locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       const repoName = (r) => (r ? r.split('/').pop() : '');
-      const STATUS = { todo: 'To do', in_progress: 'In progress', waiting_on_user: 'Waiting on you', review: 'Review', done: 'Done', cancelled: 'Cancelled', failed: 'Failed', on_hold: 'On hold' };
-      const ACT = { working: 'working', waiting: 'needs you', idle: 'idle', closed: 'closed' };
+      const STATUS = { todo: tr('To do'), in_progress: tr('In progress'), waiting_on_user: tr('Waiting on you'), review: tr('Review'), done: tr('Done'), cancelled: tr('Cancelled'), failed: tr('Failed'), on_hold: tr('On hold') };
+      const ACT = { working: tr('working'), waiting: tr('needs you'), idle: tr('idle'), closed: tr('closed') };
       const sessionName = (t) => t.session?.title || (t.session_id ? 'Session ' + t.session_id.slice(0, 6) : '');
 
       // ---- actors: who did what, to whom ------------------------------------------------------
@@ -1132,7 +1468,7 @@
         if (id === 'user' || (me && id === me.id)) {
           const a = actors.get(id) || { id, type: 'human' };
           const mine = me ? id === me.id : id === 'user';
-          return { ...a, type: 'human', name: a.name || (mine ? 'You' : 'Owner') };
+          return { ...a, type: 'human', name: a.name || (mine ? tr('You') : tr('Owner')) };
         }
         if (actors.has(id)) {
           const a = actors.get(id);
@@ -1239,13 +1575,13 @@
         const act = String(id || '');
         return `<span class="who" data-actor="${esc(act)}"${canEditActorUi(act) ? ' data-act="editActor"' : ''}>${avatar(id)}<b>${esc(actorName(id))}</b></span>`;
       };
-      const PRIO = { P0: 'P0 · now', P1: 'P1 · next', P2: 'P2 · normal', P3: 'P3 · later' };
+      const PRIO = { P0: tr('P0 · now'), P1: tr('P1 · next'), P2: tr('P2 · normal'), P3: tr('P3 · later') };
       // 0.9.5: a priority an agent proposed on your ticket (or project) reads "P1?" until you set or confirm it.
       const prio = (p, t) =>
         p
           ? t?.priority_proposed
-            ? `<span class="prio ${esc(p)} proposed" title="Priority ${esc(PRIO[p] || p)}, proposed by ${esc(t.priority_by_name || t.priority_by || 'an agent')}: not yours until you set or confirm it">${esc(p)}?</span>`
-            : `<span class="prio ${esc(p)}" title="Priority ${esc(PRIO[p] || p)}">${esc(p)}</span>`
+            ? `<span class="prio ${esc(p)} proposed" title="${esc(tr('Priority {p}, proposed by {by}: not yours until you set or confirm it', { p: PRIO[p] || p, by: t.priority_by_name || t.priority_by || tr('an agent') }))}">${esc(p)}?</span>`
+            : `<span class="prio ${esc(p)}" title="${esc(tr('Priority {p}', { p: PRIO[p] || p }))}">${esc(p)}</span>`
           : '';
       const FTYPE = { bug: 'Bug', suggestion: 'Suggestion', friction: 'Friction' };
 
@@ -1466,12 +1802,12 @@
       function reason(t) {
         const d = String(t.body || '').trim();
         if (t.status === 'failed') {
-          const last = d || 'the last turn errored';
-          return `<span class="k">Failed</span>${esc(plain(last))}`;
+          const last = d || tr('the last turn errored');
+          return `<span class="k">${tr('Failed')}</span>${esc(plain(last))}`;
         }
-        if (t.kind === 'permission') return '<span class="k">Approve</span>in the session';
-        if (t.kind === 'question' && t.source === 'hook') return '<span class="k">Question</span>answer in the session';
-        if (t.status === 'review') return d ? `<span class="k">Review</span>${esc(plain(d))}` : '<span class="k">Review</span>the turn ended';
+        if (t.kind === 'permission') return `<span class="k">${tr('Approve')}</span>${tr('in the session')}`;
+        if (t.kind === 'question' && t.source === 'hook') return `<span class="k">${tr('Question')}</span>${tr('answer in the session')}`;
+        if (t.status === 'review') return d ? `<span class="k">${tr('Review')}</span>${esc(plain(d))}` : `<span class="k">${tr('Review')}</span>${tr('the turn ended')}`;
         if (t.status === 'waiting_on_user' && d) return esc(plain(d));
         return '';
       }
@@ -1479,34 +1815,34 @@
       function tags(t, now, opts = {}) {
         const out = [];
         if (t.column === 'waiting' && t.roi) out.push(roiBadge(t));
-        if (t.column === 'waiting' && t.unlocks > 0) out.push(`<span class="tag unlocks" title="Your answer unblocks ${t.unlocks} open ticket${t.unlocks === 1 ? '' : 's'} or job${t.unlocks === 1 ? '' : 's'}">unblocks ${t.unlocks}</span>`);
-        if (t.column === 'waiting' && t.gesture && !t.ask?.complete && !opts.noReply) out.push(`<button type="button" class="tag reply" data-open="${esc(t.key)}" aria-label="Reply to ${esc(t.key)}">Reply ›</button>`);
-        if (t.snoozed_until) out.push(`<span class="tag snoozed" title="Comes back on ${esc(when(t.snoozed_until))}">⏸ until ${esc(new Date(t.snoozed_until).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))}</span><button type="button" class="tag" data-ask="wake" data-key="${esc(t.key)}" aria-label="Bring ${esc(t.key)} back to your lane now">Back now</button>`);
-        if (t.repo && !state.f.repo) out.push(`<button type="button" class="tag" data-filter="repo" data-value="${esc(t.repo)}" title="Filter on ${esc(t.repo)}">${esc(repoName(t.repo))}${t.branch && t.branch !== 'HEAD' && t.branch !== 'main' && t.branch !== 'master' ? ' · ' + esc(t.branch) : ''}</button>`);
-        if (t.session_id && !state.f.session && !opts.noSession && t.kind !== 'session') out.push(`<button type="button" class="tag sess" data-filter="session" data-value="${esc(t.session_id)}" title="Session: ${esc(sessionName(t))}">${t.origin === 'cloud' ? '☁ ' : '› '}${esc(sessionName(t))}</button>`);
-        if (t.hold) out.push(`<span class="tag hold${t.hold.stuck ? ' stuck' : ''}" title="${esc(t.hold.stuck ? 'Cannot happen any more: ' + t.hold.stuck : 'On hold until ' + t.hold.waits_for + ', then ' + t.hold.next_text)}">${t.hold.stuck ? '⚠ stuck' : '⏳'} ${esc(t.hold.waits_for)}</span>`);
+        if (t.column === 'waiting' && t.unlocks > 0) out.push(`<span class="tag unlocks" title="${esc(tr('Your answer unblocks {n} open tickets or jobs', { n: t.unlocks }))}">${tr('unblocks {n}', { n: t.unlocks })}</span>`);
+        if (t.column === 'waiting' && t.gesture && !t.ask?.complete && !opts.noReply) out.push(`<button type="button" class="tag reply" data-open="${esc(t.key)}" aria-label="${esc(tr('Reply to {k}', { k: t.key }))}">${tr('Reply ›')}</button>`);
+        if (t.snoozed_until) out.push(`<span class="tag snoozed" title="${esc(tr('Comes back on {d}', { d: when(t.snoozed_until) }))}">${esc(tr('⏸ until {d}', { d: new Date(t.snoozed_until).toLocaleDateString(tr.locale, { month: 'short', day: 'numeric' }) }))}</span><button type="button" class="tag" data-ask="wake" data-key="${esc(t.key)}" aria-label="${esc(tr('Bring {k} back to your lane now', { k: t.key }))}">${tr('Back now')}</button>`);
+        if (t.repo && !state.f.repo) out.push(`<button type="button" class="tag" data-filter="repo" data-value="${esc(t.repo)}" title="${esc(tr('Filter on {v}', { v: t.repo }))}">${esc(repoName(t.repo))}${t.branch && t.branch !== 'HEAD' && t.branch !== 'main' && t.branch !== 'master' ? ' · ' + esc(t.branch) : ''}</button>`);
+        if (t.session_id && !state.f.session && !opts.noSession && t.kind !== 'session') out.push(`<button type="button" class="tag sess" data-filter="session" data-value="${esc(t.session_id)}" title="${esc(tr('Session: {s}', { s: sessionName(t) }))}">${t.origin === 'cloud' ? '☁ ' : '› '}${esc(sessionName(t))}</button>`);
+        if (t.hold) out.push(`<span class="tag hold${t.hold.stuck ? ' stuck' : ''}" title="${esc(t.hold.stuck ? tr('Cannot happen any more: {s}', { s: t.hold.stuck }) : tr('On hold until {w}, then {n}', { w: t.hold.waits_for, n: t.hold.next_text }))}">${t.hold.stuck ? tr('⚠ stuck') : '⏳'} ${esc(t.hold.waits_for)}</span>`);
         if (t.blocked && !t.hold) {
           const open = (t.blocked_by || []).filter((b) => b.status !== 'done' && b.status !== 'cancelled');
-          out.push(`<span class="tag blocked" title="Blocked by ${esc(open.map((b) => b.key + ' ' + plain(b.title)).join(', '))}">⛔ ${esc(open.map((b) => b.key).join(', ') || 'blocked')}</span>`);
+          out.push(`<span class="tag blocked" title="${esc(tr('Blocked by {list}', { list: open.map((b) => b.key + ' ' + plain(b.title)).join(', ') }))}">⛔ ${esc(open.map((b) => b.key).join(', ') || tr('blocked'))}</span>`);
         }
-        if (!t.blocked && t.blocking?.some((b) => b.status !== 'done' && b.status !== 'cancelled')) out.push(`<span class="tag" title="Blocks ${esc(t.blocking.map((b) => b.key).join(', '))}">blocks ${t.blocking.filter((b) => b.status !== 'done' && b.status !== 'cancelled').length}</span>`);
+        if (!t.blocked && t.blocking?.some((b) => b.status !== 'done' && b.status !== 'cancelled')) out.push(`<span class="tag" title="${esc(tr('Blocks {list}', { list: t.blocking.map((b) => b.key).join(', ') }))}">${tr('blocks {n}', { n: t.blocking.filter((b) => b.status !== 'done' && b.status !== 'cancelled').length })}</span>`);
         for (const l of t.labels || []) out.push(`<button type="button" class="tag lbl" data-filter="label" data-value="${esc(l)}">#${esc(l)}</button>`);
         const pr = (t.links || []).find((l) => l.type === 'pr' && httpsUrl(l.url));
         if (pr) out.push(`<a class="tag" href="${esc(pr.url)}" target="_blank" rel="noopener" data-stop="1">PR #${esc((pr.url.match(/(\d+)$/) || [])[1] || '')} ↗</a>`);
-        if (t.children_count) out.push(`<span class="tag" title="Sub-tickets">↳ ${t.children_count}</span>`);
-        if (t.comments_count) out.push(`<span class="tag" title="Comments">💬 ${t.comments_count}</span>`);
+        if (t.children_count) out.push(`<span class="tag" title="${tr('Sub-tickets')}">↳ ${t.children_count}</span>`);
+        if (t.comments_count) out.push(`<span class="tag" title="${tr('Comments')}">💬 ${t.comments_count}</span>`);
         if (!opts.noAvatar && t.assignee) out.push(avatar(t.assignee));
-        out.push(`<span class="age" title="${esc(updTitle(t))}${t.created_by && t.created_by !== t.assignee ? ' · opened by ' + esc(actorName(t.created_by)) : ''}">${ago(t.updated_at, now)}</span>`);
+        out.push(`<span class="age" title="${esc(updTitle(t))}${t.created_by && t.created_by !== t.assignee ? esc(tr(' · opened by {who}', { who: actorName(t.created_by) })) : ''}">${ago(t.updated_at, now)}</span>`);
         return out.join('');
       }
 
       const isOpen = (t) => t.status !== 'done' && t.status !== 'cancelled';
       const CHECK = '<svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true"><path d="m2.4 6.3 2.4 2.4 4.8-5" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       /** The one-click ✓ of an open ticket; `data-from` keeps the status Undo goes back to. */
-      const doneBtn = (t) => (isOpen(t) ? `<button type="button" class="doneBtn" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)"><i>${CHECK}</i></button>` : '');
+      const doneBtn = (t) => (isOpen(t) ? `<button type="button" class="doneBtn" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="${esc(tr('Mark {k} as done', { k: t.key }))}" title="${tr('Mark done (d)')}"><i>${CHECK}</i></button>` : '');
 
       // ---- direct answers (the buttons of the "Waiting on you" lane) -------------------------------
-      const LATER = [[1, 'Tomorrow'], [7, 'In a week'], [30, 'In a month']];
+      const LATER = [[1, tr('Tomorrow')], [7, tr('In a week')], [30, tr('In a month')]];
       const askBusy = new Set();
       let askMenu = null; // the key whose "Later" choices are open
       /**
@@ -1523,29 +1859,29 @@
         if (a.type === 'choice') {
           for (const o of a.options) {
             const d = a.default === o.id;
-            out.push(`<button type="button" class="ask opt${d ? ' def' : ''}" data-ask="option" data-key="${k}" data-choice="${esc(o.id)}"${off} title="${esc(o.text)}" aria-label="Option ${esc(o.id)}: ${esc(o.text)}${d ? ' (default)' : ''}"><b aria-hidden="true">${esc(o.id)}</b><span>${esc(o.text)}</span></button>`);
+            out.push(`<button type="button" class="ask opt${d ? ' def' : ''}" data-ask="option" data-key="${k}" data-choice="${esc(o.id)}"${off} title="${esc(o.text)}" aria-label="${esc(tr('Option {id}: {text}', { id: o.id, text: o.text }))}${d ? tr(' (default)') : ''}"><b aria-hidden="true">${esc(o.id)}</b><span>${esc(o.text)}</span></button>`);
           }
         } else if (a.type === 'yesno') {
-          for (const [v, l] of [['yes', 'Yes'], ['no', 'No']]) {
+          for (const [v, l] of [['yes', tr('Yes')], ['no', tr('No')]]) {
             const d = a.default === v;
-            out.push(`<button type="button" class="ask quick${d ? ' def' : ''}" data-ask="${v}" data-key="${k}"${off} aria-label="${l}${d ? ' (default)' : ''}"><u>${l}</u></button>`);
+            out.push(`<button type="button" class="ask quick${d ? ' def' : ''}" data-ask="${v}" data-key="${k}"${off} aria-label="${l}${d ? tr(' (default)') : ''}"><u>${l}</u></button>`);
           }
         } else if (a.type === 'done') {
-          out.push(`<button type="button" class="ask quick def" data-ask="done" data-key="${k}"${off} aria-label="Mark ${k} done"><u>Done</u></button>`);
+          out.push(`<button type="button" class="ask quick def" data-ask="done" data-key="${k}"${off} aria-label="${tr('Mark {k} done', { k })}"><u>${tr('Done')}</u></button>`);
         } else if (where === 'bar') {
-          out.push(`<button type="button" class="ask quick" data-ask="comment" data-key="${k}"${off}>Reply in a comment</button>`);
+          out.push(`<button type="button" class="ask quick" data-ask="comment" data-key="${k}"${off}>${tr('Reply in a comment')}</button>`);
         }
         const alt = [];
         if (askMenu === t.key) {
-          alt.push('<span class="laterHint" id="lh-' + k + '">Remind me…</span>');
+          alt.push('<span class="laterHint" id="lh-' + k + '">' + tr('Remind me…') + '</span>');
           for (const [d, l] of LATER) alt.push(`<button type="button" class="ask soft" data-ask="later" data-days="${d}" data-key="${k}"${off}>${l}</button>`);
-          alt.push(`<button type="button" class="ask soft" data-ask="laterCancel" data-key="${k}">Cancel</button>`);
+          alt.push(`<button type="button" class="ask soft" data-ask="laterCancel" data-key="${k}">${tr('Cancel')}</button>`);
         } else {
-          alt.push(`<button type="button" class="ask soft" data-ask="laterMenu" data-key="${k}"${off} aria-label="Later: put ${k} off">Later</button>`);
-          alt.push(`<button type="button" class="ask soft" data-ask="decline" data-key="${k}"${off} aria-label="Not for me: hand ${k} back">Not for me</button>`);
+          alt.push(`<button type="button" class="ask soft" data-ask="laterMenu" data-key="${k}"${off} aria-label="${tr('Later: put {k} off', { k })}">${tr('Later')}</button>`);
+          alt.push(`<button type="button" class="ask soft" data-ask="decline" data-key="${k}"${off} aria-label="${tr('Not for me: hand {k} back', { k })}">${tr('Not for me')}</button>`);
         }
         out.push(`<span class="asksAlt">${alt.join('')}</span>`);
-        return `<div class="asks at-${where}${a.type === 'choice' && a.options.length > 2 ? ' many' : ''}" role="group" aria-label="Answer ${k}">${out.join('')}</div>`;
+        return `<div class="asks at-${where}${a.type === 'choice' && a.options.length > 2 ? ' many' : ''}" role="group" aria-label="${tr('Answer {k}', { k })}">${out.join('')}</div>`;
       }
       /** The reply bar at the foot of an open ticket: one line of context, then the same buttons. */
       function replyBar(t) {
@@ -1625,8 +1961,8 @@
       function askBox(t) {
         const a = t.ask;
         if (!a || !isOpen(t)) return '';
-        const opts = (a.options || []).map((o) => `<li${a.defaut === o.id ? ' class="def"' : ''}><b aria-hidden="true">${esc(o.id)}</b><span>${esc(o.text)}${a.defaut === o.id ? '<i>default</i>' : ''}${o.consequence ? `<em>${esc(o.consequence)}</em>` : ''}</span></li>`).join('');
-        return `<section class="askBox" aria-label="What we need from you"><span class="askK">Needs your answer</span>${a.question ? `<div class="askQ">${esc(a.question)}</div>` : ''}${opts ? `<ol>${opts}</ol>` : ''}${a.sansReponse ? `<div class="askFb"><b>If no answer:</b> ${esc(a.sansReponse)}</div>` : ''}</section>`;
+        const opts = (a.options || []).map((o) => `<li${a.defaut === o.id ? ' class="def"' : ''}><b aria-hidden="true">${esc(o.id)}</b><span>${esc(o.text)}${a.defaut === o.id ? `<i>${tr('default')}</i>` : ''}${o.consequence ? `<em>${esc(o.consequence)}</em>` : ''}</span></li>`).join('');
+        return `<section class="askBox" aria-label="${tr('What we need from you')}"><span class="askK">${tr('Needs your answer')}</span>${a.question ? `<div class="askQ">${esc(a.question)}</div>` : ''}${opts ? `<ol>${opts}</ol>` : ''}${a.sansReponse ? `<div class="askFb"><b>${tr('If no answer:')}</b> ${esc(a.sansReponse)}</div>` : ''}</section>`;
       }
       /** The description without the lines the "Needs your answer" box shows in full (`ask_lines`, from the parser): exactly those. */
       function bodyRest(t) {
@@ -1682,22 +2018,22 @@
         await refresh();
         if (document.activeElement === document.body || !document.activeElement) document.querySelector('#col-waiting .card')?.focus();
         if (state.ticket === key && !$('panel').hidden) openPanel(key, false);
-        const day = (ms) => new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-        const said = a === 'option' ? `answered ${esc(body.choice)}` : a === 'yes' ? 'answered yes' : a === 'no' ? 'answered no' : a === 'done' ? 'done' : a === 'later' ? `back on ${esc(day(r.ticket.snoozed_until))}` : `handed back to ${esc(actorName(r.ticket.assignee))}`;
-        toast(`<b>${esc(key)}</b> ${said}`, { html: true, ms: 7000, action: { label: 'Undo', run: () => undoAsk(key, r) } });
+        const day = (ms) => new Date(ms).toLocaleDateString(tr.locale, { month: 'short', day: 'numeric' });
+        const said = a === 'option' ? tr('answered {c}', { c: esc(body.choice) }) : a === 'yes' ? tr('answered yes') : a === 'no' ? tr('answered no') : a === 'done' ? tr('done') : a === 'later' ? tr('back on {d}', { d: esc(day(r.ticket.snoozed_until)) }) : tr('handed back to {who}', { who: esc(actorName(r.ticket.assignee)) });
+        toast(`<b>${esc(key)}</b> ${said}`, { html: true, ms: 7000, action: { label: tr('Undo'), run: () => undoAsk(key, r) } });
       }
       async function undoAsk(key, prev) {
         try {
           await api(`tickets/${encodeURIComponent(key)}/answer`, { answer: 'undo', previous: prev.previous, expect: prev.expect });
         } catch (err) {
           // Someone (an agent, you in another tab) moved the ticket since the click: leave it as it is.
-          if (err.message !== 'locked') toast(/already taken over/.test(err.message) ? `${key} already taken over, nothing undone` : `${key}: ${err.message}`);
+          if (err.message !== 'locked') toast(/already taken over/.test(err.message) ? tr('{k} already taken over, nothing undone', { k: key }) : `${key}: ${err.message}`);
           return;
         }
         changedKeys.add(key);
         await refresh();
         if (state.ticket === key && !$('panel').hidden) openPanel(key, false);
-        toast(`${key} is back in your lane`);
+        toast(tr('{k} is back in your lane', { k: key }));
       }
 
       // ---- matrix (0.5.14): important × urgent, from what the board already stores --------------
@@ -1909,10 +2245,10 @@
           unread = new Map((r.tickets || []).map((x) => [x.key, x]));
         } catch { /* an older server: no counter */ }
       }
-      const replyTag = (t) => (unread.has(t.key) ? `<span class="replyTag" title="${esc(replyTitle(t.key))}"><span class="replyDot" aria-hidden="true"></span>Reply</span>` : '');
+      const replyTag = (t) => (unread.has(t.key) ? `<span class="replyTag" title="${esc(replyTitle(t.key))}"><span class="replyDot" aria-hidden="true"></span>${tr('Reply')}</span>` : '');
       function replyTitle(key) {
         const x = unread.get(key);
-        return x ? `${actorName(x.by)} answered, not read yet` : '';
+        return x ? tr('{who} answered, not read yet', { who: actorName(x.by) }) : '';
       }
       async function markSeen(key) {
         if (!unread.has(key)) return;
@@ -1924,23 +2260,23 @@
       function card(t, now) {
         const ask = t.column === 'waiting' ? t.ask : null;
         // The lane shows the question the author asked; the start of the body only when there is none.
-        const askLine = ask?.question && t.status !== 'failed' ? `<span class="k">Ask</span>${esc(plain(ask.question))}` : '';
+        const askLine = ask?.question && t.status !== 'failed' ? `<span class="k">${tr('Ask')}</span>${esc(plain(ask.question))}` : '';
         const r = askLine || (t.column === 'waiting' ? reason(t) : '');
         let note = '';
-        if (!r && t.stale) note = 'No activity for a while';
-        else if (!r && t.status === 'in_progress' && t.kind === 'session' && t.session?.activity === 'waiting') note = 'Waiting for you in the session';
+        if (!r && t.stale) note = tr('No activity for a while');
+        else if (!r && t.status === 'in_progress' && t.kind === 'session' && t.session?.activity === 'waiting') note = tr('Waiting for you in the session');
         else if (!r && t.body && t.column !== 'done') note = esc(plain(t.body));
         const live = t.status === 'in_progress' && t.kind === 'session' && t.session?.activity === 'working' ? '1' : '0';
         const drag = t.column === 'todo' ? ' draggable="true"' : '';
         return `<article class="card${t.stale || t.status === 'cancelled' ? ' dim' : ''}${t.blocked ? ' blocked' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" data-live="${live}" tabindex="0"${drag}>
           <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${replyTag(t)}${prio(t.priority, t)}<span class="key">${esc(t.key)}</span>${doneBtn(t)}</div>
-          ${r ? `<div class="reason">${r}</div>` : ''}${note ? `<div class="note">${note}</div>` : ''}${ask?.complete ? `<div class="note askFb"><b>No answer:</b> ${esc(plain(ask.sansReponse))}</div>` : ''}
+          ${r ? `<div class="reason">${r}</div>` : ''}${note ? `<div class="note">${note}</div>` : ''}${ask?.complete ? `<div class="note askFb"><b>${tr('No answer:')}</b> ${esc(plain(ask.sansReponse))}</div>` : ''}
           ${asks(t)}
           <div class="tags">${tags(t, now)}</div>${roiTap(t)}
         </article>`;
       }
 
-      const EMPTY_WAITING = '<div class="empty big"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9.25" stroke="currentColor" stroke-width="1.5"/><path d="m8 12.3 2.6 2.6L16 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><strong>Nothing waiting on you</strong><span>Questions, approvals and reviews show up here.</span></div>';
+      const EMPTY_WAITING = '<div class="empty big"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9.25" stroke="currentColor" stroke-width="1.5"/><path d="m8 12.3 2.6 2.6L16 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg><strong>' + tr('Nothing waiting on you') + '</strong><span>' + tr('Questions, approvals and reviews show up here.') + '</span></div>';
       const EMPTY = (t) => `<div class="empty">${t}</div>`;
       const setHtml = (el, html) => { if (el.__html !== html) { el.innerHTML = html; el.__html = html; el.__nodes = null; el.__sig = null; } };
       /**
@@ -1991,7 +2327,7 @@
           return s ? (s.title || 'Session ' + v.slice(0, 6)) : 'Session ' + v.slice(0, 8);
         }
         if (k === 'status') return v.split(',').map((x) => STATUS[x] || x).join(', ');
-        if (k === 'assignee') return v === 'user' ? 'Assigned to you' : 'Assigned to ' + actorName(v);
+        if (k === 'assignee') return v === 'user' ? tr('Assigned to you') : tr('Assigned to {who}', { who: actorName(v) });
         if (k === 'actor') return actorName(v);
         if (k === 'priority') return v.split(',').join(', ');
         if (k === 'subtype') return v.split(',').map((x) => FTYPE[x] || x).join(', ');
@@ -2002,35 +2338,35 @@
         const o = (v, label, n) => `<option value="${esc(v)}">${esc(label)}${n ? ' · ' + n : ''}</option>`;
         if (k === 'repo') return facets.repos.map((r) => o(r.value, repoName(r.value) + (facets.repos.filter((x) => repoName(x.value) === repoName(r.value)).length > 1 ? ' (' + r.value + ')' : ''), r.open || ''));
         if (k === 'session') return facets.sessions.filter((s) => !state.f.repo || s.repo === state.f.repo || repoName(s.repo) === state.f.repo).slice(0, 80).map((s) => o(s.id, `${s.title || 'Session ' + s.id.slice(0, 6)}${s.repo ? ' — ' + repoName(s.repo) : ''}`, s.open || ''));
-        if (k === 'status') return [['open', 'Open'], ['todo', 'To do'], ['in_progress', 'In progress'], ['waiting_on_user', 'Waiting on you'], ['review', 'Review'], ['failed', 'Failed'], ['on_hold', 'On hold'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([v, l]) => o(v, l));
+        if (k === 'status') return [['open', 'Open'], ['todo', 'To do'], ['in_progress', 'In progress'], ['waiting_on_user', 'Waiting on you'], ['review', 'Review'], ['failed', 'Failed'], ['on_hold', 'On hold'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([v, l]) => o(v, tr(l)));
         if (k === 'assignee' || k === 'actor') {
           const all = (facets.actors || []).filter((a) => a.type !== 'system');
           const { lasting, others } = runPicks(all.filter((a) => a.id !== 'user'), actorName);
           const you = all.find((a) => a.id === 'user');
           const ao = (a) => o(a.id, (k === 'actor' && a.type === 'subagent' ? '↳ ' : '') + actorName(a.id), a.open || '');
           const head = k === 'assignee' ? [o('user', actorName('user'), you?.open || '')] : you ? [ao(you)] : [];
-          return [...head, ...lasting.map(ao), ...(others.length ? [`<optgroup label="Others">${others.map(ao).join('')}</optgroup>`] : [])];
+          return [...head, ...lasting.map(ao), ...(others.length ? [`<optgroup label="${esc(tr('Others'))}">${others.map(ao).join('')}</optgroup>`] : [])];
         }
-        if (k === 'priority') return [o('P0', 'P0 · now'), o('P1', 'P1 · next'), o('P2', 'P2 · normal'), o('P3', 'P3 · later'), o('none', 'No priority')];
+        if (k === 'priority') return [o('P0', PRIO.P0), o('P1', PRIO.P1), o('P2', PRIO.P2), o('P3', PRIO.P3), o('none', tr('No priority'))];
         if (k === 'subtype') return [o('bug', 'Bug'), o('suggestion', 'Suggestion'), o('friction', 'Friction')];
         if (k === 'label') return facets.labels.map((l) => o(l.value, '#' + l.value, l.total));
         if (k === 'kind') return facets.kinds.map((x) => o(x.value, x.value, x.open || ''));
-        if (k === 'origin') return [o('terminal', 'Terminal'), o('cloud', 'Cloud')];
+        if (k === 'origin') return [o('terminal', tr('Terminal')), o('cloud', tr('Cloud'))];
         if (k === 'machine') return facets.machines.map((x) => o(x.value, x.value, x.open || ''));
         return [];
       }
-      const PICK_LABEL = { repo: 'Repo', session: 'Session', actor: 'Actor', priority: 'Priority', status: 'Status', assignee: 'Assignee', subtype: 'Type', label: 'Label', kind: 'Kind', origin: 'Origin', machine: 'Machine' };
+      const PICK_LABEL = Object.fromEntries(Object.entries({ repo: 'Repo', session: 'Session', actor: 'Actor', priority: 'Priority', status: 'Status', assignee: 'Assignee', subtype: 'Type', label: 'Label', kind: 'Kind', origin: 'Origin', machine: 'Machine' }).map(([k, v]) => [k, tr(v)]));
       function renderFilters() {
-        const seg = [['board', 'Board'], ['next', 'Next'], ['list', 'List'], ['matrix', 'Matrix'], ['projects', 'Projects']].map(([v, l]) => `<button type="button" data-view="${v}" aria-pressed="${state.view === v}"${v === 'matrix' ? ' title="Important × urgent: your tickets on a 2 × 2 grid (m)"' : v === 'projects' ? ' title="Long-running projects, out of the task columns (p)"' : ''}>${v === 'matrix' ? '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="1" width="4.2" height="4.2" rx="1" fill="currentColor"/><rect x="6.8" y="1" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.8" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>' : ''}${l}</button>`).join('');
-        const parts = [`<div class="seg" role="group" aria-label="View">${seg}${state.view === 'feedback' ? '<button type="button" data-view="feedback" aria-pressed="true">Feedback</button>' : ''}</div>`];
+        const seg = [['board', 'Board'], ['next', 'Next'], ['list', 'List'], ['matrix', 'Matrix'], ['projects', 'Projects']].map(([v, l]) => `<button type="button" data-view="${v}" aria-pressed="${state.view === v}"${v === 'matrix' ? ` title="${tr('Important × urgent: your tickets on a 2 × 2 grid (m)')}"` : v === 'projects' ? ` title="${tr('Long-running projects, out of the task columns (p)')}"` : ''}>${v === 'matrix' ? '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><rect x="1" y="1" width="4.2" height="4.2" rx="1" fill="currentColor"/><rect x="6.8" y="1" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="1" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="6.8" y="6.8" width="4.2" height="4.2" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>' : ''}${tr(l)}</button>`).join('');
+        const parts = [`<div class="seg" role="group" aria-label="${tr('View')}">${seg}${state.view === 'feedback' ? `<button type="button" data-view="feedback" aria-pressed="true">${tr('Feedback')}</button>` : ''}</div>`];
         // Replies you have not read (0.5.15): a count that filters the view when pressed.
         // The number counts open tickets only: a reply on a closed one asks nothing, and counting it kept the number
         // from ever going down. The filter still lists the closed ones.
         const unreadOpen = [...unread.values()].filter((x) => x.status !== 'done' && x.status !== 'cancelled').length;
-        if (unreadOpen || state.unread) parts.push(`<button type="button" class="unreadBtn" data-act="unread" aria-pressed="${state.unread}" title="Open tickets where someone answered you since you last opened them (u)"><span class="replyDot" aria-hidden="true"></span>${unreadOpen} unread</button>`);
+        if (unreadOpen || state.unread) parts.push(`<button type="button" class="unreadBtn" data-act="unread" aria-pressed="${state.unread}" title="${tr('Open tickets where someone answered you since you last opened them (u)')}"><span class="replyDot" aria-hidden="true"></span>${tr('{n} unread', { n: unreadOpen })}</button>`);
         for (const k of FILTERS) {
           if (!state.f[k]) continue;
-          parts.push(`<span class="chip"><span><em>${esc(PICK_LABEL[k] || k)}</em> ${k === 'actor' || k === 'assignee' ? avatar(state.f[k], '', { edit: false }) + ' ' : ''}${esc(chipLabel(k, state.f[k]))}</span><button type="button" data-unfilter="${k}" aria-label="Remove filter">×</button></span>`);
+          parts.push(`<span class="chip"><span><em>${esc(PICK_LABEL[k] || k)}</em> ${k === 'actor' || k === 'assignee' ? avatar(state.f[k], '', { edit: false }) + ' ' : ''}${esc(chipLabel(k, state.f[k]))}</span><button type="button" data-unfilter="${k}" aria-label="${tr('Remove filter')}">×</button></span>`);
         }
         for (const k of Object.keys(PICK_LABEL)) {
           if (state.f[k]) continue;
@@ -2038,11 +2374,11 @@
           if (k === 'kind' && state.view === 'feedback') continue;
           const opts = options(k);
           if (!opts.length || (k === 'machine' && opts.length < 2) || (k === 'origin' && !facets.hasCloud) || (k === 'actor' && opts.length < 2)) continue;
-          parts.push(`<span class="pick"><select data-pick="${k}" aria-label="Filter by ${esc(PICK_LABEL[k])}"><option value="">${esc(PICK_LABEL[k])}</option>${opts.join('')}</select></span>`);
+          parts.push(`<span class="pick"><select data-pick="${k}" aria-label="${esc(tr('Filter by {f}', { f: PICK_LABEL[k] }))}"><option value="">${esc(PICK_LABEL[k])}</option>${opts.join('')}</select></span>`);
         }
-        if (Object.keys(state.f).length || state.q || state.unread) parts.push('<button type="button" class="clear" data-act="clear">Clear</button>');
+        if (Object.keys(state.f).length || state.q || state.unread) parts.push(`<button type="button" class="clear" data-act="clear">${tr('Clear')}</button>`);
         parts.push('<span class="spacer"></span>');
-        parts.push(`<button type="button" class="clear" data-act="archived" title="Done and cancelled tickets closed more than 30 days ago">${state.archived ? 'Hide archived' : 'Show archived'}</button>`);
+        parts.push(`<button type="button" class="clear" data-act="archived" title="${tr('Done and cancelled tickets closed more than 30 days ago')}">${state.archived ? tr('Hide archived') : tr('Show archived')}</button>`);
         setHtml($('filters'), parts.join(''));
         $('news')?.classList.toggle('searching', !!state.q);
         $('fbBtn').setAttribute('aria-pressed', String(state.view === 'feedback'));
@@ -2129,16 +2465,16 @@
         const col = (name, empty, counter) => {
           const list = b.columns?.[name] || [];
           const more = (c[name] || 0) - list.length;
-          reconcile($('col-' + name), list.map((t) => ({ key: t.key, html: card(t, now) })), { empty, tail: more > 0 ? `<div class="more">+ ${more} more — use the list view</div>` : '' });
+          reconcile($('col-' + name), list.map((t) => ({ key: t.key, html: card(t, now) })), { empty, tail: more > 0 ? `<div class="more">${tr('+ {n} more — use the list view', { n: more })}</div>` : '' });
           if (counter) $(counter).textContent = String(c[name] || 0);
         };
         col('waiting', EMPTY_WAITING, 'n-waiting');
-        col('inProgress', EMPTY('Nothing in progress'), 'n-inProgress');
-        col('todo', EMPTY('Nothing to do'), 'n-todo');
+        col('inProgress', EMPTY(tr('Nothing in progress')), 'n-inProgress');
+        col('todo', EMPTY(tr('Nothing to do')), 'n-todo');
         col('done', '');
         col('onHold', '');
         $('holdBox').hidden = !c.onHold;
-        $('holdLabel').textContent = `${c.onHold || 0} on hold, back by themselves`;
+        $('holdLabel').textContent = tr('{n} on hold, back by themselves', { n: c.onHold || 0 });
         $('n-waiting').classList.toggle('hot', (c.waiting || 0) > 0);
         // 0.5.12: the installation's line for the whole lane ("what waits on you"), when a fresh one was posted;
         // when the scores were posted, and a word when they are out of date (roiHead).
@@ -2151,7 +2487,7 @@
         // "How is this computed?" (roiHow) keeps its open state across redraws: `toggle` does not bubble, so capture it.
         if (!rn.__roiHow) { rn.__roiHow = true; rn.addEventListener('toggle', (e) => { if (e.target.classList?.contains('roiHow')) roiHowOpen = e.target.open; }, true); }
         $('doneBox').hidden = !c.done;
-        $('doneLabel').textContent = `${c.done || 0} done`;
+        $('doneLabel').textContent = tr('{n} done', { n: c.done || 0 });
         summary(c);
       }
 
@@ -2212,7 +2548,7 @@
 
       function renderList(r, now) {
         if (!r.tickets.length) {
-          setHtml($('listView'), `<div class="list">${EMPTY_WAITING.replace('Nothing waiting on you', 'No tickets match').replace('Questions, approvals and reviews show up here.', 'Try another filter or search.')}</div>`);
+          setHtml($('listView'), `<div class="list">${EMPTY_WAITING.replace(tr('Nothing waiting on you'), tr('No tickets match')).replace(tr('Questions, approvals and reviews show up here.'), tr('Try another filter or search.'))}</div>`);
           return;
         }
         // Group by session (a session is a context, its header filters on it); tickets outside sessions last.
@@ -2257,10 +2593,10 @@
         lastCounts = c;
         const nW = c.waiting || 0, nP = c.inProgress || 0, nT = c.todo || 0;
         const parts = [];
-        if (nW) parts.push(`<span class="hot"><b>${nW}</b> for you</span>`);
-        if (nP) parts.push(`<span class="opt"><b>${nP}</b> in progress</span>`);
-        if (nT) parts.push(`<span class="opt"><b>${nT}</b> to do</span>`);
-        setHtml($('summary'), parts.length ? parts.join('<span class="opt"> · </span>') : 'All clear');
+        if (nW) parts.push(`<span class="hot">${tr('{n} for you', { n: `<b>${nW}</b>` })}</span>`);
+        if (nP) parts.push(`<span class="opt">${tr('{n} in progress', { n: `<b>${nP}</b>` })}</span>`);
+        if (nT) parts.push(`<span class="opt">${tr('{n} to do', { n: `<b>${nT}</b>` })}</span>`);
+        setHtml($('summary'), parts.length ? parts.join('<span class="opt"> · </span>') : tr('All clear'));
         const t = (nW ? `(${nW}) ` : '') + 'Alvearium';
         if (document.title !== t) document.title = t;
         favicon(nW);
@@ -2501,13 +2837,15 @@
 
       // ---- freshness (0.5.20)
       /** How long ago the data on screen was confirmed by the server. `at`, `now`: ms; past `staleAfterS` it is out of date. */
-      function freshness(at, now, staleAfterS) {
+      // 0.9.9: `tl` is the page's translator (tr); without one (the lane's score note) it reads English. `verb` is
+      // 'updated' (the header) or 'loaded' (an open ticket).
+      function freshness(at, now, staleAfterS, tl = (s, v) => (v ? s.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? m) : s), verb = 'updated') {
         if (!Number.isFinite(at) || at <= 0) return { text: '', title: '', stale: false };
         const s = Math.max(0, Math.round((now - at) / 1000));
-        const ago = s < 45 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : s < 86400 ? Math.round(s / 3600) + ' h ago' : Math.round(s / 86400) + ' d ago';
+        const ago = s < 45 ? tl('just now') : s < 3600 ? tl('{n} min ago', { n: Math.round(s / 60) }) : s < 86400 ? tl('{n} h ago', { n: Math.round(s / 3600) }) : tl('{n} d ago', { n: Math.round(s / 86400) });
         const stale = s > staleAfterS;
-        const exact = new Date(at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'medium' });
-        return { text: (stale ? '⚠ updated ' : 'updated ') + ago, title: `Data as of ${exact}` + (stale ? ` — older than ${Math.round(staleAfterS / 60) || 1} min, may be out of date` : ''), stale };
+        const exact = new Date(at).toLocaleString(tl.locale, { dateStyle: 'medium', timeStyle: 'medium' });
+        return { text: (stale ? '⚠ ' : '') + tl(verb + ' {ago}', { ago }), title: tl('Data as of {exact}', { exact }) + (stale ? tl(' — older than {n} min, may be out of date', { n: Math.round(staleAfterS / 60) || 1 }) : ''), stale };
       }
       // ---- end freshness
       let staleAfterS = 120;
@@ -2515,7 +2853,7 @@
       function paintFresh() {
         // A live stream that still beats (heartbeat every 15 s) confirms nothing changed since.
         const at = Math.max(dataAt, streamOn ? streamBeat : 0);
-        const f = freshness(at, Date.now(), staleAfterS);
+        const f = freshness(at, Date.now(), staleAfterS, tr);
         const el = $('fresh');
         if (el) {
           el.textContent = f.text;
@@ -2525,8 +2863,8 @@
         const p = $('panel').querySelector('.pHead .fresh');
         if (p) {
           // Live, a change to this ticket reopens it at once: the stream vouches for it too.
-          const g = freshness(Math.max(Number(p.dataset.at), streamOn ? streamBeat : 0), Date.now(), staleAfterS);
-          p.textContent = g.text.replace('updated', 'loaded');
+          const g = freshness(Math.max(Number(p.dataset.at), streamOn ? streamBeat : 0), Date.now(), staleAfterS, tr, 'loaded');
+          p.textContent = g.text;
           p.title = g.title;
           p.classList.toggle('stale', g.stale);
         }
@@ -2545,7 +2883,7 @@
       let served = { version: null, releases: [] };
       const fmtDay = (d) => {
         const at = new Date(d + 'T12:00:00Z');
-        return Number.isNaN(at.getTime()) ? d : at.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        return Number.isNaN(at.getTime()) ? d : at.toLocaleDateString(tr.locale, { year: 'numeric', month: 'short', day: 'numeric' });
       };
       const ICON_NEW = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.8l1.5 4.2 4.3 1.5-4.3 1.5L8 13.2 6.5 9 2.2 7.5 6.5 6z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>';
       async function loadChangelog() {
@@ -2777,17 +3115,17 @@
       const pendingBusy = () => pendingPics.some((p) => !p.id);
       function eventLine(e, i) {
         const by = fromTo(e);
-        const at = `<time title="${esc(new Date(e.at).toLocaleString())}">${esc(when(e.at))}</time>`;
-        if (e.type === 'comment') return `<div class="ev comment mdHost" data-md-src="ev:${Number(i) || 0}"><div class="evHead">${by} commented${at}${mdActs('comment')}</div><div class="said md">${md(e.text)}</div>${picsHtml(e.attachments)}</div>`;
-        if (e.type === 'created') return `<div class="ev">${who(e.actor)} created it${e.to_status ? ' as ' + esc(STATUS[e.to_status] || e.to_status) : ''}${e.target ? `<span class="arrow">→</span>${who(e.target)}` : ''}${at}${picsHtml(e.attachments)}</div>`;
-        if (e.type === 'status' || e.type === 'reopened') return `<div class="ev">${by} ${e.type === 'reopened' ? 'reopened it' : 'moved it'}: ${esc(STATUS[e.from_status] || e.from_status)} → <b>${esc(STATUS[e.to_status] || e.to_status)}</b>${at}${e.text ? `<div class="said">${md(e.text)}</div>` : ''}</div>`;
+        const at = `<time title="${esc(new Date(e.at).toLocaleString(tr.locale))}">${esc(when(e.at))}</time>`;
+        if (e.type === 'comment') return `<div class="ev comment mdHost" data-md-src="ev:${Number(i) || 0}"><div class="evHead">${tr('{by} commented', { by })}${at}${mdActs('comment')}</div><div class="said md">${md(e.text)}</div>${picsHtml(e.attachments)}</div>`;
+        if (e.type === 'created') return `<div class="ev">${tr('{who} created it', { who: who(e.actor) })}${e.to_status ? tr(' as {s}', { s: esc(STATUS[e.to_status] || e.to_status) }) : ''}${e.target ? `<span class="arrow">→</span>${who(e.target)}` : ''}${at}${picsHtml(e.attachments)}</div>`;
+        if (e.type === 'status' || e.type === 'reopened') return `<div class="ev">${by} ${e.type === 'reopened' ? tr('reopened it') : tr('moved it')}${tr.lang === 'fr' ? ' :' : ':'} ${esc(STATUS[e.from_status] || e.from_status)} → <b>${esc(STATUS[e.to_status] || e.to_status)}</b>${at}${e.text ? `<div class="said">${md(e.text)}</div>` : ''}</div>`;
         if (e.type === 'assigned') return `<div class="ev">${who(e.actor)} handed it over<span class="arrow">→</span>${who(e.target || e.text)}${at}</div>`;
         if (e.type === 'edit') return `<div class="ev">${by} edited ${esc(e.text || 'it')}${at}</div>`;
         if (e.type === 'agent') return `<div class="ev agent">${by} ${md(e.text || '')}${at}</div>`;
         return `<div class="ev ${esc(e.type)}">${by} ${md(e.text || e.type)}${at}</div>`;
       }
       function depList(list, rel) {
-        if (!list?.length) return '<div class="empty" style="padding:6px 8px;text-align:left">None</div>';
+        if (!list?.length) return `<div class="empty" style="padding:6px 8px;text-align:left">${tr('None')}</div>`;
         return list
           .map((d) => `<div class="dep${d.status === 'done' || d.status === 'cancelled' ? ' closed' : ''}" data-open="${esc(d.key)}"><span class="dot" data-s="${esc(d.status)}"></span><span class="k">${esc(d.key)}</span><span class="tt" title="${ttl(d.title)}">${ttl(d.title)}</span><button type="button" class="rm" data-undep="${esc(d.key)}" data-rel="${rel}" title="Remove this dependency" aria-label="Remove">×</button></div>`)
           .join('');
@@ -2804,8 +3142,8 @@
         const oneOff = rest.filter((a) => run(a.id)).sort((a, b) => run(b.id) - run(a.id) || actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id));
         // The 50 newest numbered runs, then every named run (a few, and they stay: they would never make the 50).
         const shown = [...oneOff.filter((a) => run(a.id) >= 1).slice(0, 50), ...oneOff.filter((a) => run(a.id) < 1)];
-        const list = [['user', 'You'], ['claude', 'Claude'], ...lasting.map((a) => [a.id, label(a)]), ...shown.map((a) => [a.id, label(a), 'Others'])];
-        if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur) + (names.has(actorName(cur)) ? ` (${cur})` : ''), run(cur) ? 'Others' : undefined]);
+        const list = [['user', tr('You')], ['claude', 'Claude'], ...lasting.map((a) => [a.id, label(a)]), ...shown.map((a) => [a.id, label(a), tr('Others')])];
+        if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur) + (names.has(actorName(cur)) ? ` (${cur})` : ''), run(cur) ? tr('Others') : undefined]);
         return list;
       };
       // 0.6.0: on hold — what it waits for, what happens then; or the form to put it on hold.
@@ -2816,7 +3154,7 @@
           return `<div class="sect">On hold</div><div class="holdBox"><div class="holdNow">Waits for <b>${esc(h.waits_for)}</b>, then <b>${esc(h.next_text)}</b>.${h.note ? ' ' + esc(h.note) : ''}${h.stuck ? `<br><span class="tag hold stuck">⚠ ${esc(h.stuck)}</span>` : ''}<div class="muted">It comes back by itself${by}.</div></div><div class="row"><button type="button" class="btn" data-act="unhold">Lift the hold now</button></div></div>`;
         }
         const open = (t.blocked_by || []).filter((b) => b.status !== 'done' && b.status !== 'cancelled').map((b) => b.key).join(', ');
-        return `<details class="holdForm"><summary class="sect" style="cursor:pointer">Put on hold…</summary><div class="holdBox">
+        return `<details class="holdForm"><summary class="sect" style="cursor:pointer">${tr('Put on hold…')}</summary><div class="holdBox">
           <div class="row"><label class="muted" for="holdCond">Until</label><select id="holdCond" aria-label="What it waits for"><option value="blocked_by">these tickets are closed</option><option value="pr_merged">a pull request is merged</option><option value="time">a date and time</option><option value="reply">someone replies</option></select><input id="holdValue" value="${esc(open)}" placeholder="${keyPrefix(t.key)}-12, ${keyPrefix(t.key)}-14" aria-label="Tickets, pull request, date or actor" autocomplete="off"></div>
           <div class="row"><label class="muted" for="holdThen">Then</label><select id="holdThen" aria-label="What happens then"><option value="">wake who put it on hold</option><option value="wake">wake an agent</option><option value="assign">hand it to someone</option><option value="me">back to you</option></select><input id="holdWho" placeholder="agent id" aria-label="Who" autocomplete="off" hidden></div>
           <div class="row"><input id="holdNote" placeholder="Why it waits (optional)" aria-label="Why it waits" autocomplete="off"><button type="button" class="btn primary" data-act="hold">Put on hold</button></div>
@@ -2853,49 +3191,49 @@
         if (t.repo) ctx.push(`<button type="button" class="tag" data-filter="repo" data-value="${esc(t.repo)}">${esc(t.repo)}</button>`);
         if (t.branch && t.branch !== 'HEAD') ctx.push(`<span class="tag">⎇ ${esc(t.branch)}</span>`);
         if (t.machine) ctx.push(`<span class="tag">${t.origin === 'cloud' ? '☁ cloud' : esc(t.machine)}</span>`);
-        ctx.push(`<span class="tag">from ${esc(t.source === 'hook' ? 'hooks' : t.source)}</span>`);
+        ctx.push(`<span class="tag">${esc(tr('from {src}', { src: t.source === 'hook' ? tr('hooks') : t.source }))}</span>`);
         const sess = t.session_id ? `<div class="ctx"><button type="button" class="tag" data-filter="session" data-value="${esc(t.session_id)}">${t.origin === 'cloud' ? '☁ ' : ''}${esc(sessionName(t))}</button><span class="tag">${esc(ACT[t.session?.activity] || t.session?.activity || '')}</span>${t.session?.url ? `<a class="tag" href="${esc(t.session.url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}</div>` : '<span class="lab">—</span>';
         const links = (t.links || []).map((l) => (httpsUrl(l.url) ? `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title || (l.type === 'pr' ? 'Pull request ' + l.url.replace(/^https:\/\/[^/]+\//, '') : l.type === 'session' ? 'Cloud session' : l.url))} ↗</a>` : `<span class="mono">${esc(l.url)}</span>`)).join('');
         const kids = (t.children || []).map((c) => `<div class="kid" data-open="${esc(c.key)}"><span class="dot" data-s="${esc(c.status)}"></span><span class="k">${esc(c.key)}</span><span class="tt">${ttl(c.title)}</span><span class="pill" data-s="${esc(c.status)}">${esc(STATUS[c.status])}</span></div>`).join('');
         $('panel').innerHTML = `
           ${resizeHandle()}
-          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><span class="fresh" data-at="${now}"></span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="Mark ${esc(t.key)} as done" title="Mark done (d)">${CHECK}<span>Done</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="Close">×</button></div></div>
+          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><span class="fresh" data-at="${now}"></span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="${esc(tr('Mark {k} as done', { k: t.key }))}" title="${tr('Mark done (d)')}">${CHECK}<span>${tr('Done')}</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="${tr('Close')}">×</button></div></div>
           <form class="pBody" id="tform" autocomplete="off">
             <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
             ${roiLine(t)}
             ${askBox(t)}
             ${actionBar(t)}
             <div class="fields">
-              <label>Status</label>${sel('status', t.status, Object.entries(STATUS))}
-              <label>Assignee</label>${sel('assignee', t.assignee, assigneeOpts(t.assignee))}
-              <label>Priority</label>${sel('priority', t.priority || '', [['', 'None'], ['P0', 'P0 · now'], ['P1', 'P1 · next'], ['P2', 'P2 · normal'], ['P3', 'P3 · later']])}
+              <label>${tr('Status')}</label>${sel('status', t.status, Object.entries(STATUS))}
+              <label>${tr('Assignee')}</label>${sel('assignee', t.assignee, assigneeOpts(t.assignee))}
+              <label>${tr('Priority')}</label>${sel('priority', t.priority || '', [['', tr('None')], ['P0', PRIO.P0], ['P1', PRIO.P1], ['P2', PRIO.P2], ['P3', PRIO.P3]])}
               ${t.priority_proposed ? `<div class="prioNote"><span>Proposed by ${esc(t.priority_by_name || t.priority_by || 'an agent')}${t.priority !== 'P2' && t.priority !== 'P3' ? ', counted as P2 until you confirm it' : ''}</span><button type="button" class="tag" data-confirm-prio="${esc(t.key)}">Confirm ${esc(t.priority)}</button></div>` : ''}
               ${!t.priority && t.project_priority ? `<div class="prioNote"><span>Counts as ${esc(t.project_priority.priority)}, the priority of its project ${esc(t.project_priority.key)}</span></div>` : ''}
               ${t.kind === 'feedback' ? `<label>Type</label>${sel('subtype', t.subtype || 'suggestion', [['bug', 'Bug'], ['suggestion', 'Suggestion'], ['friction', 'Friction']])}` : ''}
-              <label>Labels</label><input name="labels" value="${esc((t.labels || []).join(', '))}" placeholder="comma, separated">
-              <span class="lab">Session</span>${sess}
-              <span class="lab">Context</span><div class="ctx">${ctx.join('')}</div>
+              <label>${tr('Labels')}</label><input name="labels" value="${esc((t.labels || []).join(', '))}" placeholder="${tr('comma, separated')}">
+              <span class="lab">${tr('Session')}</span>${sess}
+              <span class="lab">${tr('Context')}</span><div class="ctx">${ctx.join('')}</div>
               ${t.parent_key ? `<span class="lab">Parent</span><div class="ctx"><button type="button" class="tag" data-open="${esc(t.parent_key)}">${esc(t.parent_key)} ${esc((t.parent_title || '').slice(0, 50))}</button></div>` : ''}
-              <span class="lab">Created</span><span>${t.created_by ? who(t.created_by) + ' · ' : ''}${esc(when(t.created_at))} · updated ${agoPhrase(t.updated_at, now)}</span>
+              <span class="lab">${tr('Created')}</span><span>${t.created_by ? who(t.created_by) + ' · ' : ''}${esc(when(t.created_at))} · ${tr('updated {ago}', { ago: agoPhrase(t.updated_at, now) })}</span>
             </div>
             ${t.kind === 'feedback' && t.status !== 'done' && t.status !== 'cancelled' ? `<div class="resolve"><textarea id="resolution" data-limit="comment" placeholder="Resolution: what was done, or why not (kept in the history)"></textarea><div class="acts"><button type="button" class="btn" data-act="fbCancel">Won't do</button><button type="button" class="btn primary" data-act="fbDone">Mark handled</button></div></div>` : ''}
             <div class="formActs" id="saveBar" hidden><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="revert">Discard</button><button type="submit" class="btn primary" title="${esc(sendHint('save'))}">Save</button></div>
             <div class="mdHost" data-md-src="body">
-              <div class="sect">Description ${t.body ? mdActs('description') : ''}<button type="button" class="clear" data-act="editBody">Edit</button></div>
-              <div class="md${t.body ? '' : ' empty-body'}" id="bodyView">${t.body ? (bodyRest(t) ? md(bodyRest(t)) : '<span class="empty-body">Everything is in the box above.</span>') : 'No description.'}</div>
+              <div class="sect">${tr('Description')} ${t.body ? mdActs('description') : ''}<button type="button" class="clear" data-act="editBody">${tr('Edit')}</button></div>
+              <div class="md${t.body ? '' : ' empty-body'}" id="bodyView">${t.body ? (bodyRest(t) ? md(bodyRest(t)) : `<span class="empty-body">${tr('Everything is in the box above.')}</span>`) : tr('No description.')}</div>
               <textarea name="body" id="bodyEdit" data-limit="body" hidden>${esc(t.body || '')}</textarea>
             </div>
             ${links ? `<div class="sect">Links</div><div class="links">${links}</div>` : ''}
             ${kids ? `<div class="sect">Sub-tickets</div><div class="kids">${kids}</div>` : ''}
             ${t.kind === 'feedback' || !isOpen(t) ? '' : holdSection(t)}
-            ${t.kind === 'feedback' ? '' : `<div class="sect">Dependencies ${t.blocked ? '<span class="tag blocked">⛔ blocked</span>' : ''}</div>
+            ${t.kind === 'feedback' ? '' : `<div class="sect">${tr('Dependencies')} ${t.blocked ? `<span class="tag blocked">⛔ ${tr('blocked')}</span>` : ''}</div>
             <div class="depCols">
-              <div><h4>Blocked by</h4><div class="deps">${depList(t.blocked_by, 'by')}</div><div class="depAdd"><input id="addBlocker" placeholder="${keyPrefix(t.key)}-12" aria-label="Add a ticket that blocks this one" autocomplete="off"><button type="button" class="btn" data-act="addBlocker">Add</button></div></div>
-              <div><h4>Blocks</h4><div class="deps">${depList(t.blocking, 'blocks')}</div><div class="depAdd"><input id="addBlocked" placeholder="${keyPrefix(t.key)}-14" aria-label="Add a ticket this one blocks" autocomplete="off"><button type="button" class="btn" data-act="addBlocked">Add</button></div></div>
+              <div><h4>${tr('Blocked by')}</h4><div class="deps">${depList(t.blocked_by, 'by')}</div><div class="depAdd"><input id="addBlocker" placeholder="${keyPrefix(t.key)}-12" aria-label="${tr('Add a ticket that blocks this one')}" autocomplete="off"><button type="button" class="btn" data-act="addBlocker">${tr('Add')}</button></div></div>
+              <div><h4>${tr('Blocks')}</h4><div class="deps">${depList(t.blocking, 'blocks')}</div><div class="depAdd"><input id="addBlocked" placeholder="${keyPrefix(t.key)}-14" aria-label="${tr('Add a ticket this one blocks')}" autocomplete="off"><button type="button" class="btn" data-act="addBlocked">${tr('Add')}</button></div></div>
             </div>`}
-            <div class="sect">History</div>
+            <div class="sect">${tr('History')}</div>
             <div class="timeline">${(t.events || []).map(eventLine).join('')}</div>
-            <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" data-limit="comment" placeholder="Add a comment…" aria-label="Comment"></textarea><div class="pend" id="pendingPics"></div><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts">${attachButton('attachFile')}<button type="button" class="btn" data-act="newChild">Add sub-ticket</button><button type="button" class="btn" data-act="comment">Comment</button></div></div>
+            <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" data-limit="comment" placeholder="${tr('Add a comment…')}" aria-label="${tr('Comment')}"></textarea><div class="pend" id="pendingPics"></div><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts">${attachButton('attachFile')}<button type="button" class="btn" data-act="newChild">${tr('Add sub-ticket')}</button><button type="button" class="btn" data-act="comment">${tr('Comment')}</button></div></div>
           </form>${replyBar(t)}`;
         $('panel').hidden = false;
         pendingPics = [];
@@ -2921,11 +3259,13 @@
           ticketActions = { list: Array.isArray(data.actions) ? data.actions : [], canRun: data.can_run === true };
         } catch {}
       }
+      /** 0.9.9: an action's label in the page's language (`labels`, from the installation's file), else its `label`. */
+      const actionLabel = (a) => (a.labels && typeof a.labels[tr.lang] === 'string' ? a.labels[tr.lang] : a.label);
       function actionBar(t) {
         if (!ticketActions.canRun || !ticketActions.list.length) return '';
         const note = actionNote?.key === t.key ? actionNote : null;
-        const btns = ticketActions.list.map((a) => `<button type="button" class="pAct" data-action="${esc(a.id)}" data-key="${esc(t.key)}">${a.icon ? `<span class="ic" aria-hidden="true">${esc(a.icon)}</span>` : ''}<span>${esc(a.label)}</span></button>`).join('');
-        return `<div class="pActs" role="group" aria-label="Actions on ${esc(t.key)}">${btns}<div class="pActMsg${note?.err ? ' err' : ''}" id="actMsg" role="status" aria-live="polite">${note ? note.html : ''}</div></div>`;
+        const btns = ticketActions.list.map((a) => `<button type="button" class="pAct" data-action="${esc(a.id)}" data-key="${esc(t.key)}">${a.icon ? `<span class="ic" aria-hidden="true">${esc(a.icon)}</span>` : ''}<span>${esc(actionLabel(a))}</span></button>`).join('');
+        return `<div class="pActs" role="group" aria-label="${esc(tr('Actions on {k}', { k: t.key }))}">${btns}<div class="pActMsg${note?.err ? ' err' : ''}" id="actMsg" role="status" aria-live="polite">${note ? note.html : ''}</div></div>`;
       }
       /** The page's own check of a link an action returns: https, default port, no credentials, a listed host. */
       function actionUrl(url, hosts) {
@@ -3102,7 +3442,7 @@
       // Sessions the owner can tag (GET /api/sessions/taggable), fetched when the @ list opens, at most once a minute.
       const taggable = { list: [], at: 0, busy: false };
       function sessionLabel(x) {
-        const since = x.since ? new Date(x.since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+        const since = x.since ? new Date(x.since).toLocaleTimeString(tr.locale, { hour: '2-digit', minute: '2-digit' }) : '';
         return ['Session', repoName(x.repo), x.title, since && 'since ' + since].filter(Boolean).join(' · ');
       }
       function loadTaggable() {
@@ -3711,8 +4051,8 @@
       function live(s, text) {
         const el = $('live');
         el.className = 'live ' + s;
-        $('liveText').textContent = text;
-        el.title = s === 'on' ? 'Live: changes appear as they happen' : s === 'poll' ? 'Live updates unavailable: refreshing every 10 s' : text;
+        $('liveText').textContent = tr(text);
+        el.title = s === 'on' ? tr('Live: changes appear as they happen') : s === 'poll' ? tr('Live updates unavailable: refreshing every 10 s') : tr(text);
       }
       let isLocked = false;
       function locked() {
@@ -4160,7 +4500,7 @@
       }
       /** The first column is the viewer's own queue (0.9.4): an invited member sees what waits on them. */
       function waitingLabel() {
-        $('h-waiting').textContent = 'Waiting on you';
+        $('h-waiting').textContent = tr('Waiting on you');
       }
       const canManage = () => me && (me.role === 'owner' || me.role === 'admin');
       let shownToken = null;
@@ -4452,9 +4792,9 @@
         if (nextFocus) document.querySelector(`#main [data-open="${CSS.escape(nextFocus)}"]`)?.focus();
         if (state.ticket === key && !$('panel').hidden) openPanel(key, false);
         const n = t.children_open || 0;
-        const kids = n ? ` · <em>${n} sub-ticket${n === 1 ? '' : 's'} still open</em>` : '';
+        const kids = n ? ` · <em>${tr('{n} sub-tickets still open', { n })}</em>` : '';
         const prev = from && from !== 'done' ? from : null;
-        toast(`<b>${esc(key)}</b> done${kids}`, { html: true, ms: 6000, action: prev ? { label: 'Undo', run: () => undoDone(key, prev) } : null });
+        toast(`<b>${esc(key)}</b> ${tr('done')}${kids}`, { html: true, ms: 6000, action: prev ? { label: tr('Undo'), run: () => undoDone(key, prev) } : null });
       }
       async function undoDone(key, prev) {
         try {

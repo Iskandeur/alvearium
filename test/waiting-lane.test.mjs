@@ -393,7 +393,8 @@ test('page: the buttons render with a default marked, labelled, and the CSP is u
   const to = page.indexOf('const rerenderBoard');
   assert.ok(from > 0 && to > from, 'asks() is in the page');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-  const make = new Function('esc', 'plain', 'isOpen', '$', `${page.slice(from, to)}; return { asks, askBusy, replyBar, askBox, bodyRest, open: (k) => { askMenu = k; } };`);
+  const i18n = page.slice(page.indexOf('// ---- i18n (0.9.9)'), page.indexOf('// ---- end i18n'));
+  const make = new Function('esc', 'plain', 'isOpen', '$', `${i18n}\nconst tr = makeTr('en', 'en');\n${page.slice(from, to)}; return { asks, askBusy, replyBar, askBox, bodyRest, open: (k) => { askMenu = k; } };`);
   const { asks, askBusy, replyBar, askBox, bodyRest, open } = make(esc, (x) => String(x), () => true, () => null);
   const gesture = { type: 'choice', default: 'B', options: [{ id: 'A', text: 'Keep <SQLite>' }, { id: 'B', text: 'Move' }] };
   const block = { question: 'Which database?', options: [{ id: 'A', text: 'Keep <SQLite>', consequence: 'nothing to migrate' }, { id: 'B', text: 'Move', consequence: 'one night of work' }], defaut: 'B', sansReponse: 'I keep SQLite on Friday.', complete: true };

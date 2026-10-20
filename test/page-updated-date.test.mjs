@@ -15,7 +15,7 @@ test('page: every short date of a listed ticket is updated_at, with "Updated …
   assert.equal(/ago\(t\.created_at/.test(page), false, 'no listed ticket shows its creation date');
   assert.equal(/ago\(t\.status_at/.test(page), false, 'nor its status date');
   assert.equal((page.match(/ago\(t\.updated_at, now\)\}<\/span>/g) || []).length, 4, 'card, Next, list, row');
-  assert.match(page, /const updTitle = \(t\) => `Updated \$\{when\(t\.updated_at\)\} · created \$\{when\(t\.created_at\)\}`/);
+  assert.match(page, /const updTitle = \(t\) => tr\('Updated \{u\} · created \{c\}', \{ u: when\(t\.updated_at\), c: when\(t\.created_at\) \}\)/);
 });
 
 test('page: the Done answer button has a hairline frame and a 30 px (40 px on touch) height', () => {

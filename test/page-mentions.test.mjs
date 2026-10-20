@@ -85,7 +85,7 @@ test('filter bar: Actor and Assignee list lasting actors first, at most 50 numbe
   const src = page.slice(f, page.indexOf('const PICK_LABEL', f));
   assert.match(src, /k === 'assignee' \|\| k === 'actor'/);
   assert.match(src, /runPicks\(/);
-  assert.match(src, /<optgroup label="Others">/);
+  assert.match(src, /<optgroup label="\$\{esc\(tr\('Others'\)\)\}">/);
 });
 
 test('mentions: @ inside a word is ignored', () => {

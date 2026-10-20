@@ -76,8 +76,15 @@ export function parseActions(text, env = process.env) {
     if (typeof a.id !== 'string' || !ID.test(a.id)) throw fail(`${at}: "id" must be 1 to 32 lowercase letters, digits, - or _`);
     if (seen.has(a.id)) throw fail(`${at}: the id "${a.id}" is used twice`);
     seen.add(a.id);
-    const label = typeof a.label === 'string' ? a.label.trim() : '';
-    if (!label || label.length > 40 || /[\p{Cc}]/u.test(label)) throw fail(`${at} (${a.id}): "label" must be 1 to 40 characters on one line`);
+    // 0.9.9: "label" is a text, or one text per language ({ "en": "Open a session", "fr": "Ouvrir une session" });
+    // the page shows the one of its language, else the English one, else the first.
+    const okLabel = (l) => typeof l === 'string' && l.trim() && l.trim().length <= 40 && !/[\p{Cc}]/u.test(l.trim());
+    const isMap = a.label && typeof a.label === 'object' && !Array.isArray(a.label);
+    const entries = isMap ? Object.entries(a.label) : [];
+    if (isMap ? !entries.length || entries.some(([k, l]) => !/^[a-z]{2}$/.test(k) || !okLabel(l)) : !okLabel(a.label))
+      throw fail(`${at} (${a.id}): "label" must be 1 to 40 characters on one line, or such a text per two-letter language ({ "en": …, "fr": … })`);
+    const labels = isMap ? Object.fromEntries(entries.map(([k, l]) => [k, l.trim()])) : null;
+    const label = labels ? labels.en || entries[0][1].trim() : a.label.trim();
     const icon = a.icon == null ? '' : String(a.icon).trim();
     if ([...icon].length > 4 || /[\p{Cc}<>&"']/u.test(icon)) throw fail(`${at} (${a.id}): "icon" must be at most 4 characters (an emoji)`);
     let url;
@@ -98,7 +105,7 @@ export function parseActions(text, env = process.env) {
     for (const h of hosts) if (!HOST.test(h)) throw fail(`${at} (${a.id}): "${h}" is not a host name (no scheme, port or path)`);
     const timeout = a.timeout_ms == null ? DEFAULT_TIMEOUT_MS : Number(a.timeout_ms);
     if (!Number.isInteger(timeout) || timeout < MIN_TIMEOUT_MS || timeout > MAX_TIMEOUT_MS) throw fail(`${at} (${a.id}): "timeout_ms" must be an integer between ${MIN_TIMEOUT_MS} and ${MAX_TIMEOUT_MS}`);
-    return { id: a.id, label, icon, url: url.href, token, allow_hosts: [...new Set(hosts)], timeout_ms: timeout };
+    return { id: a.id, label, ...(labels ? { labels } : {}), icon, url: url.href, token, allow_hosts: [...new Set(hosts)], timeout_ms: timeout };
   });
 }
 
@@ -158,7 +165,7 @@ async function readReply(res) {
 const isTimeout = (e) => e?.name === 'TimeoutError' || e?.name === 'AbortError';
 
 /** What the page lists: no URL, no token variable. */
-export const publicAction = (a) => ({ id: a.id, label: a.label, icon: a.icon, allow_hosts: a.allow_hosts });
+export const publicAction = (a) => ({ id: a.id, label: a.label, ...(a.labels ? { labels: a.labels } : {}), icon: a.icon, allow_hosts: a.allow_hosts });
 
 export function actionRoutes({ actions = [], fetchFn = fetch, now = () => Date.now(), cooldownMs = ACTION_COOLDOWN_MS } = {}) {
   const lastClick = new Map();
