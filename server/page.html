@@ -743,6 +743,13 @@
     .roiNote { margin: -4px 8px 10px; padding: 7px 10px; border-radius: 8px; background: var(--roi-soft); color: var(--text); font-size: 12.5px; line-height: 1.4; }
     .roiNote b { color: var(--roi); font-weight: 600; margin-right: 4px; }
     .roiNote .roiWhen { margin-left: 6px; color: var(--muted); font-size: 11.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    /* 0.9.8: "How is this computed?" under the lane line (roiHow) */
+    .roiNote .roiHow { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .roiNote .roiHow summary { cursor: pointer; color: var(--roi); font-weight: 600; width: fit-content; }
+    .roiNote .roiHow ul { margin: 4px 0 0; padding-left: 18px; }
+    .roiNote .roiHow li { margin: 2px 0; }
+    @media (pointer: coarse) { .roiNote .roiHow summary { box-sizing: border-box; min-height: 44px; padding: 13px 12px 13px 0; } }
+    .vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
     .roiNote.stale { background: var(--chip); border: 1px dashed var(--line-strong); color: var(--muted); }
     .roiNote.stale b { color: #d8a03a; }
     .roiLine { display: flex; gap: 8px; align-items: baseline; margin: 0 0 12px; font-size: 13px; color: var(--muted); }
@@ -1542,25 +1549,48 @@
       function roiNum(n) { const v = Number(n); return !Number.isFinite(v) ? '' : v < 0.05 ? '<0.1' : v >= 10 ? String(Math.round(v)) : String(Math.round(v * 10) / 10); }
       /** 0.9.5: the installation's badge ("unblocks the agents ~2 pts"), shown as sent, else the bare score. Information: it orders nothing. */
       function roiText(t) { return t.roi?.badge || roiNum(t.roi?.score); }
-      /** What ⚡ and "pt" mean, in the README's words: the installation's own points, not the board's. */
+      /**
+       * Every sentence the lane's scores show, in one place (0.9.8, ALV-2861), so a translation takes them as a block.
+       * What ⚡ and "pt" mean, in the README's words: the installation's own points, not the board's. The board is never
+       * told what one point is worth, so it says whose unit it is, which way is better, and why the numbers move.
+       */
+      const ROI_TEXT = {
+        definition: '⚡ is a score the installation posted, in its own points (pt): what your answer is worth to the agents, higher frees more of their work. The board never computes it, the formula is the installation\'s. Shown for information, it does not order your lane.',
+        fallbackNote: 'Score posted by the installation',
+        badgeLabel: 'agent score posted by the installation',
+        how: 'How is this computed?',
+        postedBy: (by, when) => `Posted by ${by}${when ? `, ${when}` : ''}. The board shows this line and the ⚡ on the cards as sent: it computes none of these numbers.`,
+        unit: 'pt (points) is the installation\'s own unit of agent work, for example a share of its agents\' weekly usage quota. The board is not told its exact definition: the installation\'s formula sets it.',
+        trend: 'A change over time (− or +) compares with an earlier post: − means less agent work waits on your answers than then (better), + means more.',
+        moves: 'The numbers change each time the installation posts again (each post replaces the last one whole), even when you did nothing: a job ended, a ticket opened or closed, the cost of a job was measured again. This page shows the line as received, it does not recompute it.',
+        card: '⚡ on a card: what answering that ticket is worth to the agents, in the same points. It does not order your lane: your priorities do.',
+      };
+      const ROI_DEFINITION = ROI_TEXT.definition;
       /** Cards whose reason is open (a tap on ⚡): kept across redraws. */
       const roiOpen = new Set();
-      const ROI_DEFINITION ='⚡ is a score the installation posted, in its own points (pt): what your answer is worth to the agents. The board never computes it, the formula is the installation\'s. Shown for information, it does not order your lane.';
-      function roiTitle(t) { return `${t.roi?.note || 'Score posted by the installation'}. ${ROI_DEFINITION}`; }
+      /** The lane head's "How is this computed?" stays open across redraws once opened (a `toggle` listener sets it). */
+      let roiHowOpen = false;
+      function roiTitle(t) { return `${t.roi?.note || ROI_TEXT.fallbackNote}. ${ROI_DEFINITION}`; }
       /** The card's badge: a button, so a tap shows the reason on a phone (roiTap); the title stays for a mouse. */
       function roiBadge(t) {
         const k = esc(t.key), open = roiOpen.has(t.key);
-        return `<button type="button" class="tag roi" data-act="roiNote" data-key="${k}" aria-expanded="${open}" aria-controls="roiTap-${k}" title="${esc(roiTitle(t))}" aria-label="⚡ ${esc(roiText(t))}: ${esc(t.roi.note || 'Score posted by the installation')}">⚡ ${esc(roiText(t))}</button>`;
+        return `<button type="button" class="tag roi" data-act="roiNote" data-key="${k}" aria-expanded="${open}" aria-controls="roiTap-${k}" title="${esc(roiTitle(t))}" aria-label="⚡ ${esc(roiText(t))}, ${esc(ROI_TEXT.badgeLabel)}: ${esc(t.roi.note || ROI_TEXT.fallbackNote)}">⚡ ${esc(roiText(t))}</button>`;
+      }
+      /** "How is this computed?" under the lane line: who posted it, whose unit pt is, which way is better, why it moves. */
+      function roiHow(by, when) {
+        const li = [ROI_TEXT.postedBy(by, when), ROI_TEXT.unit, ROI_TEXT.trend, ROI_TEXT.moves, ROI_TEXT.card].map((s) => `<li>${esc(s)}</li>`).join('');
+        return `<details class="roiHow"${roiHowOpen ? ' open' : ''}><summary>${esc(ROI_TEXT.how)}</summary><ul>${li}</ul></details>`;
       }
       /** The reason under the badge, open while its key is in roiOpen. */
       function roiTap(t) {
         if (t.column !== 'waiting' || !t.roi) return '';
         const k = esc(t.key);
-        return `<div class="roiTap" id="roiTap-${k}"${roiOpen.has(t.key) ? '' : ' hidden'}>${esc(t.roi.note || 'Score posted by the installation')}<small>${esc(ROI_DEFINITION)}</small></div>`;
+        return `<div class="roiTap" id="roiTap-${k}"${roiOpen.has(t.key) ? '' : ' hidden'}>${esc(t.roi.note || ROI_TEXT.fallbackNote)}<small>${esc(ROI_DEFINITION)}</small></div>`;
       }
+      /** The open ticket's line: the title for a mouse, the same words for a screen reader (a title alone is not read). */
       function roiLine(t) {
         if (!t.roi || !isOpen(t)) return '';
-        return `<div class="roiLine" title="${esc(roiTitle(t))}"><span class="tag roi">⚡ ${esc(roiText(t))}</span><span>${esc(t.roi.note || 'Score posted by the installation')}</span></div>`;
+        return `<div class="roiLine" title="${esc(roiTitle(t))}"><span class="tag roi">⚡ ${esc(roiText(t))}</span><span>${esc(t.roi.note || ROI_TEXT.fallbackNote)}<span class="vh">. ${esc(ROI_DEFINITION)}</span></span></div>`;
       }
       /**
        * The note at the head of the lane: the installation's line and when the scores were posted, or, once the
@@ -1577,7 +1607,8 @@
         if (!rs && !anyScore) return null;
         const text = rs ? esc(rs.text) : 'Scores posted by the installation, what your answers are worth to the agents';
         const when = since.text ? `<span class="roiWhen" id="roi-when" data-at="${at}">${esc(since.text)}</span>` : '';
-        return { stale: false, title: since.title ? `Posted by ${by}, ${since.title.replace(/^Data as of /, '')}` : `Posted by ${by}`, html: `<b>⚡</b>${text}${when}` };
+        const on = since.title ? since.title.replace(/^Data as of /, '') : '';
+        return { stale: false, title: on ? `Posted by ${by}, ${on}` : `Posted by ${by}`, html: `<b>⚡</b>${text}${when}${roiHow(by, on)}` };
       }
       // ---- end of roi helpers ----
       /** What we need from you, highlighted above the details of an open ticket. */
@@ -2101,6 +2132,8 @@
         rn.classList.toggle('stale', !!rh?.stale);
         setHtml(rn, rh ? rh.html : '');
         rn.title = rh ? rh.title : '';
+        // "How is this computed?" (roiHow) keeps its open state across redraws: `toggle` does not bubble, so capture it.
+        if (!rn.__roiHow) { rn.__roiHow = true; rn.addEventListener('toggle', (e) => { if (e.target.classList?.contains('roiHow')) roiHowOpen = e.target.open; }, true); }
         $('doneBox').hidden = !c.done;
         $('doneLabel').textContent = `${c.done || 0} done`;
         summary(c);
