@@ -110,6 +110,24 @@ test('projection: mine by default, all open on demand, quadrants ordered', () =>
   assert.equal(mxProject({}, NOW).total, 0);
 });
 
+test('the ⚡ score places nothing: ties, an odd count, a lone ticket at 0, a stale snapshot', () => {
+  const keys = (q) => q.map((p) => p.t.key);
+  const place = (rows) => {
+    const m = mxProject({ waiting: rows }, NOW);
+    return Object.fromEntries(Object.entries(m.quads).map(([k, v]) => [k, keys(v)]));
+  };
+  const lane = (scores) => scores.map((roi, i) => tk({ key: `R${i + 1}`, column: 'waiting', priority: i === 1 ? 'P1' : null, roi }));
+  const bare = place(lane([null, null, null]));
+  // Ties (two at 5), an odd count (3), the whole range: the quadrants are the ones without any score.
+  assert.deepEqual(place(lane([{ score: 5 }, { score: 5 }, { score: 1 }])), bare);
+  assert.deepEqual(place(lane([{ score: 0 }, { score: 900 }, { score: 0.04 }])), bare);
+  assert.deepEqual(bare, { do: [], plan: ['R2'], quick: [], later: ['R1', 'R3'] }, 'only the P1 is important');
+  // A lone ticket is not important for being the only one scored, even at 0 or at the top.
+  for (const score of [0, 50]) assert.equal(mxProject({ waiting: [tk({ key: 'L1', column: 'waiting', roi: { score } })] }, NOW).quads.later.length, 1, String(score));
+  // A stale snapshot arrives as roi: null: nothing moves either.
+  assert.deepEqual(place(lane([null, { score: 3 }, null])), bare);
+});
+
 test('legend and quadrants say what the code does', () => {
   assert.match(MX_LEGEND, /within 2 days/);
   assert.match(MX_LEGEND, /3 days or more/);
