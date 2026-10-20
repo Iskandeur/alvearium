@@ -551,7 +551,11 @@ kept them busy, ahead of your own errands, health or deadlines.
   the board knows of: it is in the installation's own points (*pt*), which the ⚡ tooltip says. The reason
   shows on hover, and under the badge when you tap it (a phone has no hover); the open ticket shows the
   same line above "Needs your answer"; the lane line sits under the lane title with when the scores were
-  posted (*updated 12 min ago*, *just now*). `GET /api/tickets/board` carries `roi: { score, note, badge }`
+  posted (*updated 12 min ago*, *just now*). Under it, *How is this computed?* (0.9.10) opens a short
+  note: who posted the line, that *pt* is the installation's unit (the board is not told what one point
+  is worth: say it in your own `summary` and `badge`), that a minus over time means less agent work waits
+  on you, and that the numbers move each time the installation posts, not because of the page. A card's
+  ⚡ says what the score is on hover and to a screen reader. `GET /api/tickets/board` carries `roi: { score, note, badge }`
   on each lane card, `roi_summary: { text, at, actor }` and `roi_snapshot: { at, actor, scores, summary,
   stale }` (null when nothing was posted); `GET /api/tickets/SB-12` carries `roi`.
 - **Stale**: a snapshot older than 6 hours is ignored (no badge, no line), so an installation that
