@@ -2,6 +2,17 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.9",
+      "date": "2026-10-20",
+      "items": [
+        "The board speaks French when your browser does: lanes, cards, filters, counters, the open ticket.",
+        "Add ?lang=en or ?lang=fr to the address to choose the language.",
+        "Dates follow the same language (15 oct., 00:46 in French).",
+        "What a ticket says is never translated, so a French ticket no longer reads half in English.",
+        "A ticket action can have one label per language in the actions file."
+      ]
+    },
+    {
       "version": "0.9.7",
       "date": "2026-10-20",
       "items": [

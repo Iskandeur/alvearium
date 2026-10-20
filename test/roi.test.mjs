@@ -259,7 +259,7 @@ function pageRoi() {
     assert.ok(from > 0 && to > from, `${a} found in page.html`);
     return page.slice(from, to);
   };
-  const src = [page.match(/^\s*const esc = .*$/m)[0], cut('function freshness(', '// ---- end freshness'), cut('// ---- roi helpers', '// ---- end of roi helpers ----'), cut('function ago(ms, now)', 'const when = (ms)')].join('\n');
+  const src = [page.match(/^\s*const esc = .*$/m)[0], cut('function freshness(', '// ---- end freshness'), cut('// ---- roi helpers', '// ---- end of roi helpers ----'), cut('// ---- i18n (0.9.9)', '// ---- end i18n'), "const tr = makeTr('en', 'en');", cut('function agoUnit(ms, now)', 'const when = (ms)')].join('\n');
   return new Function('isOpen', `${src}\nreturn { roiNum, roiText, roiTitle, roiBadge, roiTap, roiHead, roiOpen, agoPhrase, ROI_DEFINITION };`)((t) => t.status !== 'done' && t.status !== 'cancelled');
 }
 

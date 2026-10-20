@@ -99,7 +99,7 @@ test('done: a waiting ticket a hook opened (permission prompt) can be closed by 
 });
 
 test('page: a round ✓ on open cards, rows and the panel, a toast with Undo, the d shortcut', () => {
-  assert.match(page, /class="doneBtn" data-done="\$\{esc\(t\.key\)\}" data-from="\$\{esc\(t\.status\)\}" aria-label="Mark \$\{esc\(t\.key\)\} as done"/, 'one button per open ticket, labelled');
+  assert.match(page, /class="doneBtn" data-done="\$\{esc\(t\.key\)\}" data-from="\$\{esc\(t\.status\)\}" aria-label="\$\{esc\(tr\('Mark \{k\} as done', \{ k: t\.key \}\)\)\}"/, 'one button per open ticket, labelled');
   assert.match(page, /\$\{prio\(t\.priority, t\)\}<span class="key">\$\{esc\(t\.key\)\}<\/span>\$\{doneBtn\(t\)\}/, 'on board cards');
   assert.equal((page.match(/<span class="dn">\$\{doneBtn\(t\)\}<\/span>/g) || []).length, 2, 'on list rows and Next rows');
   assert.match(page, /class="pDone" data-done=/, 'in the detail panel header');
@@ -109,9 +109,10 @@ test('page: a round ✓ on open cards, rows and the panel, a toast with Undo, th
   assert.match(page, /if \(el\.dataset\.done\) \{[\s\S]{0,160}e\.stopPropagation\(\);[\s\S]{0,40}return markDone\(el\.dataset\.done, el\.dataset\.from\)/);
   assert.ok(page.indexOf("closest('[data-done],") > 0, 'the ✓ wins over the card it sits in');
   // Undo for ~6 s, back to the status it had.
-  assert.match(page, /ms: 6000, action: prev \? \{ label: 'Undo', run: \(\) => undoDone\(key, prev\) \}/);
+  assert.match(page, /ms: 6000, action: prev \? \{ label: tr\('Undo'\), run: \(\) => undoDone\(key, prev\) \}/);
   assert.match(page, /api\(`tickets\/\$\{encodeURIComponent\(key\)\}`, \{ status: prev \}\)/);
-  assert.match(page, /sub-ticket\$\{n === 1 \? '' : 's'\} still open/);
+  assert.match(page, /tr\('\{n\} sub-tickets still open', \{ n \}\)/);
+  assert.match(page, /'\{n\} sub-tickets still open': \['\{n\} sub-ticket still open', '\{n\} sub-tickets still open'\]/);
   // Visible on hover with a mouse, always on touch; 32 px target; visible focus.
   assert.match(page, /\.doneBtn \{[^}]*width: 32px; height: 32px;[^}]*opacity: 0;/);
   assert.match(page, /@media \(hover: none\), \(pointer: coarse\) \{ \.doneBtn \{ opacity: 1; \}/);

@@ -175,7 +175,7 @@ test('page: the 0.5.10 tools are visible at rest (grip, copy, read wide) and the
   assert.match(page, /ta\.setSelectionRange\(0, text\.length\)/);
   assert.doesNotMatch(page, /ta\.setAttribute\('readonly'/);
   // The help: a ? button in the header, keys plus buttons and gestures, with the version and the history.
-  assert.match(page, /<button class="btn helpBtn" type="button" id="helpBtn" data-act="help" aria-label="Shortcuts and gestures" title="Shortcuts and gestures \(\?\)">\?<\/button>/);
+  assert.match(page, /<button class="btn helpBtn" type="button" id="helpBtn" data-act="help" aria-label="Shortcuts and gestures" title="Shortcuts and gestures \(\?\)" data-i18n-attr="aria-label,title">\?<\/button>/);
   assert.match(page, /if \(act === 'help'\) return openHelp\(\);/);
   for (const s of ['<h4>Keyboard</h4>', '<h4>Buttons and gestures</h4>', 'double-click it to go back to the default width', 'Copy a description or a comment as markdown', 'Esc goes back']) assert.ok(page.includes(s), s);
   assert.match(page, /data-act="newsAll">What's new<\/button>/);
