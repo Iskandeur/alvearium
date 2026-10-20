@@ -206,8 +206,9 @@
     .tags a:hover { color: var(--accent); }
 
     /* Done drawer */
-    .tag.hold { background: var(--accent-soft); color: var(--accent); }
-    .tag.hold.stuck { background: transparent; color: var(--danger, #c0392b); border: 1px solid currentColor; }
+    /* inline-block, not flex: text-overflow only ellipsizes a block's own text, so a long wait ends in "…" inside the card. */
+    .tag.hold { background: var(--accent-soft); color: var(--accent); display: inline-block; line-height: 20px; }
+    .tag.hold.stuck { background: transparent; color: var(--danger, #c0392b); border: 1px solid currentColor; line-height: 18px; }
     .holdBox { display: grid; gap: 8px; margin: 6px 0 4px; }
     .holdBox .holdNow { font-size: 13px; line-height: 1.5; }
     .holdBox .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
