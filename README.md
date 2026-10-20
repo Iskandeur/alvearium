@@ -379,9 +379,9 @@ optional link to open and an optional message. The board knows nothing about wha
 | Field | |
 | :- | :- |
 | `id` | 1 to 32 lowercase letters, digits, `-` or `_`; unique |
-| `label`, `icon` | the button: up to 40 characters, and an emoji (optional). Since 0.9.9 `label` may also be one text per language, `{ "en": "Continue in Claude Code", "fr": "Continuer dans Claude Code" }`: the page shows the one of its language, else `en` |
+| `label`, `icon` | the button: up to 40 characters, and an emoji (optional). Since 0.9.11 `label` may also be one text per language, `{ "en": "Continue in Claude Code", "fr": "Continuer dans Claude Code" }`: the page shows the one of its language, else `en` |
 
-The page itself reads English or French (0.9.9): French when the browser's language is French, English otherwise. `?lang=en` or `?lang=fr` in the address, or `alvearium.lang` in the browser's local storage, chooses. Dates follow it. What tickets say is never translated.
+The page itself reads English or French (0.9.11): French when the browser's language is French, English otherwise. `?lang=en` or `?lang=fr` in the address, or `alvearium.lang` in the browser's local storage, chooses. Dates follow it. What tickets say is never translated.
 | `url` | the webhook, without credentials. `https`, or plain `http` only on this machine or a private network: `localhost`, `127.0.0.0/8`, `::1`, `host.docker.internal`, `10/8`, `172.16/12`, `192.168/16` (the token must not cross the internet in clear). Redirects are not followed |
 | `token_env` | the **name** of the environment variable that holds the webhook's token (at least 16 characters), sent as `Authorization: Bearer <token>`. The token itself never goes in the file |
 | `allow_hosts` | the only hosts a returned link may point to (https, default port). Empty: the action opens nothing |
@@ -553,7 +553,11 @@ kept them busy, ahead of your own errands, health or deadlines.
   the board knows of: it is in the installation's own points (*pt*), which the ⚡ tooltip says. The reason
   shows on hover, and under the badge when you tap it (a phone has no hover); the open ticket shows the
   same line above "Needs your answer"; the lane line sits under the lane title with when the scores were
-  posted (*updated 12 min ago*, *just now*). `GET /api/tickets/board` carries `roi: { score, note, badge }`
+  posted (*updated 12 min ago*, *just now*). Under it, *How is this computed?* (0.9.10) opens a short
+  note: who posted the line, that *pt* is the installation's unit (the board is not told what one point
+  is worth: say it in your own `summary` and `badge`), that a minus over time means less agent work waits
+  on you, and that the numbers move each time the installation posts, not because of the page. A card's
+  ⚡ says what the score is on hover and to a screen reader. `GET /api/tickets/board` carries `roi: { score, note, badge }`
   on each lane card, `roi_summary: { text, at, actor }` and `roi_snapshot: { at, actor, scores, summary,
   stale }` (null when nothing was posted); `GET /api/tickets/SB-12` carries `roi`.
 - **Stale**: a snapshot older than 6 hours is ignored (no badge, no line), so an installation that
@@ -575,7 +579,9 @@ Explore* when Claude starts a subagent, *Explore → Claude* when it reports bac
 `SubagentStart` / `SubagentStop` hooks, `agent_id` and `agent_type`), *Claude → ci-bot* when a
 ticket is handed over. Tickets record `created_by`; `assignee` takes any actor id (`user` and
 `claude` work as before). Cards show the assignee's avatar; the *Actor* filter shows what an actor
-holds or opened.
+holds or opened. The *Actor* and *Assignee* filters list people and lasting agents first; one-off
+runs (`bot/job-12`, `bot/wake-7`) are grouped under *Others*, those with open tickets first, then
+the newest, 50 at most (0.9.9).
 
 **Pictures (0.5.0).** Every actor, human or agent, can have a profile picture: click its avatar
 anywhere (a card, the panel, the history) and choose *Upload picture*. A crop dialog opens: the

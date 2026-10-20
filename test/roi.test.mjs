@@ -260,8 +260,48 @@ function pageRoi() {
     return page.slice(from, to);
   };
   const src = [page.match(/^\s*const esc = .*$/m)[0], cut('function freshness(', '// ---- end freshness'), cut('// ---- roi helpers', '// ---- end of roi helpers ----'), cut('// ---- i18n (0.9.9)', '// ---- end i18n'), "const tr = makeTr('en', 'en');", cut('function agoUnit(ms, now)', 'const when = (ms)')].join('\n');
-  return new Function('isOpen', `${src}\nreturn { roiNum, roiText, roiTitle, roiBadge, roiTap, roiHead, roiOpen, agoPhrase, ROI_DEFINITION };`)((t) => t.status !== 'done' && t.status !== 'cancelled');
+  return new Function('isOpen', `${src}\nreturn { roiNum, roiText, roiTitle, roiBadge, roiTap, roiLine, roiHead, roiHow, roiOpen, agoPhrase, ROI_DEFINITION, ROI_TEXT, setHowOpen: (v) => { roiHowOpen = v; } };`)((t) => t.status !== 'done' && t.status !== 'cancelled');
 }
+
+test('page (ALV-2861): the lane line says how it is computed, whose unit pt is, which way is better, why it moves', () => {
+  const { roiHead, setHowOpen, ROI_TEXT } = pageRoi();
+  const NOW = 1_800_000_000_000;
+  const rs = { text: '~1.4 pt of agent work waits on you · 7 d: −3.8 pt', at: NOW - 60_000, actor: 'ops/scorer' };
+  const head = roiHead(rs, { at: rs.at, actor: 'ops/scorer', scores: 3, summary: true, stale: false }, true, NOW);
+  const how = head.html.match(/<details class="roiHow"><summary>How is this computed\?<\/summary><ul>(.*)<\/ul><\/details>$/)?.[1];
+  assert.ok(how, 'a closed "How is this computed?" after the line and its time');
+  const items = [...how.matchAll(/<li>(.*?)<\/li>/g)].map((m) => m[1]);
+  assert.equal(items.length, 5);
+  assert.match(items[0], /^Posted by ops\/scorer, \S.*\. The board shows this line and the ⚡ on the cards as sent: it computes none of these numbers\.$/);
+  assert.match(items[1], /^pt \(points\) is the installation&#39;s own unit of agent work/, 'the unit is named, and whose it is');
+  assert.match(items[2], /− means less agent work waits on your answers than then \(better\), \+ means more/, 'the sign has a meaning');
+  assert.match(items[3], /each time the installation posts again .*even when you did nothing/, 'why it moves with nothing done');
+  assert.match(items[4], /^⚡ on a card: /);
+  for (const s of Object.values(ROI_TEXT)) {
+    const text = typeof s === 'function' ? s('x', 'y') : s;
+    assert.doesNotMatch(text, /[àâçéèêëîïôûùüÿœ]/i, 'the page is in English: a translation table takes ROI_TEXT whole');
+  }
+  // The installation's own text is escaped, not interpreted.
+  assert.match(roiHead({ ...rs, text: '<b>x</b>' }, null, true, NOW).html, /^<b>⚡<\/b>&lt;b&gt;x&lt;\/b&gt;/);
+  // Opened once, it stays open across redraws; the out-of-date line has none (nothing to explain).
+  setHowOpen(true);
+  assert.match(roiHead(rs, null, true, NOW).html, /<details class="roiHow" open>/);
+  setHowOpen(false);
+  assert.doesNotMatch(roiHead(null, { at: NOW - 7 * 3600_000, actor: 'ops', scores: 3, summary: true, stale: true }, false, NOW).html, /roiHow/);
+});
+
+test('page (ALV-2861): the ⚡ badge and the ticket line say what the score is, to a mouse and to a screen reader', () => {
+  const { roiBadge, roiLine, ROI_DEFINITION } = pageRoi();
+  const t = { key: 'ALV-7', column: 'waiting', status: 'waiting_on_user', roi: { score: 16, note: 'unblocks 2 jobs' } };
+  const html = roiBadge(t);
+  assert.match(html, /aria-label="⚡ 16, agent score posted by the installation: unblocks 2 jobs"/);
+  assert.match(html, /title="unblocks 2 jobs\. ⚡ is a score the installation posted, in its own points \(pt\)/);
+  assert.match(ROI_DEFINITION, /higher frees more of their work/, 'which way is better');
+  const line = roiLine(t);
+  assert.match(line, /<span class="vh">\. ⚡ is a score the installation posted/, 'the title\'s words, readable without hover');
+  assert.match(page, /\.vh \{ position: absolute; width: 1px; height: 1px;/);
+  assert.match(page, /rn\.addEventListener\('toggle', .*roiHowOpen = e\.target\.open; \}, true\)/);
+});
 
 test('page: the badge is the badge as sent, else the bare score; never "ROI", never a bare 0', () => {
   const { roiNum, roiText, roiBadge } = pageRoi();
@@ -298,7 +338,7 @@ test('page: the lane head says when the scores were posted, and says they are ou
   const rs = { text: '~2 pts wait on you', at: NOW - 12 * 60_000, actor: 'ops' };
   const fresh = roiHead(rs, { at: rs.at, actor: 'ops', scores: 3, summary: true, stale: false }, true, NOW);
   assert.equal(fresh.stale, false);
-  assert.match(fresh.html, /^<b>⚡<\/b>~2 pts wait on you<span class="roiWhen" id="roi-when" data-at="\d+">updated 12 min ago<\/span>$/);
+  assert.match(fresh.html, /^<b>⚡<\/b>~2 pts wait on you<span class="roiWhen" id="roi-when" data-at="\d+">updated 12 min ago<\/span><details class="roiHow">/);
   assert.match(fresh.title, /^Posted by ops, /);
   const now = roiHead({ ...rs, at: NOW - 20_000 }, { at: NOW - 20_000, scores: 1, summary: true, stale: false }, true, NOW);
   assert.match(now.html, /updated just now/);

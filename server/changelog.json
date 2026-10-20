@@ -2,7 +2,7 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
-      "version": "0.9.9",
+      "version": "0.9.11",
       "date": "2026-10-20",
       "items": [
         "The board speaks French when your browser does: lanes, cards, filters, counters, the open ticket.",
@@ -10,6 +10,33 @@
         "Dates follow the same language (15 oct., 00:46 in French).",
         "What a ticket says is never translated, so a French ticket no longer reads half in English.",
         "A ticket action can have one label per language in the actions file."
+      ]
+    },
+    {
+      "version": "0.9.10",
+      "date": "2026-10-20",
+      "items": [
+        "The ⚡ line at the top of \"Waiting on you\" has a \"How is this computed?\" note: who posted it and whose unit \"pt\" is.",
+        "The same note says that a minus over time means less agent work waits on you, and why the numbers change when you did nothing.",
+        "A ⚡ score on a card says what it is when you hover it, and to a screen reader: what your answer is worth to the agents, higher frees more of their work."
+      ]
+    },
+    {
+      "version": "0.9.9",
+      "date": "2026-10-20",
+      "items": [
+        "The Actor and Assignee filters list people and lasting agents first; one-off runs are grouped under Others.",
+        "Under Others, runs with open tickets come first, then the newest, 50 at most.",
+        "The Assignee filter shows how many open tickets are yours, like the other names."
+      ]
+    },
+    {
+      "version": "0.9.8",
+      "date": "2026-10-20",
+      "items": [
+        "The copy committed into a repository for cloud sessions now ships every module the ticket store needs.",
+        "Cloud sessions set up by the environment script fetch the same modules when they cannot clone the repository.",
+        "Run /alvearium:install-cloud again in a repository that has a committed copy to pick up the fix."
       ]
     },
     {
