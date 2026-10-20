@@ -573,7 +573,9 @@ Explore* when Claude starts a subagent, *Explore → Claude* when it reports bac
 `SubagentStart` / `SubagentStop` hooks, `agent_id` and `agent_type`), *Claude → ci-bot* when a
 ticket is handed over. Tickets record `created_by`; `assignee` takes any actor id (`user` and
 `claude` work as before). Cards show the assignee's avatar; the *Actor* filter shows what an actor
-holds or opened.
+holds or opened. The *Actor* and *Assignee* filters list people and lasting agents first; one-off
+runs (`bot/job-12`, `bot/wake-7`) are grouped under *Others*, those with open tickets first, then
+the newest, 50 at most (0.9.8).
 
 **Pictures (0.5.0).** Every actor, human or agent, can have a profile picture: click its avatar
 anywhere (a card, the panel, the history) and choose *Upload picture*. A crop dialog opens: the
