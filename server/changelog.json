@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.9",
+      "date": "2026-10-20",
+      "items": [
+        "The Actor and Assignee filters list people and lasting agents first; one-off runs are grouped under Others.",
+        "Under Others, runs with open tickets come first, then the newest, 50 at most.",
+        "The Assignee filter shows how many open tickets are yours, like the other names."
+      ]
+    },
+    {
       "version": "0.9.8",
       "date": "2026-10-20",
       "items": [
