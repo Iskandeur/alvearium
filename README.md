@@ -1183,7 +1183,7 @@ and lists the session ticket of that run, which the board shows too.
 | | Under Codex |
 | :- | :- |
 | Ticket tools | All eight: `ticket_create`, `ticket_update`, `ticket_next`, `ticket_list`, `ticket_comment`, `ticket_get`, `ticket_hold`, `board_feedback`. `assignee: "me"` is `codex`. Tickets attach to the current Codex session and repo |
-| Session ticket | `SessionStart`, `UserPromptSubmit`: **in progress**, titled with the first prompt (bracketed header lines of two words or more that a harness puts on top, like `[Usage limits] …`, are skipped). `Stop`: **review**, with the end of the last reply and its PR link, or **waiting on you** when the reply ends on a question. `SessionEnd`: **done** (a `codex exec` run ends there) |
+| Session ticket | `SessionStart`, `UserPromptSubmit`: **in progress**, titled with the first prompt (bracketed header lines of two words or more that a harness puts on top, like `[Usage limits] …`, are skipped; a title stored that way by an older version is not shown, and the board names the session by its id). `Stop`: **review**, with the end of the last reply and its PR link, or **waiting on you** when the reply ends on a question. `SessionEnd`: **done** (a `codex exec` run ends there) |
 | Approval prompts | `PermissionRequest`: a **waiting on you** ticket while Codex asks you to approve a command |
 | Subagents | `SubagentStart`, `SubagentStop`: a line in the session ticket's history |
 | Who did what | Hooks and tools act as the `codex` agent, shown as *Codex*. `SESSION_BOARD_ACTOR` and `SESSION_BOARD_ACTOR_NAME` still override it |

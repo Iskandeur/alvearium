@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.7",
+      "date": "2026-10-20",
+      "items": [
+        "The Assignee menu also puts named runs of an agent (a scheduled check next to its numbered runs) under Others, after the numbered ones.",
+        "When you mention someone, those named runs come after the names that match, like the numbered runs.",
+        "A session whose stored title was only a tool's header line is shown by its id instead of that header."
+      ]
+    },
+    {
       "version": "0.9.6",
       "date": "2026-10-20",
       "items": [

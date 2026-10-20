@@ -11,6 +11,7 @@ import {
   isExpired,
   promptTitle,
   skipHeaderLines,
+  shownSessionTitle,
   label,
   renderText,
   repoFromRemote,
@@ -180,6 +181,15 @@ test('promptTitle: bracketed header lines a harness puts on top do not name the 
   const t0 = Date.now();
   assert.equal(skipHeaderLines(long), long, 'no closing bracket: not a header');
   assert.ok(Date.now() - t0 < 500, 'a long pasted line stays linear');
+});
+
+test('shownSessionTitle: a title stored with a header line (before 0.9.6) shows no title', () => {
+  assert.equal(shownSessionTitle({ title: '[Usage limits] 5 h: 25 % (reset 03:50) · week: 31 % [Policy: spend] …' }), null);
+  assert.equal(shownSessionTitle({ title: 'Fix the login page' }), 'Fix the login page');
+  assert.equal(shownSessionTitle({ title: '[WIP] fix the login' }), '[WIP] fix the login', 'a one-word tag is a title');
+  assert.equal(shownSessionTitle({ title: '[Usage limits] 5 h: 25 %', name: 'Nightly import' }), 'Nightly import', 'a name wins');
+  assert.equal(shownSessionTitle({ title: null }), null);
+  assert.equal(shownSessionTitle(null), null);
 });
 
 test('promptTitle: an attached upload becomes a short « 📎 name » at the end, not a path at the start', () => {
