@@ -176,6 +176,10 @@ test('promptTitle: bracketed header lines a harness puts on top do not name the 
   assert.equal(promptTitle('plain [two words] inside'), 'plain [two words] inside');
   assert.equal(skipHeaderLines('[see this page](https://example.org)\nplease'), '[see this page](https://example.org)\nplease', 'a markdown link is content');
   assert.equal(skipHeaderLines('[ ] a task\n[ ] another'), '[ ] a task\n[ ] another', 'a checkbox is content');
+  const long = '[' + 'a '.repeat(200_000) + '\nnext';
+  const t0 = Date.now();
+  assert.equal(skipHeaderLines(long), long, 'no closing bracket: not a header');
+  assert.ok(Date.now() - t0 < 500, 'a long pasted line stays linear');
 });
 
 test('promptTitle: an attached upload becomes a short « 📎 name » at the end, not a path at the start', () => {
