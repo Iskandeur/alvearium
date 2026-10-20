@@ -174,6 +174,8 @@ test('promptTitle: bracketed header lines a harness puts on top do not name the 
   assert.equal(skipHeaderLines('[Only a header here]'), '[Only a header here]', 'nothing after the headers: kept whole');
   assert.equal(skipHeaderLines('[Image #1] what is this?\nthanks'), '[Image #1] what is this?\nthanks', 'Claude Code placeholders stay');
   assert.equal(promptTitle('plain [two words] inside'), 'plain [two words] inside');
+  assert.equal(skipHeaderLines('[see this page](https://example.org)\nplease'), '[see this page](https://example.org)\nplease', 'a markdown link is content');
+  assert.equal(skipHeaderLines('[ ] a task\n[ ] another'), '[ ] a task\n[ ] another', 'a checkbox is content');
 });
 
 test('promptTitle: an attached upload becomes a short « 📎 name » at the end, not a path at the start', () => {

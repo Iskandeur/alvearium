@@ -2685,7 +2685,7 @@
         const lasting = rest.filter((a) => !ephemeralActor(a.id)).sort((a, b) => actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id));
         const oneOff = rest.filter((a) => ephemeralActor(a.id)).sort((a, b) => ephemeralActor(b.id) - ephemeralActor(a.id) || a.id.localeCompare(b.id));
         const list = [['user', 'You'], ['claude', 'Claude'], ...lasting.map((a) => [a.id, label(a)]), ...oneOff.slice(0, 50).map((a) => [a.id, label(a), 'Others'])];
-        if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur), ephemeralActor(cur) ? 'Others' : undefined]);
+        if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur) + (names.has(actorName(cur)) ? ` (${cur})` : ''), ephemeralActor(cur) ? 'Others' : undefined]);
         return list;
       };
       // 0.6.0: on hold — what it waits for, what happens then; or the form to put it on hold.
