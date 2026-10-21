@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { columnOf } from '../lib/core.mjs';
-import { defaultNext, normalizePr, sanitizeHold } from '../lib/hold.mjs';
+import { defaultNext, normalizePr, prState, sanitizeHold, startHoldClock } from '../lib/hold.mjs';
 import { openStore } from '../lib/store.mjs';
 
 const T0 = 1_800_000_000_000;
@@ -108,6 +108,29 @@ test('a pull request closed without merge leaves the hold stuck, and says why', 
   assert.equal(t.status, 'on_hold');
   assert.match(t.hold.stuck, /closed without being merged/);
   assert.deepEqual(s.awaitedPrs(), []);
+});
+
+test('a pull request GitHub refuses to show (private repo, no token): said once on the ticket, the hold stays', async () => {
+  const { s } = await board();
+  const p = s.createTicket({ title: 'after the private merge', assignee: 'builder' }, { actor: 'builder' });
+  s.hold(p.key, { condition: { type: 'pr_merged', pr: 'acme/private#3' } }, { actor: 'builder' });
+  const reply = (status, headers = {}) => async () => ({ status, ok: status < 300, headers: new Headers(headers), json: async () => ({}) });
+  assert.deepEqual(await prState('acme/private#3', { fetch: reply(404) }), { unreadable: 404 });
+  assert.deepEqual(await prState('acme/private#3', { fetch: reply(403) }), { unreadable: 403 });
+  assert.equal(await prState('acme/private#3', { fetch: reply(403, { 'x-ratelimit-remaining': '0' }) }), null, 'a rate limit is not a refusal');
+  assert.equal(await prState('acme/private#3', { fetch: reply(502) }), null);
+  const logs = [];
+  const clock = startHoldClock(s, { pollSeconds: 1, fetch: reply(404), tickMs: 3_600_000, log: (l) => logs.push(l) });
+  await clock.round();
+  clock.stop();
+  const t = s.getTicket(p.key);
+  assert.equal(t.status, 'on_hold');
+  const said = t.events.filter((e) => e.type === 'comment' && e.actor === 'board');
+  assert.equal(said.length, 1);
+  assert.match(said[0].text, /cannot read pull request acme\/private#3 \(GitHub answers HTTP 404\).*BOARD_GITHUB_TOKEN/);
+  assert.match(logs.join('\n'), /cannot read acme\/private#3/);
+  assert.deepEqual(s.notePrUnreadable('acme/private#3', 404), [], 'never twice the same comment');
+  assert.deepEqual(s.notePrUnreadable('acme/private#3', 404, { token: true }), [p.key], 'a token that cannot see it says so');
 });
 
 test('refusals: nothing to wait for, a closed ticket, the bounce cap; status on_hold uses the open blockers', async () => {
