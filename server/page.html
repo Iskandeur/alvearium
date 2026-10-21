@@ -508,6 +508,7 @@
     .compose { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
     .compose textarea { min-height: 64px; }
     .compose .hint { font-size: 12px; color: var(--faint); text-align: right; margin-top: -4px; }
+    @media (hover: none), (pointer: coarse) { .compose .hint { display: none; } }
     .compose .acts, .formActs { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
     .formActs .msg { margin-right: auto; color: var(--danger); font-size: 12.5px; }
 
@@ -1235,6 +1236,36 @@
       'Attach files': 'Joindre des fichiers',
       '{mod}+↵ to send': '{mod}+↵ pour envoyer',
       '{mod}+↵ to save': '{mod}+↵ pour enregistrer',
+      'Mark done': 'Marquer terminé',
+      'Focus search': 'Aller à la recherche',
+      'New ticket': 'Nouveau ticket',
+      'Next ticket': 'Ticket suivant',
+      'Previous ticket': 'Ticket précédent',
+      'Open focused ticket': 'Ouvrir le ticket sélectionné',
+      'Mark done (focused or open)': 'Marquer terminé (sélectionné ou ouvert)',
+      'Focus comment (when a ticket is open)': 'Aller au commentaire (ticket ouvert)',
+      'Board view': 'Vue tableau',
+      'List view': 'Vue liste',
+      'Matrix view (important × urgent)': 'Vue matrice (important × urgent)',
+      'Projects view': 'Vue projets',
+      'Only tickets with a reply you have not read': 'Seulement les tickets avec une réponse non lue',
+      'Show this help': 'Afficher cette aide',
+      'Leave the expanded ticket, then close the panel / help': 'Quitter le ticket agrandi, puis fermer le panneau ou l’aide',
+      'Send the comment (in the comment box)': 'Envoyer le commentaire (dans le champ de commentaire)',
+      'Save edits, or create the ticket (in title or description)': 'Enregistrer les modifications, ou créer le ticket (dans le titre ou la description)',
+      'New line (in a text box)': 'Nouvelle ligne (dans un champ de texte)',
+      'Keyboard': 'Clavier',
+      'Buttons and gestures': 'Boutons et gestes',
+      'In a text box': 'Dans un champ de texte',
+      'Single keys are off while you type in a text field, and never fire with Ctrl, ⌘ or Alt held.': 'Les touches seules sont coupées pendant la saisie dans un champ, et ne se déclenchent jamais avec Ctrl, ⌘ ou Alt enfoncé.',
+      "What's new": 'Nouveautés',
+      'Grip on the left edge of an open ticket: drag it to widen the ticket, double-click it to go back to the default width (arrows when it has the focus). Kept in this browser.': 'Poignée au bord gauche d’un ticket ouvert : la glisser pour élargir le ticket, double-cliquer pour revenir à la largeur par défaut (flèches quand elle a le focus). Retenu dans ce navigateur.',
+      'Expand the ticket nearly full screen, Esc goes back. On a phone or in a narrow window: read the whole ticket, comments included.': 'Agrandir le ticket presque en plein écran, Échap revient. Sur téléphone ou dans une fenêtre étroite : lire tout le ticket, commentaires compris.',
+      'Copy a description or a comment as markdown.': 'Copier une description ou un commentaire en markdown.',
+      'Read it alone in a wide view, rendered or as markdown.': 'Le lire seul en vue large, mis en forme ou en markdown.',
+      'Mark a ticket done, on its card or in the open ticket. Undo for a few seconds.': 'Marquer un ticket terminé, sur sa carte ou dans le ticket ouvert. Annulation possible quelques secondes.',
+      'Reply: someone answered on a ticket you wrote on, since you last opened it. Opening the ticket marks it read, on every device. The counter in the bar shows only those tickets.': 'Réponse : quelqu’un a répondu sur un ticket où tu as écrit, depuis ta dernière ouverture. Ouvrir le ticket le marque lu, sur tous tes appareils. Le compteur de la barre ne montre que ces tickets.',
+      'Your comment hands the ticket over: to the actor you @mention (sub-actors too, like @crew/router), else to the router of this installation if it has one. It leaves your pile and comes back when they hand it back to you.': 'Ton commentaire passe la main : à l’acteur que tu @mentionnes (sous-acteurs compris, comme @crew/router), sinon au routeur de cette installation s’il y en a un. Le ticket quitte ta pile et revient quand on te le rend.',
       '{by} commented': '{by} a commenté',
       '{who} created it': '{who} l’a créé',
       ' as {s}': ' en « {s} »',
@@ -1874,7 +1905,7 @@
             out.push(`<button type="button" class="ask quick${d ? ' def' : ''}" data-ask="${v}" data-key="${k}"${off} aria-label="${l}${d ? tr(' (default)') : ''}"><u>${l}</u></button>`);
           }
         } else if (a.type === 'done') {
-          out.push(`<button type="button" class="ask quick def" data-ask="done" data-key="${k}"${off} aria-label="${tr('Mark {k} done', { k })}"><u>${tr('Done')}</u></button>`);
+          out.push(`<button type="button" class="ask quick def" data-ask="done" data-key="${k}"${off} aria-label="${tr('Mark {k} done', { k })}"><u>${tr('Mark done')}</u></button>`);
         } else if (where === 'bar') {
           out.push(`<button type="button" class="ask quick" data-ask="comment" data-key="${k}"${off}>${tr('Reply in a comment')}</button>`);
         }
@@ -3226,7 +3257,7 @@
         const kids = (t.children || []).map((c) => `<div class="kid" data-open="${esc(c.key)}"><span class="dot" data-s="${esc(c.status)}"></span><span class="k">${esc(c.key)}</span><span class="tt">${ttl(c.title)}</span><span class="pill" data-s="${esc(c.status)}">${esc(STATUS[c.status])}</span></div>`).join('');
         $('panel').innerHTML = `
           ${resizeHandle()}
-          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><span class="fresh" data-at="${now}"></span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="${esc(tr('Mark {k} as done', { k: t.key }))}" title="${tr('Mark done (d)')}">${CHECK}<span>${tr('Done')}</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="${tr('Close')}">×</button></div></div>
+          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><span class="fresh" data-at="${now}"></span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="${esc(tr('Mark {k} as done', { k: t.key }))}" title="${tr('Mark done (d)')}">${CHECK}<span>${tr('Mark done')}</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="${tr('Close')}">×</button></div></div>
           <form class="pBody" id="tform" autocomplete="off">
             <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
             ${roiLine(t)}
@@ -3780,11 +3811,11 @@
       const IS_MAC =/Mac|iPhone|iPad|iPod/i.test(navigator.platform) || /Mac OS X/i.test(navigator.userAgent);
       const isTyping = (el) => !!el?.closest?.('input, textarea, select, [contenteditable]');
       const modLabel = () => (IS_MAC ? '⌘' : 'Ctrl');
-      const sendHint = (verb) => `${modLabel()}+↵ to ${verb}`;
+      const sendHint = (verb) => tr(`{mod}+↵ to ${verb}`, { mod: modLabel() });
 
       let helpPrevFocus = null;
       /** The help overlay doubles as the one modal of the page (help, actor dialog, avatar crop). */
-      function openHelp(render = renderHelp, label = 'Shortcuts and gestures', cls = '') {
+      function openHelp(render = renderHelp, label = tr('Shortcuts and gestures'), cls = '') {
         if (!$('help').hidden) closeHelp();
         helpPrevFocus = document.activeElement;
         $('help').className = 'help' + (cls ? ' ' + cls : '');
@@ -3853,24 +3884,24 @@
           { icon: ic('<span class="replyDot"></span>'), desc: 'Reply: someone answered on a ticket you wrote on, since you last opened it. Opening the ticket marks it read, on every device. The counter in the bar shows only those tickets.' },
           { icon: ic('@'), desc: 'Your comment hands the ticket over: to the actor you @mention (sub-actors too, like @crew/router), else to the router of this installation if it has one. It leaves your pile and comes back when they hand it back to you.' },
         ];
-        const row = (x) => `<div class="rowH"><div class="keys">${kbd(x.keys)}</div><div class="desc">${esc(x.desc)}</div></div>`;
-        const gRow = (x) => `<div class="rowH g"><div class="keys">${x.icon}</div><div class="desc">${esc(x.desc)}</div></div>`;
+        const row = (x) => `<div class="rowH"><div class="keys">${kbd(x.keys)}</div><div class="desc">${esc(tr(x.desc))}</div></div>`;
+        const gRow = (x) => `<div class="rowH g"><div class="keys">${x.icon}</div><div class="desc">${esc(tr(x.desc))}</div></div>`;
         $('help').innerHTML = `
-          <div class="helpHead"><h3>Shortcuts and gestures</h3><button type="button" class="x" id="helpClose" data-act="helpClose" aria-label="Close">×</button></div>
+          <div class="helpHead"><h3>${tr('Shortcuts and gestures')}</h3><button type="button" class="x" id="helpClose" data-act="helpClose" aria-label="${tr('Close')}">×</button></div>
           <div class="cols">
             <div>
-              <h4>Keyboard</h4>
+              <h4>${tr('Keyboard')}</h4>
               ${g.map(row).join('')}
-              <p class="helpNote">Single keys are off while you type in a text field, and never fire with Ctrl, ⌘ or Alt held.</p>
+              <p class="helpNote">${tr('Single keys are off while you type in a text field, and never fire with Ctrl, ⌘ or Alt held.')}</p>
             </div>
             <div class="touchFirst">
-              <h4>Buttons and gestures</h4>
+              <h4>${tr('Buttons and gestures')}</h4>
               ${gestures.map(gRow).join('')}
-              <h4>In a text box</h4>
+              <h4>${tr('In a text box')}</h4>
               ${inForm.map(row).join('')}
             </div>
           </div>
-          <div class="helpFoot"><span>Alvearium ${esc(served.version || '')}</span>${served.releases.length ? `<button type="button" class="linkBtn" data-act="newsAll">What's new</button>` : ''}</div>`;
+          <div class="helpFoot"><span>Alvearium ${esc(served.version || '')}</span>${served.releases.length ? `<button type="button" class="linkBtn" data-act="newsAll">${tr("What's new")}</button>` : ''}</div>`;
       }
       $('helpScrim').addEventListener('click', () => closeHelp());
 

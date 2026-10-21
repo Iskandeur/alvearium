@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.15",
+      "date": "2026-10-21",
+      "items": [
+        "The help (shortcuts and gestures) is now in French on a French board.",
+        "The button at the top of an open ticket says \"Mark done\" instead of \"Done\", so it no longer reads like a status.",
+        "The Ctrl+Enter reminder under the comment box is translated, and hidden on phones and tablets."
+      ]
+    },
+    {
       "version": "0.9.14",
       "date": "2026-10-21",
       "items": [
