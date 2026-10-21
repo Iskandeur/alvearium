@@ -617,6 +617,9 @@
     .pDone { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px 0 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 12.5px; font-weight: 500; }
     .pDone:hover { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
     .pDone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .pLatest { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; margin-right: 4px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 12.5px; font-weight: 500; }
+    .pLatest:hover { border-color: var(--accent); color: var(--accent); }
+    .pLatest:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .pDone kbd { font: inherit; font-size: 11px; color: var(--faint); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 4px; line-height: 16px; }
     .pHead .pDone + .x { margin-left: 0; }
     .pHead .pDone { margin-left: auto; }
@@ -1306,6 +1309,8 @@
       'Pull request {pr}': 'Pull request {pr}',
       'Cloud session': 'Session cloud',
       'Close': 'Fermer',
+      '↓ Latest messages': '↓ Derniers messages',
+      'Jump to the latest messages of this ticket': 'Aller aux derniers messages de ce ticket',
       'Title': 'Titre',
       'Labels': 'Étiquettes',
       'comma, separated': 'séparées, par des virgules',
@@ -2719,6 +2724,13 @@
       const ICON_SIDE = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
       const ICON_COPY = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.8" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 3.4v-.2a1.7 1.7 0 0 0-1.7-1.7H3.2a1.7 1.7 0 0 0-1.7 1.7v5.6a1.7 1.7 0 0 0 1.7 1.7h.2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
       const ICON_READ = '<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5 9.2 6.8M2.5 13.5l4.3-4.3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      /** One click down to the end of the open ticket's history: the last event, with the comment box just under it. */
+      function jumpToLatest() {
+        const body = $('panel').querySelector('.pBody');
+        if (!body) return;
+        const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        body.scrollTo({ top: body.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+      }
       const isExpanded = () => $('panel').classList.contains('expanded');
       const expandButton = () => `<button type="button" class="pIcon pExp" data-act="expand">${ICON_FULL}</button>`;
       /** Nearly full screen, or back to the side panel. The state lives on the panel, so it survives a redraw. */
@@ -3257,7 +3269,7 @@
         const kids = (t.children || []).map((c) => `<div class="kid" data-open="${esc(c.key)}"><span class="dot" data-s="${esc(c.status)}"></span><span class="k">${esc(c.key)}</span><span class="tt">${ttl(c.title)}</span><span class="pill" data-s="${esc(c.status)}">${esc(STATUS[c.status])}</span></div>`).join('');
         $('panel').innerHTML = `
           ${resizeHandle()}
-          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><span class="fresh" data-at="${now}"></span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="${esc(tr('Mark {k} as done', { k: t.key }))}" title="${tr('Mark done (d)')}">${CHECK}<span>${tr('Mark done')}</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="${tr('Close')}">×</button></div></div>
+          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><span class="fresh" data-at="${now}"></span><div class="pTools">${(t.events || []).length ? `<button type="button" class="pLatest" data-act="jumpLatest" title="${tr('Jump to the latest messages of this ticket')}">${tr('↓ Latest messages')}</button>` : ''}${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="${esc(tr('Mark {k} as done', { k: t.key }))}" title="${tr('Mark done (d)')}">${CHECK}<span>${tr('Mark done')}</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="${tr('Close')}">×</button></div></div>
           <form class="pBody" id="tform" autocomplete="off">
             <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
             ${roiLine(t)}
@@ -3620,6 +3632,7 @@
         }
         if (act === 'helpClose') return closeHelp();
         if (act === 'close') return closePanel();
+        if (act === 'jumpLatest') return jumpToLatest();
         if (act === 'expand') return isNarrow() ? readWholeTicket() : setExpanded(!isExpanded());
         if (act === 'help') return openHelp();
         if (act === 'newsAll') { newsSeen(); return openChangelog(); }
