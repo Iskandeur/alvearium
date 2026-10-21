@@ -73,7 +73,7 @@ test('page: a proposal reads "P1?" with who proposed it, and the panel offers to
   const page = readFileSync(join(import.meta.dirname, '..', 'server', 'page.html'), 'utf8');
   assert.match(page, /t\?\.priority_proposed\s*\? `<span class="prio \$\{esc\(p\)\} proposed"/);
   assert.match(page, /proposed by \{by\}: not yours until you set or confirm it', \{ p: PRIO\[p\] \|\| p, by: t\.priority_by_name/);
-  assert.match(page, /data-confirm-prio="\$\{esc\(t\.key\)\}">Confirm \$\{esc\(t\.priority\)\}/);
+  assert.match(page, /data-confirm-prio="\$\{esc\(t\.key\)\}">\$\{esc\(tr\('Confirm \{p\}', \{ p: t\.priority \}\)\)\}/);
   assert.match(page, /await api\(`tickets\/\$\{encodeURIComponent\(t\.key\)\}`, \{ priority: t\.priority \}\)/);
   for (const call of ['prio(p.priority, p)', 'prio(t.priority, t)']) assert.ok(page.includes(call), call);
   assert.ok(!/prio\(t\.priority\)/.test(page), 'every chip knows its ticket');

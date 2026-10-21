@@ -89,7 +89,7 @@ test('keys: Esc first leaves the expanded ticket, then closes the panel; a dialo
 test('panel: resize handle, width kept per browser behind a guard, expand button (0.5.10)', () => {
   // The handle is a focusable separator on the left edge, hidden on a phone where the panel fills the screen;
   // the expand button stays there (0.5.13: it reads the whole ticket).
-  assert.match(page, /class="pResize" role="separator" aria-orientation="vertical" aria-label="Resize the ticket panel"/);
+  assert.match(page, /class="pResize" role="separator" aria-orientation="vertical" aria-label="\$\{tr\('Resize the ticket panel'\)\}"/);
   assert.match(page, /\n\s*\.pResize \{ display: none; \}/);
   assert.doesNotMatch(page, /\.pExp[^{]*\{[^}]*display: none/);
   assert.match(page, /width: clamp\(380px, var\(--panel-w, 560px\), max\(380px, calc\(100vw - 96px\)\)\)/);
@@ -114,5 +114,5 @@ test('markdown texts: copy and read-wide buttons on the description and on every
   assert.match(page, /@media \(hover: none\), \(pointer: coarse\) \{\n\s*\.mdActs \{ opacity: 1; \}/);
   // The reading view toggles between the rendered text and its markdown source.
   assert.match(page, /data-act="readerRendered"/);
-  assert.match(page, /<pre class="readerRaw" aria-label="Markdown source">\$\{esc\(r\.text\)\}<\/pre>/);
+  assert.match(page, /<pre class="readerRaw" aria-label="\$\{tr\('Markdown source'\)\}">\$\{esc\(r\.text\)\}<\/pre>/);
 });
