@@ -807,6 +807,20 @@
       .pLatest { height: 36px; }
       .seg button { height: 36px; }
     }
+    /* 0.9.17 (audit n°6, ALV-3619): the rule above missed most of the panel. On a phone every control of an open ticket
+       reaches 36 px or more: the field menus, the action buttons, "Edit", "Put on hold…", the dependency inputs, the
+       context chips. The close button keeps its 40 px (it shrank to 33 next to a long "Mark done"), which stays on one line. */
+    @media (max-width: 900px), (pointer: coarse) {
+      #panel .fields select, #panel .fields input, #panel .holdBox select, #panel .holdBox input,
+      #panel .depAdd input, #panel .depAdd .btn, #panel .btn, #panel .pAct { min-height: 40px; }
+      #panel .clear { min-height: 36px; min-width: 44px; padding: 0 10px; }
+      #panel summary.sect { min-height: 40px; }
+      #panel .fields .tag, #panel .ctx .tag { min-height: 36px; display: inline-flex; align-items: center; }
+      #panel .dep .rm, #panel .mdAct { width: 36px; min-width: 36px; height: 36px; }
+      #panel .pHead .x, #panel .pHead .pIcon { flex: none; min-width: 40px; }
+      #panel .pHead .pDone { flex: none; white-space: nowrap; }
+      #panel .pHead .fresh { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    }
     @media (prefers-reduced-motion: reduce) { .asks .ask { transition: none; } }
     .card.blocked { background: repeating-linear-gradient(-45deg, var(--card), var(--card) 8px, color-mix(in srgb, var(--danger) 4%, var(--card)) 8px, color-mix(in srgb, var(--danger) 4%, var(--card)) 16px); }
     .card.flash, .row.flash { animation: flash 1.6s ease-out; }
@@ -1389,6 +1403,24 @@
       'Ready.': 'Prêt.',
       ' The browser blocked the new tab:': ' Le navigateur a bloqué le nouvel onglet :',
       'Done.': 'Fait.',
+      'Show the text': 'Afficher le texte',
+      'Rendered': 'Mis en forme',
+      'Markdown source': 'Source markdown',
+      'Esc to close': 'Échap pour fermer',
+      '{c} characters · {w} words': '{c} caractères · {w} mots',
+      'Bug': 'Bogue',
+      'Suggestion': 'Suggestion',
+      'Friction': 'Friction',
+      'kind:task': 'tâche',
+      'kind:bug': 'bogue',
+      'kind:action': 'action',
+      'kind:question': 'question',
+      'kind:note': 'note',
+      'kind:session': 'session',
+      'kind:feedback': 'retour',
+      'kind:permission': 'permission',
+      'kind:chore': 'corvée',
+      'kind:feature': 'fonction',
     };
     /** `tr(english, vars)`: the text in the page's language, `{name}` filled from `vars`. */
     function makeTr(lang, locale) {
@@ -2655,7 +2687,7 @@
           const t0 = list[0];
           if (sid) {
             const a = t0.session?.activity || 'idle';
-            html.push(`<div class="group"><span class="act" data-a="${esc(a)}"><i></i><span class="hideS">${esc(ACT[a] || a)}</span></span><span class="grow"><b>${t0.origin === 'cloud' ? '☁ ' : ''}${esc(sessionName(t0))}</b>${t0.repo ? `<button type="button" class="tag" data-filter="repo" data-value="${esc(t0.repo)}">${esc(repoName(t0.repo))}${t0.branch && t0.branch !== 'HEAD' ? ' · ' + esc(t0.branch) : ''}</button>` : ''}${t0.machine && t0.origin !== 'cloud' ? `<span class="hideS">${esc(t0.machine)}</span>` : ''}</span>${state.f.session ? '' : `<button type="button" class="tag" data-filter="session" data-value="${esc(sid)}">Only this session</button>`}${t0.session?.url ? `<a class="tag" href="${esc(t0.session.url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}</div>`);
+            html.push(`<div class="group"><span class="act" data-a="${esc(a)}"><i></i><span class="hideS">${esc(ACT[a] || a)}</span></span><span class="grow"><b>${t0.origin === 'cloud' ? '☁ ' : ''}${esc(sessionName(t0))}</b>${t0.repo ? `<button type="button" class="tag" data-filter="repo" data-value="${esc(t0.repo)}">${esc(repoName(t0.repo))}${t0.branch && t0.branch !== 'HEAD' ? ' · ' + esc(t0.branch) : ''}</button>` : ''}${t0.machine && t0.origin !== 'cloud' ? `<span class="hideS">${esc(t0.machine)}</span>` : ''}</span>${state.f.session ? '' : `<button type="button" class="tag" data-filter="session" data-value="${esc(sid)}">Only this session</button>`}${t0.session?.url ? `<a class="tag" href="${esc(t0.session.url)}" target="_blank" rel="noopener">${tr('Open ↗')}</a>` : ''}</div>`);
           } else {
             html.push('<div class="group"><span class="grow"><b>Outside any session</b></span></div>');
           }
@@ -2814,20 +2846,20 @@
         if (isNarrow()) {
           b.innerHTML = ICON_READ;
           b.removeAttribute('aria-pressed');
-          b.setAttribute('aria-label', 'Read the whole ticket in the reading view');
-          b.title = 'Read the whole ticket';
+          b.setAttribute('aria-label', tr('Read the whole ticket in the reading view'));
+          b.title = tr('Read the whole ticket');
           return;
         }
         const on = isExpanded();
         b.innerHTML = on ? ICON_SIDE : ICON_FULL;
         b.setAttribute('aria-pressed', String(on));
-        b.setAttribute('aria-label', on ? 'Back to the side panel' : 'Expand the ticket');
-        b.title = on ? 'Back to the side panel (Esc)' : 'Expand';
+        b.setAttribute('aria-label', tr(on ? 'Back to the side panel' : 'Expand the ticket'));
+        b.title = tr(on ? 'Back to the side panel (Esc)' : 'Expand');
       }
 
       /** Copy and read-wide buttons for one markdown text (the description, a comment). */
       const mdActs = (what) =>
-        `<span class="mdActs"><button type="button" class="mdAct" data-md="copy" aria-label="Copy the ${esc(what)} as markdown" title="Copy as markdown">${ICON_COPY}</button><button type="button" class="mdAct" data-md="read" aria-label="Read the ${esc(what)} in a wide view" title="Read in a wide view">${ICON_READ}</button></span>`;
+        `<span class="mdActs"><button type="button" class="mdAct" data-md="copy" aria-label="${esc(tr('Copy the {what} as markdown', { what: tr(what) }))}" title="${tr('Copy as markdown')}">${ICON_COPY}</button><button type="button" class="mdAct" data-md="read" aria-label="${esc(tr('Read the {what} in a wide view', { what: tr(what) }))}" title="${tr('Read in a wide view')}">${ICON_READ}</button></span>`;
       /** The raw markdown behind a button: the open ticket's body or one of its comments, or the text in the reading view. */
       function mdSource(btn) {
         if (btn.closest('#help')) return reader;
@@ -2905,12 +2937,12 @@
         $('help').innerHTML = `
           <div class="readerHead">
             <h3 title="${esc(r.heading)}${r.sub ? ' · ' + esc(r.sub) : ''}">${esc(r.heading)}${r.sub ? ` <span>· ${esc(r.sub)}</span>` : ''}</h3>
-            <div class="seg" role="group" aria-label="Show the text"><button type="button" data-act="readerRendered" aria-pressed="${!r.raw}">Rendered</button><button type="button" data-act="readerRaw" aria-pressed="${r.raw}">Markdown</button></div>
-            <span class="mdActs"><button type="button" class="mdAct" data-md="copy" aria-label="Copy as markdown" title="Copy as markdown">${ICON_COPY}</button></span>
-            <button type="button" class="x" id="helpClose" data-act="helpClose" aria-label="Close">×</button>
+            <div class="seg" role="group" aria-label="${tr('Show the text')}"><button type="button" data-act="readerRendered" aria-pressed="${!r.raw}">${tr('Rendered')}</button><button type="button" data-act="readerRaw" aria-pressed="${r.raw}">Markdown</button></div>
+            <span class="mdActs"><button type="button" class="mdAct" data-md="copy" aria-label="${tr('Copy as markdown')}" title="${tr('Copy as markdown')}">${ICON_COPY}</button></span>
+            <button type="button" class="x" id="helpClose" data-act="helpClose" aria-label="${tr('Close')}">×</button>
           </div>
-          <div class="readerBody" tabindex="-1">${r.raw ? `<pre class="readerRaw" aria-label="Markdown source">${esc(r.text)}</pre>` : `<div class="md">${md(r.text)}</div>`}</div>
-          <div class="readerFoot"><span>${groupDigits(r.text.length)} characters · ${groupDigits(words)} words</span><span style="margin-left:auto">Esc to close</span></div>`;
+          <div class="readerBody" tabindex="-1">${r.raw ? `<pre class="readerRaw" aria-label="${tr('Markdown source')}">${esc(r.text)}</pre>` : `<div class="md">${md(r.text)}</div>`}</div>
+          <div class="readerFoot"><span>${tr('{c} characters · {w} words', { c: groupDigits(r.text.length), w: groupDigits(words) })}</span><span style="margin-left:auto">${tr('Esc to close')}</span></div>`;
       }
 
       // ---- what's new (0.5.13) ------------------------------------------------------------------
@@ -3259,7 +3291,7 @@
       function depList(list, rel) {
         if (!list?.length) return `<div class="empty" style="padding:6px 8px;text-align:left">${tr('None')}</div>`;
         return list
-          .map((d) => `<div class="dep${d.status === 'done' || d.status === 'cancelled' ? ' closed' : ''}" data-open="${esc(d.key)}"><span class="dot" data-s="${esc(d.status)}"></span><span class="k">${esc(d.key)}</span><span class="tt" title="${ttl(d.title)}">${ttl(d.title)}</span><button type="button" class="rm" data-undep="${esc(d.key)}" data-rel="${rel}" title="Remove this dependency" aria-label="Remove">×</button></div>`)
+          .map((d) => `<div class="dep${d.status === 'done' || d.status === 'cancelled' ? ' closed' : ''}" data-open="${esc(d.key)}"><span class="dot" data-s="${esc(d.status)}"></span><span class="k">${esc(d.key)}</span><span class="tt" title="${ttl(d.title)}">${ttl(d.title)}</span><button type="button" class="rm" data-undep="${esc(d.key)}" data-rel="${rel}" title="${tr('Remove this dependency')}" aria-label="${tr('Remove')}">×</button></div>`)
           .join('');
       }
       // ---- related (0.9.13)
@@ -3275,6 +3307,7 @@
       // ---- end of related
       // The people and lasting agents first, by name; one-off runs (`…/job-12`, `…/wake-7`) under « Others », newest
       // first. Two actors with the same name show their id, so « Kaa » and « Kaa » can be told apart.
+      const ASSIGNEE_RUNS = 10;
       const assigneeOpts = (cur) => {
         const rest = [...actors.values()].filter((a) => !['user', 'claude', 'hook'].includes(a.id) && a.type !== 'system');
         const names = new Map();
@@ -3283,25 +3316,29 @@
         const run = runRanker(actors.keys());
         const lasting = rest.filter((a) => !run(a.id)).sort((a, b) => actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id));
         const oneOff = rest.filter((a) => run(a.id)).sort((a, b) => run(b.id) - run(a.id) || actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id));
-        // The 50 newest numbered runs, then every named run (a few, and they stay: they would never make the 50).
-        const shown = [...oneOff.filter((a) => run(a.id) >= 1).slice(0, 50), ...oneOff.filter((a) => run(a.id) < 1)];
+        // 0.9.17 (ALV-2857): the 10 newest numbered runs, then every named run. A ticket is handed to a person or a lasting
+        // agent; a finished run is rarely the right owner, and 50 of them made a 90-entry menu on a phone. The current
+        // assignee always stays in the list (added below).
+        const shown = [...oneOff.filter((a) => run(a.id) >= 1).slice(0, ASSIGNEE_RUNS), ...oneOff.filter((a) => run(a.id) < 1)];
         const list = [['user', tr('You')], ['claude', 'Claude'], ...lasting.map((a) => [a.id, label(a)]), ...shown.map((a) => [a.id, label(a), tr('Others')])];
         if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur) + (names.has(actorName(cur)) ? ` (${cur})` : ''), run(cur) ? tr('Others') : undefined]);
         return list;
       };
       // 0.6.0: on hold — what it waits for, what happens then; or the form to put it on hold.
+      /** The kind of a ticket in the page's language (« tâche », « bogue »…); an unknown kind shows as written. */
+      const kindLabel = (k) => { const v = tr('kind:' + k); return v.startsWith('kind:') ? String(k ?? '') : v; };
       function holdSection(t) {
         const h = t.hold;
         if (h) {
-          const by = h.set_by ? ` · set by ${esc(actorName(h.set_by))}, ${esc(agoPhrase(h.set_at, Date.now()))}` : '';
-          return `<div class="sect">On hold</div><div class="holdBox"><div class="holdNow">Waits for <b>${esc(h.waits_for)}</b>, then <b>${esc(h.next_text)}</b>.${h.note ? ' ' + esc(h.note) : ''}${h.stuck ? `<br><span class="tag hold stuck">⚠ ${esc(h.stuck)}</span>` : ''}<div class="muted">It comes back by itself${by}.</div></div><div class="row"><button type="button" class="btn" data-act="unhold">Lift the hold now</button></div></div>`;
+          const by = h.set_by ? esc(tr(' · set by {who}, {when}', { who: actorName(h.set_by), when: agoPhrase(h.set_at, Date.now()) })) : '';
+          return `<div class="sect">${tr('On hold')}</div><div class="holdBox"><div class="holdNow">${tr('Waits for <b>{w}</b>, then <b>{n}</b>.', { w: esc(h.waits_for), n: esc(h.next_text) })}${h.note ? ' ' + esc(h.note) : ''}${h.stuck ? `<br><span class="tag hold stuck">⚠ ${esc(h.stuck)}</span>` : ''}<div class="muted">${tr('It comes back by itself{by}.', { by })}</div></div><div class="row"><button type="button" class="btn" data-act="unhold">${tr('Lift the hold now')}</button></div></div>`;
         }
         const open = (t.blocked_by || []).filter((b) => b.status !== 'done' && b.status !== 'cancelled').map((b) => b.key).join(', ');
         return `<details class="holdForm"><summary class="sect" style="cursor:pointer">${tr('Put on hold…')}</summary><div class="holdBox">
-          <div class="row"><label class="muted" for="holdCond">Until</label><select id="holdCond" aria-label="What it waits for"><option value="blocked_by">these tickets are closed</option><option value="pr_merged">a pull request is merged</option><option value="time">a date and time</option><option value="reply">someone replies</option></select><input id="holdValue" value="${esc(open)}" placeholder="${keyPrefix(t.key)}-12, ${keyPrefix(t.key)}-14" aria-label="Tickets, pull request, date or actor" autocomplete="off"></div>
-          <div class="row"><label class="muted" for="holdThen">Then</label><select id="holdThen" aria-label="What happens then"><option value="">wake who put it on hold</option><option value="wake">wake an agent</option><option value="assign">hand it to someone</option><option value="me">back to you</option></select><input id="holdWho" placeholder="agent id" aria-label="Who" autocomplete="off" hidden></div>
-          <div class="row"><input id="holdNote" placeholder="Why it waits (optional)" aria-label="Why it waits" autocomplete="off"><button type="button" class="btn primary" data-act="hold">Put on hold</button></div>
-          <div class="muted">It leaves every lane and comes back by itself, with a line in the history.</div></div></details>`;
+          <div class="row"><label class="muted" for="holdCond">${tr('Until')}</label><select id="holdCond" aria-label="${tr('What it waits for')}"><option value="blocked_by">${tr('these tickets are closed')}</option><option value="pr_merged">${tr('a pull request is merged')}</option><option value="time">${tr('a date and time')}</option><option value="reply">${tr('someone replies')}</option></select><input id="holdValue" value="${esc(open)}" placeholder="${keyPrefix(t.key)}-12, ${keyPrefix(t.key)}-14" aria-label="${tr('Tickets, pull request, date or actor')}" autocomplete="off"></div>
+          <div class="row"><label class="muted" for="holdThen">${tr('Then')}</label><select id="holdThen" aria-label="${tr('What happens then')}"><option value="">${tr('wake who put it on hold')}</option><option value="wake">${tr('wake an agent')}</option><option value="assign">${tr('hand it to someone')}</option><option value="me">${tr('back to you')}</option></select><input id="holdWho" placeholder="${tr('agent id')}" aria-label="${tr('Who')}" autocomplete="off" hidden></div>
+          <div class="row"><input id="holdNote" placeholder="${tr('Why it waits (optional)')}" aria-label="${tr('Why it waits')}" autocomplete="off"><button type="button" class="btn primary" data-act="hold">${tr('Put on hold')}</button></div>
+          <div class="muted">${tr('It leaves every lane and comes back by itself, with a line in the history.')}</div></div></details>`;
       }
       function holdInput() {
         const type = $('holdCond').value;
@@ -3336,13 +3373,13 @@
         if (t.machine) ctx.push(`<span class="tag">${t.origin === 'cloud' ? '☁ cloud' : esc(t.machine)}</span>`);
         ctx.push(`<span class="tag">${esc(tr('from {src}', { src: t.source === 'hook' ? tr('hooks') : t.source }))}</span>`);
         const sess = t.session_id ? `<div class="ctx"><button type="button" class="tag" data-filter="session" data-value="${esc(t.session_id)}">${t.origin === 'cloud' ? '☁ ' : ''}${esc(sessionName(t))}</button><span class="tag">${esc(ACT[t.session?.activity] || t.session?.activity || '')}</span>${t.session?.url ? `<a class="tag" href="${esc(t.session.url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}</div>` : '<span class="lab">—</span>';
-        const links = (t.links || []).map((l) => (httpsUrl(l.url) ? `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title || (l.type === 'pr' ? 'Pull request ' + l.url.replace(/^https:\/\/[^/]+\//, '') : l.type === 'session' ? 'Cloud session' : l.url))} ↗</a>` : `<span class="mono">${esc(l.url)}</span>`)).join('');
+        const links = (t.links || []).map((l) => (httpsUrl(l.url) ? `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title || (l.type === 'pr' ? 'Pull request ' + l.url.replace(/^https:\/\/[^/]+\//, '') : l.type === 'session' ? tr('Cloud session') : l.url))} ↗</a>` : `<span class="mono">${esc(l.url)}</span>`)).join('');
         const kids = (t.children || []).map((c) => `<div class="kid" data-open="${esc(c.key)}"><span class="dot" data-s="${esc(c.status)}"></span><span class="k">${esc(c.key)}</span><span class="tt">${ttl(c.title)}</span><span class="pill" data-s="${esc(c.status)}">${esc(STATUS[c.status])}</span></div>`).join('');
         $('panel').innerHTML = `
           ${resizeHandle()}
-          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><span class="fresh" data-at="${now}"></span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="${esc(tr('Mark {k} as done', { k: t.key }))}" title="${tr('Mark done (d)')}">${CHECK}<span>${tr('Mark done')}</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="${tr('Close')}">×</button></div></div>
+          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(kindLabel(t.kind))}</span><span class="fresh" data-at="${now}"></span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="${esc(tr('Mark {k} as done', { k: t.key }))}" title="${tr('Mark done (d)')}">${CHECK}<span>${tr('Mark done')}</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="${tr('Close')}">×</button></div></div>
           <form class="pBody" id="tform" autocomplete="off">
-            <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
+            <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="${tr('Title')}">${esc(t.title)}</textarea>
             ${roiLine(t)}
             ${askBox(t)}
             ${actionBar(t)}
@@ -3350,24 +3387,24 @@
               <label>${tr('Status')}</label>${sel('status', t.status, Object.entries(STATUS))}
               <label>${tr('Assignee')}</label>${sel('assignee', t.assignee, assigneeOpts(t.assignee))}
               <label>${tr('Priority')}</label>${sel('priority', t.priority || '', [['', tr('None')], ['P0', PRIO.P0], ['P1', PRIO.P1], ['P2', PRIO.P2], ['P3', PRIO.P3]])}
-              ${t.priority_proposed ? `<div class="prioNote"><span>Proposed by ${esc(t.priority_by_name || t.priority_by || 'an agent')}${t.priority !== 'P2' && t.priority !== 'P3' ? ', counted as P2 until you confirm it' : ''}</span><button type="button" class="tag" data-confirm-prio="${esc(t.key)}">Confirm ${esc(t.priority)}</button></div>` : ''}
-              ${!t.priority && t.project_priority ? `<div class="prioNote"><span>Counts as ${esc(t.project_priority.priority)}, the priority of its project ${esc(t.project_priority.key)}</span></div>` : ''}
-              ${t.kind === 'feedback' ? `<label>Type</label>${sel('subtype', t.subtype || 'suggestion', [['bug', 'Bug'], ['suggestion', 'Suggestion'], ['friction', 'Friction']])}` : ''}
+              ${t.priority_proposed ? `<div class="prioNote"><span>${esc(tr('Proposed by {by}', { by: t.priority_by_name || t.priority_by || tr('an agent') }))}${t.priority !== 'P2' && t.priority !== 'P3' ? tr(', counted as P2 until you confirm it') : ''}</span><button type="button" class="tag" data-confirm-prio="${esc(t.key)}">${esc(tr('Confirm {p}', { p: t.priority }))}</button></div>` : ''}
+              ${!t.priority && t.project_priority ? `<div class="prioNote"><span>${esc(tr('Counts as {p}, the priority of its project {k}', { p: t.project_priority.priority, k: t.project_priority.key }))}</span></div>` : ''}
+              ${t.kind === 'feedback' ? `<label>${tr('Type')}</label>${sel('subtype', t.subtype || 'suggestion', [['bug', tr('Bug')], ['suggestion', tr('Suggestion')], ['friction', tr('Friction')]])}` : ''}
               <label>${tr('Labels')}</label><input name="labels" value="${esc((t.labels || []).join(', '))}" placeholder="${tr('comma, separated')}">
               <span class="lab">${tr('Session')}</span>${sess}
               <span class="lab">${tr('Context')}</span><div class="ctx">${ctx.join('')}</div>
-              ${t.parent_key ? `<span class="lab">Parent</span><div class="ctx"><button type="button" class="tag" data-open="${esc(t.parent_key)}">${esc(t.parent_key)} ${esc((t.parent_title || '').slice(0, 50))}</button></div>` : ''}
+              ${t.parent_key ? `<span class="lab">${tr('Parent')}</span><div class="ctx"><button type="button" class="tag" data-open="${esc(t.parent_key)}">${esc(t.parent_key)} ${esc((t.parent_title || '').slice(0, 50))}</button></div>` : ''}
               <span class="lab">${tr('Created')}</span><span>${t.created_by ? who(t.created_by) + ' · ' : ''}${esc(when(t.created_at))} · ${tr('updated {ago}', { ago: agoPhrase(t.updated_at, now) })}</span>
             </div>
-            ${t.kind === 'feedback' && t.status !== 'done' && t.status !== 'cancelled' ? `<div class="resolve"><textarea id="resolution" data-limit="comment" placeholder="Resolution: what was done, or why not (kept in the history)"></textarea><div class="acts"><button type="button" class="btn" data-act="fbCancel">Won't do</button><button type="button" class="btn primary" data-act="fbDone">Mark handled</button></div></div>` : ''}
-            <div class="formActs" id="saveBar" hidden><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="revert">Discard</button><button type="submit" class="btn primary" title="${esc(sendHint('save'))}">Save</button></div>
+            ${t.kind === 'feedback' && t.status !== 'done' && t.status !== 'cancelled' ? `<div class="resolve"><textarea id="resolution" data-limit="comment" placeholder="${tr('Resolution: what was done, or why not (kept in the history)')}"></textarea><div class="acts"><button type="button" class="btn" data-act="fbCancel">${tr("Won't do")}</button><button type="button" class="btn primary" data-act="fbDone">${tr('Mark handled')}</button></div></div>` : ''}
+            <div class="formActs" id="saveBar" hidden><span class="msg" id="saveMsg"></span><button type="button" class="btn ghost" data-act="revert">${tr('Discard')}</button><button type="submit" class="btn primary" title="${esc(sendHint('save'))}">${tr('Save')}</button></div>
             <div class="mdHost" data-md-src="body">
               <div class="sect">${tr('Description')} ${t.body ? mdActs('description') : ''}<button type="button" class="clear" data-act="editBody">${tr('Edit')}</button></div>
               <div class="md${t.body ? '' : ' empty-body'}" id="bodyView">${t.body ? (bodyRest(t) ? md(bodyRest(t)) : `<span class="empty-body">${tr('Everything is in the box above.')}</span>`) : tr('No description.')}</div>
               <textarea name="body" id="bodyEdit" data-limit="body" hidden>${esc(t.body || '')}</textarea>
             </div>
-            ${links ? `<div class="sect">Links</div><div class="links">${links}</div>` : ''}
-            ${kids ? `<div class="sect">Sub-tickets</div><div class="kids">${kids}</div>` : ''}
+            ${links ? `<div class="sect">${tr('Links')}</div><div class="links">${links}</div>` : ''}
+            ${kids ? `<div class="sect">${tr('Sub-tickets')}</div><div class="kids">${kids}</div>` : ''}
             ${t.kind === 'feedback' || !isOpen(t) ? '' : holdSection(t)}
             ${t.kind === 'feedback' ? '' : `<div class="sect">${tr('Dependencies')} ${t.blocked ? `<span class="tag blocked">⛔ ${tr('blocked')}</span>` : ''}</div>
             <div class="depCols">
@@ -3377,7 +3414,7 @@
             ${relatedSection(t.related)}
             <div class="sect">${tr('History')}</div>
             <div class="timeline">${(t.events || []).map(eventLine).join('')}</div>
-            <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" data-limit="comment" placeholder="${tr('Add a comment…')}" aria-label="${tr('Comment')}"></textarea><div class="pend" id="pendingPics"></div><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts">${attachButton('attachFile')}<button type="button" class="btn" data-act="newChild">${tr('Add sub-ticket')}</button><button type="button" class="btn" data-act="comment">${tr('Comment')}</button></div></div>
+            <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="${tr('Mention suggestions')}"></div><textarea id="comment" data-limit="comment" placeholder="${tr('Add a comment…')}" aria-label="${tr('Comment')}"></textarea><div class="pend" id="pendingPics"></div><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts">${attachButton('attachFile')}<button type="button" class="btn" data-act="newChild">${tr('Add sub-ticket')}</button><button type="button" class="btn" data-act="comment">${tr('Comment')}</button></div></div>
             <div class="pLatestWrap"><button type="button" class="pLatest" data-act="jumpLatest" hidden title="${tr('Jump to the latest messages of this ticket')}">${tr('↓ Latest messages')}</button></div>
           </form>${replyBar(t)}`;
         $('panel').hidden = false;

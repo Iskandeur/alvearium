@@ -2,6 +2,16 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.17",
+      "date": "2026-10-21",
+      "items": [
+        "On a French board, an open ticket is French from top to bottom: the hold form, the copy buttons, the reading view, the kind of ticket.",
+        "On a phone, every control of an open ticket is big enough to tap: menus, actions, \"Edit\", \"Put on hold…\", dependency fields.",
+        "On a phone, \"Mark done\" stays on one line and the close button keeps its size.",
+        "The \"Assignee\" menu lists the people and lasting agents, then the 10 newest one-off runs instead of 50."
+      ]
+    },
+    {
       "version": "0.9.16",
       "date": "2026-10-21",
       "items": [

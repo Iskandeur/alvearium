@@ -167,10 +167,10 @@ test('page: the 0.5.10 tools are visible at rest (grip, copy, read wide) and the
   // Copy and read wide: 0.45 at rest, full on hover or focus, full on touch; labelled and titled.
   assert.match(page, /\.mdActs \{ display: inline-flex; align-items: center; gap: 2px; opacity: 0\.45;/);
   assert.match(page, /\.mdHost:hover \.mdActs, \.mdHost:focus-within \.mdActs, \.mdActs:hover, \.mdActs:focus-within/);
-  assert.match(page, /data-md="copy" aria-label="Copy the \$\{esc\(what\)\} as markdown" title="Copy as markdown"/);
-  assert.match(page, /data-md="read" aria-label="Read the \$\{esc\(what\)\} in a wide view" title="Read in a wide view"/);
+  assert.match(page, /data-md="copy" aria-label="\$\{esc\(tr\('Copy the \{what\} as markdown', \{ what: tr\(what\) \}\)\)\}" title="\$\{tr\('Copy as markdown'\)\}"/);
+  assert.match(page, /data-md="read" aria-label="\$\{esc\(tr\('Read the \{what\} in a wide view', \{ what: tr\(what\) \}\)\)\}" title="\$\{tr\('Read in a wide view'\)\}"/);
   // Narrow screens: the expand button exists and reads the whole ticket; the copy works without a read-only box.
-  assert.match(page, /b\.setAttribute\('aria-label', 'Read the whole ticket in the reading view'\);/);
+  assert.match(page, /b\.setAttribute\('aria-label', tr\('Read the whole ticket in the reading view'\)\);/);
   assert.match(page, /const NARROW = window\.matchMedia\('\(max-width: 900px\)'\);/);
   assert.match(page, /ta\.setSelectionRange\(0, text\.length\)/);
   assert.doesNotMatch(page, /ta\.setAttribute\('readonly'/);

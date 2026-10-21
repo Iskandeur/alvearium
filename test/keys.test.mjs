@@ -114,5 +114,5 @@ test('markdown texts: copy and read-wide buttons on the description and on every
   assert.match(page, /@media \(hover: none\), \(pointer: coarse\) \{\n\s*\.mdActs \{ opacity: 1; \}/);
   // The reading view toggles between the rendered text and its markdown source.
   assert.match(page, /data-act="readerRendered"/);
-  assert.match(page, /<pre class="readerRaw" aria-label="Markdown source">\$\{esc\(r\.text\)\}<\/pre>/);
+  assert.match(page, /<pre class="readerRaw" aria-label="\$\{tr\('Markdown source'\)\}">\$\{esc\(r\.text\)\}<\/pre>/);
 });
