@@ -525,6 +525,34 @@
     /* Keyboard shortcut help */
     .kbd { font: inherit; font-size: 11.5px; color: var(--faint); border: 1px solid var(--line-strong); border-radius: 5px; padding: 0 5px; line-height: 18px; background: color-mix(in srgb, var(--card) 60%, transparent); }
     .helpScrim { position: fixed; inset: 0; background: rgba(10, 10, 14, 0.22); z-index: 29; }
+    /* 0.9.19: Quick capture. One round button, always in reach; one text box, focused at once (the keyboard opens on a phone). */
+    .qcFab {
+      position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 25;
+      width: 56px; height: 56px; border-radius: 50%; border: 0; cursor: pointer;
+      background: var(--accent); color: #fff; display: grid; place-items: center;
+      box-shadow: 0 8px 24px rgba(16, 18, 27, 0.28);
+    }
+    .qcFab:hover { filter: brightness(1.08); }
+    .qcFab:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 3px; }
+    :root[data-role="viewer"] .qcFab { display: none !important; }
+    .qc {
+      position: fixed; left: 50%; top: 10vh; transform: translateX(-50%); z-index: 40;
+      width: min(560px, calc(100vw - 20px)); padding: 14px; display: flex; flex-direction: column; gap: 10px;
+      border: 1px solid var(--line); border-radius: var(--radius); background: var(--card);
+      box-shadow: 0 18px 70px rgba(16, 18, 27, 0.3);
+    }
+    .qc[hidden], .qcScrim[hidden] { display: none; }
+    .qcScrim { position: fixed; inset: 0; z-index: 39; background: rgba(16, 18, 27, 0.35); }
+    .qc textarea {
+      width: 100%; min-height: 36vh; max-height: 60vh; resize: vertical; padding: 10px 12px;
+      border: 1px solid var(--line-strong); border-radius: 8px; background: var(--bg); color: var(--text);
+      font: inherit; font-size: 16px; line-height: 1.45; outline: none; box-sizing: border-box;
+    }
+    .qc textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .qc .qcActs { display: flex; align-items: center; gap: 8px; }
+    .qc .qcMsg { flex: 1; font-size: 12.5px; color: var(--muted); min-width: 0; }
+    .qc .qcMsg.err { color: var(--danger); }
+    .qc .btn { min-height: 40px; }
     .help {
       position: fixed; left: 50%; top: 12vh; transform: translateX(-50%);
       width: min(680px, calc(100vw - 28px)); max-height: calc(100vh - 24vh);
@@ -1051,6 +1079,19 @@
   <div class="scrim" id="scrim" hidden></div>
   <aside class="panel" id="panel" hidden aria-label="Ticket"></aside>
 
+  <button class="qcFab" id="qcFab" type="button" aria-haspopup="dialog" aria-label="Quick capture" title="Quick capture: jot an idea down" data-i18n-attr="aria-label,title">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4.5v15M4.5 12h15" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+  </button>
+  <div class="qcScrim" id="qcScrim" hidden></div>
+  <form class="qc" id="qc" hidden role="dialog" aria-modal="true" aria-label="Quick capture" data-i18n-attr="aria-label">
+    <textarea id="qcText" name="text" rows="6" placeholder="What is on your mind?" aria-label="Your note" autocomplete="off" autocapitalize="sentences" enterkeyhint="enter" maxlength="20000" data-i18n-attr="placeholder,aria-label"></textarea>
+    <div class="qcActs">
+      <span class="qcMsg" id="qcMsg" role="status"></span>
+      <button type="button" class="btn ghost" id="qcCancel" data-i18n>Cancel</button>
+      <button type="submit" class="btn primary" id="qcSend" data-i18n>Send</button>
+    </div>
+  </form>
+
   <div class="helpScrim" id="helpScrim" hidden></div>
   <div class="help" id="help" hidden role="dialog" aria-modal="true" aria-label="Shortcuts and gestures"></div>
 
@@ -1091,6 +1132,13 @@
       'Shortcuts and gestures': 'Raccourcis et gestes',
       'Shortcuts and gestures (?)': 'Raccourcis et gestes (?)',
       'New': 'Nouveau',
+      'Quick capture': 'Capture rapide',
+      'Quick capture: jot an idea down': 'Capture rapide : note une idée',
+      'What is on your mind?': 'Qu’as-tu en tête ?',
+      'Your note': 'Ta note',
+      'Send': 'Envoyer',
+      'Write something first.': 'Écris quelque chose d’abord.',
+      'Captured {key}': '{key} capturé',
       'Access token needed': 'Jeton d’accès requis',
       'Paste your token once. This browser keeps a session cookie, never the token itself.': 'Colle ton jeton une fois. Ce navigateur garde un cookie de session, jamais le jeton lui-même.',
       'Token': 'Jeton',
@@ -4255,6 +4303,69 @@
           refresh();
         } catch (err) { b.disabled = false; toast(err.message); }
       });
+      // ---- Quick capture (0.9.19) -------------------------------------------------------------
+      // One button, one text box. The note is the ticket's body as typed; the title is its first line. An assistant
+      // then fills the rest. The draft survives a closed dialog or a failed send (localStorage) until it is sent.
+      const QC_DRAFT = 'alvearium.capture.draft';
+      const captureTitle = (text) => {
+        const first = String(text).split('\n').map((l) => l.trim()).find(Boolean) || '';
+        if (first.length <= 80) return first;
+        const cut = first.slice(0, 80);
+        return (cut.slice(0, cut.lastIndexOf(' ') > 40 ? cut.lastIndexOf(' ') : 80).trim() + '…');
+      };
+      let captureAssignee = 'claude';
+      let captureBusy = false;
+      function openCapture() {
+        const box = $('qcText');
+        $('qc').hidden = false;
+        $('qcScrim').hidden = false;
+        try { box.value = localStorage.getItem(QC_DRAFT) || box.value; } catch { /* storage may be blocked */ }
+        $('qcMsg').textContent = '';
+        $('qcMsg').classList.remove('err');
+        // Same tick as the tap: a phone only raises its keyboard for a focus() made inside the user's gesture.
+        box.focus();
+      }
+      function closeCapture() {
+        $('qc').hidden = true;
+        $('qcScrim').hidden = true;
+        $('qcFab').focus({ preventScroll: true });
+      }
+      $('qcFab').addEventListener('click', openCapture);
+      $('qcCancel').addEventListener('click', closeCapture);
+      $('qcScrim').addEventListener('click', closeCapture);
+      $('qcText').addEventListener('input', () => {
+        try { localStorage.setItem(QC_DRAFT, $('qcText').value); } catch { /* ignore */ }
+      });
+      $('qcText').addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeCapture(); }
+        else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); $('qc').requestSubmit(); }
+      });
+      $('qc').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (captureBusy) return;
+        const text = $('qcText').value.trim();
+        const msg = $('qcMsg');
+        if (!text) { msg.classList.add('err'); msg.textContent = tr('Write something first.'); return $('qcText').focus(); }
+        captureBusy = true;
+        $('qcSend').disabled = true;
+        msg.classList.remove('err');
+        msg.textContent = '';
+        try {
+          const t = await api('tickets', { title: captureTitle(text), body: text, status: 'todo', assignee: captureAssignee, labels: ['capture'] });
+          $('qcText').value = '';
+          try { localStorage.removeItem(QC_DRAFT); } catch { /* ignore */ }
+          closeCapture();
+          toast(tr('Captured {key}', { key: t.key }));
+          refresh();
+        } catch (err) {
+          msg.classList.add('err');
+          msg.textContent = err.message;
+        } finally {
+          captureBusy = false;
+          $('qcSend').disabled = false;
+        }
+      });
+      api('version').then((v) => { if (v?.capture?.assignee) captureAssignee = v.capture.assignee; }).catch(() => {});
       $('scrim').addEventListener('click', () => closePanel());
       let qTimer;
       $('q').addEventListener('input', () => {
