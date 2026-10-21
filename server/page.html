@@ -2773,16 +2773,25 @@
       }
       /** Shown only when the ticket overflows its scrolling area and the reader is not already at the end. */
       let latestObserver = null;
+      let latestBody = null;
       function syncLatest() {
         const body = $('panel').querySelector('.pBody');
         const btn = body && body.querySelector('.pLatest');
         if (!btn) return;
         btn.hidden = body.scrollHeight - body.scrollTop - body.clientHeight <= 48;
       }
-      function watchLatest() {
+      /** Stops watching: on every re-render (the body is replaced) and when the panel closes, so nothing outlives the open ticket. */
+      function unwatchLatest() {
         latestObserver?.disconnect();
+        latestObserver = null;
+        latestBody?.removeEventListener('scroll', syncLatest);
+        latestBody = null;
+      }
+      function watchLatest() {
+        unwatchLatest();
         const body = $('panel').querySelector('.pBody');
         if (!body || !body.querySelector('.pLatest')) return;
+        latestBody = body;
         body.addEventListener('scroll', syncLatest, { passive: true });
         if (typeof ResizeObserver === 'function') {
           // The body itself resizes with the window and the panel width; its content with arriving messages and loaded images.
@@ -3114,6 +3123,7 @@
         state.ticket = '';
         panelDirty = false;
         mentionClose();
+        unwatchLatest();
         setExpanded(false);
         $('panel').hidden = true;
         $('scrim').hidden = true;
