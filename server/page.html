@@ -794,6 +794,17 @@
       .replyBar .asksAlt .ask.soft { border-color: var(--line-strong); }
       .replyBar .asksAlt .laterHint { grid-column: 1 / -1; }
     }
+    /* 0.9.16 (audit n°5, ALV-3619): an open ticket on a phone. The title shows whole, the instruction in a code block wraps
+       instead of running off the right edge, and the panel's buttons and the filter segments reach 40-44 px. */
+    @media (max-width: 900px), (pointer: coarse) {
+      .pTitle { overflow-wrap: anywhere; }
+      .md pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+      .pHead .pIcon, .pHead .x { width: 40px; height: 40px; }
+      .pHead .pDone, .pHead .pLatest { height: 36px; padding: 0 12px; }
+      .seg button { height: 36px; }
+      /* the lane note: two lines on a phone, the rest behind a tap on "How is this computed?" (ALV-3618) */
+      .roiNote .roiTxt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+    }
     @media (prefers-reduced-motion: reduce) { .asks .ask { transition: none; } }
     .card.blocked { background: repeating-linear-gradient(-45deg, var(--card), var(--card) 8px, color-mix(in srgb, var(--danger) 4%, var(--card)) 8px, color-mix(in srgb, var(--danger) 4%, var(--card)) 16px); }
     .card.flash, .row.flash { animation: flash 1.6s ease-out; }
@@ -1262,6 +1273,27 @@
       'In a text box': 'Dans un champ de texte',
       'Single keys are off while you type in a text field, and never fire with Ctrl, ⌘ or Alt held.': 'Les touches seules sont coupées pendant la saisie dans un champ, et ne se déclenchent jamais avec Ctrl, ⌘ ou Alt enfoncé.',
       "What's new": 'Nouveautés',
+      // 0.9.16: the news banner and the lane's "How is this computed?" (ALV-3617)
+      "What's new in {v}": 'Nouveautés de la {v}',
+      'Show': 'Afficher',
+      'Hide': 'Masquer',
+      'See all changes': 'Voir tout ce qui a changé',
+      'Dismiss': 'Fermer',
+      "Dismiss what's new in {v}": 'Fermer les nouveautés de la {v}',
+      'also {v} since your last visit': 'et la {v} depuis ta dernière visite',
+      'also {n} earlier versions since your last visit': 'et {n} versions précédentes depuis ta dernière visite',
+      'How is this computed?': 'Comment est-ce calculé ?',
+      'Posted by {by}': 'Posté par {by}',
+      'Posted by {by}, {when}': 'Posté par {by}, {when}',
+      'Last posted by {by}, {on}': 'Dernier envoi par {by}, {on}',
+      'Scores out of date: last posted {ago}. They come back when the installation posts again.': 'Scores périmés : dernier envoi {ago}. Ils reviennent quand l’installation en envoie de nouveaux.',
+      'Scores posted by the installation, what your answers are worth to the agents': 'Scores envoyés par l’installation : ce que valent tes réponses pour les agents',
+      'Posted by {by}, {when}. The board shows this line and the ⚡ on the cards as sent: it computes none of these numbers.': 'Posté par {by}, {when}. Le board affiche cette ligne et les ⚡ des cartes tels qu’envoyés : il ne calcule aucun de ces chiffres.',
+      'Posted by {by}. The board shows this line and the ⚡ on the cards as sent: it computes none of these numbers.': 'Posté par {by}. Le board affiche cette ligne et les ⚡ des cartes tels qu’envoyés : il ne calcule aucun de ces chiffres.',
+      "pt (points) is the installation's own unit of agent work, for example a share of its agents' weekly usage quota. The board is not told its exact definition: the installation's formula sets it.": 'pt (points) est l’unité propre à l’installation pour le travail des agents, par exemple une part du quota hebdomadaire de ses agents. Le board n’en connaît pas la définition exacte : c’est la formule de l’installation qui la fixe.',
+      'A change over time (− or +) compares with an earlier post: − means less agent work waits on your answers than then (better), + means more.': 'Une variation dans le temps (− ou +) se compare à un envoi plus ancien : − veut dire que moins de travail des agents attend tes réponses qu’alors (mieux), + que plus de travail attend.',
+      'The numbers change each time the installation posts again (each post replaces the last one whole), even when you did nothing: a job ended, a ticket opened or closed, the cost of a job was measured again. This page shows the line as received, it does not recompute it.': 'Les chiffres changent à chaque nouvel envoi de l’installation (chaque envoi remplace le précédent en entier), même si tu n’as rien fait : un job s’est terminé, un ticket s’est ouvert ou fermé, le coût d’un job a été mesuré de nouveau. Cette page montre la ligne telle que reçue, elle ne la recalcule pas.',
+      '⚡ on a card: what answering that ticket is worth to the agents, in the same points. It does not order your lane: your priorities do.': '⚡ sur une carte : ce que vaut ta réponse à ce ticket pour les agents, dans les mêmes points. Cela ne trie pas ta file : tes priorités le font.',
       'Grip on the left edge of an open ticket: drag it to widen the ticket, double-click it to go back to the default width (arrows when it has the focus). Kept in this browser.': 'Poignée au bord gauche d’un ticket ouvert : la glisser pour élargir le ticket, double-cliquer pour revenir à la largeur par défaut (flèches quand elle a le focus). Retenu dans ce navigateur.',
       'Expand the ticket nearly full screen, Esc goes back. On a phone or in a narrow window: read the whole ticket, comments included.': 'Agrandir le ticket presque en plein écran, Échap revient. Sur téléphone ou dans une fenêtre étroite : lire tout le ticket, commentaires compris.',
       'Copy a description or a comment as markdown.': 'Copier une description ou un commentaire en markdown.',
@@ -1967,8 +1999,10 @@
       }
       /** "How is this computed?" under the lane line: who posted it, whose unit pt is, which way is better, why it moves. */
       function roiHow(by, when) {
-        const li = [ROI_TEXT.postedBy(by, when), ROI_TEXT.unit, ROI_TEXT.trend, ROI_TEXT.moves, ROI_TEXT.card].map((s) => `<li>${esc(s)}</li>`).join('');
-        return `<details class="roiHow"${roiHowOpen ? ' open' : ''}><summary>${esc(ROI_TEXT.how)}</summary><ul>${li}</ul></details>`;
+        // 0.9.16: the block reads in the page's language (ALV-3617); `by` and `when` are data, never translated.
+        const posted = when ? tr('Posted by {by}, {when}. The board shows this line and the ⚡ on the cards as sent: it computes none of these numbers.', { by, when }) : tr('Posted by {by}. The board shows this line and the ⚡ on the cards as sent: it computes none of these numbers.', { by });
+        const li = [posted, tr(ROI_TEXT.unit), tr(ROI_TEXT.trend), tr(ROI_TEXT.moves), tr(ROI_TEXT.card)].map((s) => `<li>${esc(s)}</li>`).join('');
+        return `<details class="roiHow"${roiHowOpen ? ' open' : ''}><summary>${esc(tr(ROI_TEXT.how))}</summary><ul>${li}</ul></details>`;
       }
       /** The reason under the badge, open while its key is in roiOpen. */
       function roiTap(t) {
@@ -1989,15 +2023,19 @@
       function roiHead(rs, snap, anyScore, now) {
         const at = Number(snap?.at ?? rs?.at);
         const by = snap?.actor || rs?.actor || 'the installation';
-        const since = freshness(at, now, Infinity);
+        const since = freshness(at, now, Infinity, tr);
+        // "Data as of X" / "updated Y" in the page's language: the prefix goes, the date or the age stays.
+        const cutPrefix = (s, key, name) => { const m = tr(key, { [name]: '\u0000' }).split('\u0000')[0]; return s.startsWith(m) ? s.slice(m.length) : s; };
+        const sinceTitle = cutPrefix(since.title, 'Data as of {exact}', 'exact');
+        const sinceAge = cutPrefix(since.text, 'updated {ago}', 'ago');
         if (snap?.stale && (snap.scores > 0 || snap.summary)) {
-          return { stale: true, title: `Last posted by ${by}, ${since.title.replace(/^Data as of /, '')}`, html: `<b>⚡</b>Scores out of date: last posted ${esc(since.text.replace(/^updated /, ''))}. They come back when the installation posts again.` };
+          return { stale: true, title: tr('Last posted by {by}, {on}', { by, on: sinceTitle }), html: `<b>⚡</b>${esc(tr('Scores out of date: last posted {ago}. They come back when the installation posts again.', { ago: sinceAge }))}` };
         }
         if (!rs && !anyScore) return null;
-        const text = rs ? esc(rs.text) : 'Scores posted by the installation, what your answers are worth to the agents';
+        const text = `<span class="roiTxt">${rs ? esc(rs.text) : esc(tr('Scores posted by the installation, what your answers are worth to the agents'))}</span>`;
         const when = since.text ? `<span class="roiWhen" id="roi-when" data-at="${at}">${esc(since.text)}</span>` : '';
-        const on = since.title ? since.title.replace(/^Data as of /, '') : '';
-        return { stale: false, title: on ? `Posted by ${by}, ${on}` : `Posted by ${by}`, html: `<b>⚡</b>${text}${when}${roiHow(by, on)}` };
+        const on = since.title ? sinceTitle : '';
+        return { stale: false, title: on ? tr('Posted by {by}, {when}', { by, when: on }) : tr('Posted by {by}', { by }), html: `<b>⚡</b>${text}${when}${roiHow(by, on)}` };
       }
       // ---- end of roi helpers ----
       /** What we need from you, highlighted above the details of an open ticket. */
@@ -2929,7 +2967,7 @@
         }
         // When the lane's scores were posted (roiHead), kept current between two redraws.
         const rw = $('roi-when');
-        if (rw) rw.textContent = freshness(Number(rw.dataset.at), Date.now(), Infinity).text;
+        if (rw) rw.textContent = freshness(Number(rw.dataset.at), Date.now(), Infinity, tr).text;
       }
       async function loadFreshness() {
         try {
@@ -2956,15 +2994,15 @@
         const box = $('news');
         const n = whatsNew(served.version, prefs.get(SEEN_KEY), served.releases);
         if (!n) return void (box.hidden = true);
-        const more = n.missed.length ? `<span class="newsMore">also ${n.missed.length === 1 ? esc(n.missed[0]) : n.missed.length + ' earlier versions'} since your last visit</span>` : '';
+        const more = n.missed.length ? `<span class="newsMore">${esc(n.missed.length === 1 ? tr('also {v} since your last visit', { v: n.missed[0] }) : tr('also {n} earlier versions since your last visit', { n: n.missed.length }))}</span>` : '';
         box.className = 'news' + (state.q ? ' searching' : '');
         box.innerHTML = `
           <span class="newsIc">${ICON_NEW}</span>
           <div class="newsMain">
-            <div class="newsTop"><h2 id="newsTitle">What's new in ${esc(n.version)}</h2><button type="button" class="linkBtn newsFold" data-act="newsFold" aria-expanded="false">Show</button>${more}<div class="newsActs"><button type="button" class="linkBtn" data-act="newsAll">See all changes</button></div></div>
+            <div class="newsTop"><h2 id="newsTitle">${esc(tr("What's new in {v}", { v: n.version }))}</h2><button type="button" class="linkBtn newsFold" data-act="newsFold" aria-expanded="false">${esc(tr('Show'))}</button>${more}<div class="newsActs"><button type="button" class="linkBtn" data-act="newsAll">${esc(tr('See all changes'))}</button></div></div>
             <ul>${n.items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
           </div>
-          <button type="button" class="x" data-act="newsClose" aria-label="Dismiss what's new in ${esc(n.version)}" title="Dismiss">×</button>`;
+          <button type="button" class="x" data-act="newsClose" aria-label="${esc(tr("Dismiss what's new in {v}", { v: n.version }))}" title="${esc(tr('Dismiss'))}">×</button>`;
         box.hidden = false;
       }
       /** The server restarted on another version while this page stayed open: offer to reload. */
@@ -3317,6 +3355,9 @@
         $('panel').__ticket = t;
         syncExpandButton();
         autosize($('panel').querySelector('.pTitle'));
+        // 0.9.16 (ALV-3619): measured again once the panel has its final width (it slides in, and a phone's fonts load late):
+        // a long title is shown whole, not cut at the height measured too early.
+        requestAnimationFrame(() => requestAnimationFrame(() => autosize($('panel').querySelector('.pTitle'))));
         const body = $('panel').querySelector('.pBody');
         if (body && sameTicket) body.scrollTop = stickBottom ? body.scrollHeight : keepTop;
       }
@@ -3639,7 +3680,7 @@
         if (act === 'newsFold') {
           const open = $('news').classList.toggle('unfolded');
           el.setAttribute('aria-expanded', String(open));
-          el.textContent = open ? 'Hide' : 'Show';
+          el.textContent = tr(open ? 'Hide' : 'Show');
           return;
         }
         if (act === 'newsClose') { newsSeen(); $('news').hidden = true; return $('helpBtn').focus({ preventScroll: true }); }

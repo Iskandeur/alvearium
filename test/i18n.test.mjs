@@ -91,3 +91,16 @@ test('i18n 0.9.15: the help panel, the shortcut hint and the done button read Fr
   assert.match(page, /<span>\$\{tr\('Mark done'\)\}<\/span><kbd>d<\/kbd>/, 'the panel button names the action');
   assert.doesNotMatch(page, /<span>\$\{tr\('Done'\)\}<\/span><kbd>/);
 });
+
+test('i18n (0.9.16): the news banner and the lane note read French, and every sentence of the note has its translation', () => {
+  const fr = makeTr('fr', 'fr-FR');
+  assert.equal(fr("What's new in {v}", { v: '0.9.16' }), 'Nouveautés de la 0.9.16');
+  assert.equal(fr('See all changes'), 'Voir tout ce qui a changé');
+  assert.equal(fr('How is this computed?'), 'Comment est-ce calculé ?');
+  // the block's own sentences (ROI_TEXT) are keyed by their English text: a missing key would show English on a French board
+  const roi = page.slice(page.indexOf('const ROI_TEXT = {'), page.indexOf('const ROI_DEFINITION'));
+  for (const key of ['unit', 'trend', 'moves', 'card']) {
+    const text = new Function(`const o = {${roi.slice(roi.indexOf(`${key}:`)).split(/\n/)[0]}}; return o.${key};`)();
+    assert.notEqual(fr(text), text, `ROI_TEXT.${key} has a French translation`);
+  }
+});

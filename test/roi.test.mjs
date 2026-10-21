@@ -282,7 +282,7 @@ test('page (ALV-2861): the lane line says how it is computed, whose unit pt is, 
     assert.doesNotMatch(text, /[àâçéèêëîïôûùüÿœ]/i, 'the page is in English: a translation table takes ROI_TEXT whole');
   }
   // The installation's own text is escaped, not interpreted.
-  assert.match(roiHead({ ...rs, text: '<b>x</b>' }, null, true, NOW).html, /^<b>⚡<\/b>&lt;b&gt;x&lt;\/b&gt;/);
+  assert.match(roiHead({ ...rs, text: '<b>x</b>' }, null, true, NOW).html, /^<b>⚡<\/b><span class="roiTxt">&lt;b&gt;x&lt;\/b&gt;<\/span>/);
   // Opened once, it stays open across redraws; the out-of-date line has none (nothing to explain).
   setHowOpen(true);
   assert.match(roiHead(rs, null, true, NOW).html, /<details class="roiHow" open>/);
@@ -338,7 +338,7 @@ test('page: the lane head says when the scores were posted, and says they are ou
   const rs = { text: '~2 pts wait on you', at: NOW - 12 * 60_000, actor: 'ops' };
   const fresh = roiHead(rs, { at: rs.at, actor: 'ops', scores: 3, summary: true, stale: false }, true, NOW);
   assert.equal(fresh.stale, false);
-  assert.match(fresh.html, /^<b>⚡<\/b>~2 pts wait on you<span class="roiWhen" id="roi-when" data-at="\d+">updated 12 min ago<\/span><details class="roiHow">/);
+  assert.match(fresh.html, /^<b>⚡<\/b><span class="roiTxt">~2 pts wait on you<\/span><span class="roiWhen" id="roi-when" data-at="\d+">updated 12 min ago<\/span><details class="roiHow">/);
   assert.match(fresh.title, /^Posted by ops, /);
   const now = roiHead({ ...rs, at: NOW - 20_000 }, { at: NOW - 20_000, scores: 1, summary: true, stale: false }, true, NOW);
   assert.match(now.html, /updated just now/);

@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.16",
+      "date": "2026-10-21",
+      "items": [
+        "On a French board, the \"What's new\" banner and the \"How is this computed?\" note under the waiting lane are now in French.",
+        "On a phone, an open ticket shows its whole title, wraps long lines inside a code block instead of cutting them, and has bigger buttons.",
+        "The lane note stays at three lines on a phone; the rest is behind \"How is this computed?\"."
+      ]
+    },
+    {
       "version": "0.9.15",
       "date": "2026-10-21",
       "items": [

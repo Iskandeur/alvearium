@@ -155,7 +155,7 @@ test('page: the banner is wired (loaded at start, dismissed for good, storage be
   assert.match(page, /if \(act === 'newsAll'\) \{ newsSeen\(\); return openChangelog\(\); \}/);
   assert.match(page, /if \(served\.version\) prefs\.set\(SEEN_KEY, served\.version\);/);
   assert.doesNotMatch(page, /localStorage\.\w+\(SEEN_KEY/);
-  assert.match(page, /What's new in \$\{esc\(n\.version\)\}/);
+  assert.match(page, /tr\("What's new in \{v\}", \{ v: n\.version \}\)/);
   assert.match(page, /if \(isVersion\(v\) && served\.version && v !== served\.version\) newsUpdate\(v\);/, 'a newer server offers a reload');
 });
 
