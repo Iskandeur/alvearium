@@ -2,6 +2,16 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.18",
+      "date": "2026-10-21",
+      "items": [
+        "New \"for you\" mark on a ticket: how important an assistant thinks it is for you, with one concrete reason. It is separate from priority.",
+        "An assistant can also give a ticket its place in your whole queue; \"Waiting on you\" follows it, after your own P0 and P1.",
+        "You always win: set or clear \"Important for you\" (High, Medium, Low) in the ticket panel and an assistant can no longer change it.",
+        "In the matrix, a ticket marked high for you counts as important; a low you set removes it, unless your own priority is P0 or P1."
+      ]
+    },
+    {
       "version": "0.9.17",
       "date": "2026-10-21",
       "items": [

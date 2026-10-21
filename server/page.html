@@ -703,6 +703,12 @@
     .prio.P1 { background: var(--danger-soft); color: var(--danger); }
     .prio.P2 { background: var(--accent-soft); color: var(--accent); }
     .head .prio { margin-top: 1px; }
+    .imp { display: inline-flex; align-items: center; height: 18px; padding: 0 6px; border-radius: 9px; font-size: 11px; font-weight: 600; flex: none; background: var(--chip); color: var(--muted); }
+    .imp-high { background: #fdecc8; color: #8a5a00; }
+    .imp-medium { background: #e4ecf7; color: #3c5a85; }
+    .imp-low { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); font-weight: 500; }
+    .impLine { grid-column: 2; font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .impLine button.on { box-shadow: inset 0 0 0 1px #8a5a00; }
     .prio.proposed { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); font-weight: 500; }
     .prioNote { grid-column: 2; font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     /* A reply you have not read (0.5.15): a dot on the card, a counter that filters in the bar. */
@@ -1368,6 +1374,15 @@
       'Proposed by {by}': 'Proposée par {by}',
       ', counted as P2 until you confirm it': ', comptée P2 tant que tu ne la confirmes pas',
       'Confirm {p}': 'Confirmer {p}',
+      'High': 'Haute',
+      'Medium': 'Moyenne',
+      'Low': 'Basse',
+      'Clear': 'Effacer',
+      'for you': 'pour toi',
+      'yours': 'à toi',
+      'set by {by}': 'posée par {by}',
+      'Important for you': 'Important pour toi',
+      'not set': 'non renseignée',
       'Counts as {p}, the priority of its project {k}': 'Compte comme {p}, la priorité de son projet {k}',
       'Session': 'Session',
       'Context': 'Contexte',
@@ -1694,6 +1709,14 @@
           ? t?.priority_proposed
             ? `<span class="prio ${esc(p)} proposed" title="${esc(tr('Priority {p}, proposed by {by}: not yours until you set or confirm it', { p: PRIO[p] || p, by: t.priority_by_name || t.priority_by || tr('an agent') }))}">${esc(p)}?</span>`
             : `<span class="prio ${esc(p)}" title="${esc(tr('Priority {p}', { p: PRIO[p] || p }))}">${esc(p)}</span>`
+          : '';
+      // 0.9.18: "important for you", an assistant's reading of what matters most to you today. A chip of its own,
+      // apart from the priority; tooltip = the reason and who set it.
+      const IMP = { high: ['↑', tr('High')], medium: ['•', tr('Medium')], low: ['↓', tr('Low')] };
+      const impBy = (t) => (t.importance_yours ? tr('yours') : tr('set by {by}', { by: t.importance_by_name || t.importance_by || tr('an agent') }));
+      const impChip = (t) =>
+        t?.importance && IMP[t.importance]
+          ? `<span class="imp imp-${esc(t.importance)}" title="${esc([t.importance_reason, impBy(t)].filter(Boolean).join(' · '))}">${IMP[t.importance][0]} ${esc(tr('for you'))}</span>`
           : '';
       const FTYPE = { bug: 'Bug', suggestion: 'Suggestion', friction: 'Friction' };
 
@@ -2163,7 +2186,7 @@
       // Both scores run 0 to 1 and the line between the quadrants is 0.5, which is where the legend puts it.
       const MX_DUE_DAYS = 2;
       const MX_WAIT_DAYS = 3;
-      const MX_LEGEND = `Urgent: a deadline within ${MX_DUE_DAYS} days, or waiting on you ${MX_WAIT_DAYS} days or more. Important: P0 or P1, yours or your project's. An agent's proposal counts as P2 at most until you confirm it, unless there is a deadline. What a ticket unblocks for the agents does not count.`;
+      const MX_LEGEND = `Urgent: a deadline within ${MX_DUE_DAYS} days, or waiting on you ${MX_WAIT_DAYS} days or more. Important: P0 or P1, yours or your project's. An assistant's "high for you" also counts; a "low for you" that you set removes it, unless your own priority is P0 or P1. An agent's proposal counts as P2 at most until you confirm it, unless there is a deadline. What a ticket unblocks for the agents does not count.`;
       const MX_DAY = 86400000;
       const MX_PRIO = { P0: 1, P1: 0.75, P2: 0.4, P3: 0.15 };
       const MX_RANK = { P0: 0, P1: 1, P2: 2, P3: 3 };
@@ -2242,7 +2265,11 @@
           if (waited >= MX_DAY) why.push(`waiting ${Math.floor(waited / MX_DAY)} d`);
         }
         const p = mxPriority(t, due !== null);
-        const i = MX_PRIO[p] ?? 0.3;
+        let i = MX_PRIO[p] ?? 0.3;
+        // 0.9.18 (lib/triage.mjs isImportant): `high` for you counts as important; a `low` you set removes it unless your own priority is P0/P1.
+        const ownTop = (MX_RANK[t.priority] ?? 9) <= 1 && !t.priority_proposed;
+        if (t.importance === 'low' && t.importance_yours && !ownTop) { i = Math.min(i, 0.4); why.push('low for you'); }
+        else if (t.importance === 'high') { i = Math.max(i, 0.75); why.push('high for you'); }
         if (p && t.project_priority?.priority === p && (!t.priority || t.priority_proposed)) why.push(`project ${p}`);
         else if (p && t.priority_proposed && p !== t.priority) why.push(`${t.priority} proposed, counted ${p}`);
         else if (p && t.priority_proposed) why.push(`${p} proposed`);
@@ -2325,7 +2352,7 @@
         const t = p.t;
         const why = p.why.length ? p.why.join(' · ') : t.column === 'waiting' ? 'On you' : STATUS[t.status] || t.status;
         return `<article class="mxItem${p.due !== null && p.due < now ? ' late' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" tabindex="0" role="listitem">
-          <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${replyTag(t)}${prio(t.priority, t)}<span class="key">${esc(t.key)}</span></div>
+          <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${replyTag(t)}${impChip(t)}${prio(t.priority, t)}<span class="key">${esc(t.key)}</span></div>
           <div class="mxWhy">${esc(why)}</div>
         </article>`;
       }
@@ -2387,7 +2414,7 @@
         const live = t.status === 'in_progress' && t.kind === 'session' && t.session?.activity === 'working' ? '1' : '0';
         const drag = t.column === 'todo' ? ' draggable="true"' : '';
         return `<article class="card${t.stale || t.status === 'cancelled' ? ' dim' : ''}${t.blocked ? ' blocked' : ''}${state.ticket === t.key ? ' sel' : ''}" data-open="${esc(t.key)}" data-status="${esc(t.status)}" data-live="${live}" tabindex="0"${drag}>
-          <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${replyTag(t)}${prio(t.priority, t)}<span class="key">${esc(t.key)}</span>${doneBtn(t)}</div>
+          <div class="head"><span class="dot"></span><h3 class="title">${ttl(t.title)}</h3>${replyTag(t)}${impChip(t)}${prio(t.priority, t)}<span class="key">${esc(t.key)}</span>${doneBtn(t)}</div>
           ${r ? `<div class="reason">${r}</div>` : ''}${note ? `<div class="note">${note}</div>` : ''}${ask?.complete ? `<div class="note askFb"><b>${tr('No answer:')}</b> ${esc(plain(ask.sansReponse))}</div>` : ''}
           ${asks(t)}
           <div class="tags">${tags(t, now)}</div>${roiTap(t)}
@@ -3391,6 +3418,7 @@
               <label>${tr('Assignee')}</label>${sel('assignee', t.assignee, assigneeOpts(t.assignee))}
               <label>${tr('Priority')}</label>${sel('priority', t.priority || '', [['', tr('None')], ['P0', PRIO.P0], ['P1', PRIO.P1], ['P2', PRIO.P2], ['P3', PRIO.P3]])}
               ${t.priority_proposed ? `<div class="prioNote"><span>${esc(tr('Proposed by {by}', { by: t.priority_by_name || t.priority_by || tr('an agent') }))}${t.priority !== 'P2' && t.priority !== 'P3' ? tr(', counted as P2 until you confirm it') : ''}</span><button type="button" class="tag" data-confirm-prio="${esc(t.key)}">${esc(tr('Confirm {p}', { p: t.priority }))}</button></div>` : ''}
+              <div class="impLine" data-imp-for="${esc(t.key)}"><span>${esc(tr('Important for you'))}: ${esc(t.importance ? (IMP[t.importance]?.[1] || t.importance) : tr('not set'))}${t.importance ? ` — ${esc([t.importance_reason, impBy(t)].filter(Boolean).join(' · '))}` : ''}</span>${['high', 'medium', 'low'].map((l) => `<button type="button" class="tag${t.importance === l ? ' on' : ''}" data-imp="${l}" data-imp-key="${esc(t.key)}">${esc(IMP[l][1])}</button>`).join('')}${t.importance ? `<button type="button" class="tag" data-imp="" data-imp-key="${esc(t.key)}">${esc(tr('Clear'))}</button>` : ''}</div>
               ${!t.priority && t.project_priority ? `<div class="prioNote"><span>${esc(tr('Counts as {p}, the priority of its project {k}', { p: t.project_priority.priority, k: t.project_priority.key }))}</span></div>` : ''}
               ${t.kind === 'feedback' ? `<label>${tr('Type')}</label>${sel('subtype', t.subtype || 'suggestion', [['bug', tr('Bug')], ['suggestion', tr('Suggestion')], ['friction', tr('Friction')]])}` : ''}
               <label>${tr('Labels')}</label><input name="labels" value="${esc((t.labels || []).join(', '))}" placeholder="${tr('comma, separated')}">
@@ -4210,6 +4238,19 @@
         b.disabled = true;
         try {
           await api(`tickets/${encodeURIComponent(t.key)}`, { priority: t.priority });
+          await openPanel(t.key, false);
+          refresh();
+        } catch (err) { b.disabled = false; toast(err.message); }
+      });
+      // 0.9.18: you set or clear "important for you" from the panel (your word beats an assistant's).
+      document.addEventListener('click', async (e) => {
+        const b = e.target.closest?.('[data-imp-key]');
+        if (!b) return;
+        const t = $('panel').__ticket;
+        if (!t || t.key !== b.dataset.impKey) return;
+        b.disabled = true;
+        try {
+          await api(`tickets/${encodeURIComponent(t.key)}`, { importance: b.dataset.imp === '' ? null : b.dataset.imp });
           await openPanel(t.key, false);
           refresh();
         } catch (err) { b.disabled = false; toast(err.message); }
