@@ -7,7 +7,7 @@
       "items": [
         "On a French board, the \"What's new\" banner and the \"How is this computed?\" note under the waiting lane are now in French.",
         "On a phone, an open ticket shows its whole title, wraps long lines inside a code block instead of cutting them, and has bigger buttons.",
-        "The lane note stays at three lines on a phone; the rest is behind \"How is this computed?\"."
+        "The \"updated 15 min ago\" line above the waiting lane follows the language of the page."
       ]
     },
     {
