@@ -617,7 +617,10 @@
     .pDone { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px 0 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 12.5px; font-weight: 500; }
     .pDone:hover { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }
     .pDone:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-    .pLatest { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; margin-right: 4px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--muted); font-size: 12.5px; font-weight: 500; }
+    /* "Latest messages": sticks to the bottom edge of the scrolling body, only while there is more below (page script: syncLatest). */
+    .pLatestWrap { position: sticky; bottom: 10px; height: 0; overflow: visible; text-align: center; pointer-events: none; z-index: 2; }
+    .pLatest { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); pointer-events: auto; display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--card); color: var(--muted); font-size: 12.5px; font-weight: 500; box-shadow: var(--shadow); cursor: pointer; white-space: nowrap; }
+    .pLatest[hidden] { display: none; }
     .pLatest:hover { border-color: var(--accent); color: var(--accent); }
     .pLatest:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     .pDone kbd { font: inherit; font-size: 11px; color: var(--faint); border: 1px solid var(--line-strong); border-radius: 4px; padding: 0 4px; line-height: 16px; }
@@ -800,7 +803,8 @@
       .pTitle { overflow-wrap: anywhere; }
       .md pre { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
       .pHead .pIcon, .pHead .x { width: 40px; height: 40px; }
-      .pHead .pDone, .pHead .pLatest { height: 36px; padding: 0 12px; }
+      .pHead .pDone { height: 36px; padding: 0 12px; }
+      .pLatest { height: 36px; }
       .seg button { height: 36px; }
     }
     @media (prefers-reduced-motion: reduce) { .asks .ask { transition: none; } }
@@ -2767,6 +2771,27 @@
         const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         body.scrollTo({ top: body.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
       }
+      /** Shown only when the ticket overflows its scrolling area and the reader is not already at the end. */
+      let latestObserver = null;
+      function syncLatest() {
+        const body = $('panel').querySelector('.pBody');
+        const btn = body && body.querySelector('.pLatest');
+        if (!btn) return;
+        btn.hidden = body.scrollHeight - body.scrollTop - body.clientHeight <= 48;
+      }
+      function watchLatest() {
+        latestObserver?.disconnect();
+        const body = $('panel').querySelector('.pBody');
+        if (!body || !body.querySelector('.pLatest')) return;
+        body.addEventListener('scroll', syncLatest, { passive: true });
+        if (typeof ResizeObserver === 'function') {
+          // The body itself resizes with the window and the panel width; its content with arriving messages and loaded images.
+          latestObserver = new ResizeObserver(syncLatest);
+          latestObserver.observe(body);
+          for (const el of body.children) latestObserver.observe(el);
+        }
+        syncLatest();
+      }
       const isExpanded = () => $('panel').classList.contains('expanded');
       const expandButton = () => `<button type="button" class="pIcon pExp" data-act="expand">${ICON_FULL}</button>`;
       /** Nearly full screen, or back to the side panel. The state lives on the panel, so it survives a redraw. */
@@ -3305,7 +3330,7 @@
         const kids = (t.children || []).map((c) => `<div class="kid" data-open="${esc(c.key)}"><span class="dot" data-s="${esc(c.status)}"></span><span class="k">${esc(c.key)}</span><span class="tt">${ttl(c.title)}</span><span class="pill" data-s="${esc(c.status)}">${esc(STATUS[c.status])}</span></div>`).join('');
         $('panel').innerHTML = `
           ${resizeHandle()}
-          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><span class="fresh" data-at="${now}"></span><div class="pTools">${(t.events || []).length ? `<button type="button" class="pLatest" data-act="jumpLatest" title="${tr('Jump to the latest messages of this ticket')}">${tr('↓ Latest messages')}</button>` : ''}${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="${esc(tr('Mark {k} as done', { k: t.key }))}" title="${tr('Mark done (d)')}">${CHECK}<span>${tr('Mark done')}</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="${tr('Close')}">×</button></div></div>
+          <div class="pHead"><span class="dot" data-s="${esc(t.status)}"></span><span class="pkey">${esc(t.key)} · ${esc(t.kind)}</span><span class="fresh" data-at="${now}"></span><div class="pTools">${isOpen(t) ? `<button type="button" class="pDone" data-done="${esc(t.key)}" data-from="${esc(t.status)}" aria-label="${esc(tr('Mark {k} as done', { k: t.key }))}" title="${tr('Mark done (d)')}">${CHECK}<span>${tr('Mark done')}</span><kbd>d</kbd></button>` : ''}${expandButton()}<button type="button" class="x" data-act="close" aria-label="${tr('Close')}">×</button></div></div>
           <form class="pBody" id="tform" autocomplete="off">
             <textarea class="pTitle" name="title" rows="1" maxlength="200" aria-label="Title">${esc(t.title)}</textarea>
             ${roiLine(t)}
@@ -3343,6 +3368,7 @@
             <div class="sect">${tr('History')}</div>
             <div class="timeline">${(t.events || []).map(eventLine).join('')}</div>
             <div class="compose mentions"><div class="mentionBox" id="mentionBox" hidden aria-label="Mention suggestions"></div><textarea id="comment" data-limit="comment" placeholder="${tr('Add a comment…')}" aria-label="${tr('Comment')}"></textarea><div class="pend" id="pendingPics"></div><div class="hint" id="commentHint">${esc(sendHint('send'))}</div><div class="acts">${attachButton('attachFile')}<button type="button" class="btn" data-act="newChild">${tr('Add sub-ticket')}</button><button type="button" class="btn" data-act="comment">${tr('Comment')}</button></div></div>
+            <div class="pLatestWrap"><button type="button" class="pLatest" data-act="jumpLatest" hidden title="${tr('Jump to the latest messages of this ticket')}">${tr('↓ Latest messages')}</button></div>
           </form>${replyBar(t)}`;
         $('panel').hidden = false;
         pendingPics = [];
@@ -3358,6 +3384,7 @@
         requestAnimationFrame(() => requestAnimationFrame(() => autosize($('panel').querySelector('.pTitle'))));
         const body = $('panel').querySelector('.pBody');
         if (body && sameTicket) body.scrollTop = stickBottom ? body.scrollHeight : keepTop;
+        watchLatest();
       }
       // ---- ticket actions (0.5.11): buttons declared by the installation, run by the server --------
       let ticketActions = { list: [], canRun: false };
