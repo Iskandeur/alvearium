@@ -27,7 +27,8 @@
         "Typing a ticket key in the search puts that ticket first, even a closed one among many others.",
         "A closed ticket found by its key opens the Done drawer, so the search no longer looks empty.",
         "A key finds the tickets that mention that exact key, not every key that starts the same way.",
-        "The page works under a sub-path of your proxy even when opened without the final slash."      ]
+        "The page works under a sub-path of your proxy even when opened without the final slash."
+      ]
     },
     {
       "version": "0.9.11",
