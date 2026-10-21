@@ -29,7 +29,7 @@ test('the open ticket writes no English by hand: every label, tooltip and placeh
   const found = [];
   for (const code of PANEL) {
     for (const m of code.matchAll(/(?:aria-label|title|placeholder)="([A-Z][^"$]*)"/g)) found.push(m[1]);
-    for (const m of code.matchAll(/>([A-Z][A-Za-z' ,.…:()?-]{2,})</g)) if (!['Markdown', 'Claude'].includes(m[1])) found.push(m[1]);
+    for (const m of code.matchAll(/>([A-Z][A-Za-z' ,.…:()?↗-]{2,})</g)) if (!['Markdown', 'Claude'].includes(m[1])) found.push(m[1]);
     for (const m of code.matchAll(/(?:aria-label|title)', '([A-Z][^']*)'/g)) found.push(m[1]);
     for (const m of code.matchAll(/\.title = '([A-Z][^']*)'/g)) found.push(m[1]);
   }

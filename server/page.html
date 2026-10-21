@@ -3373,9 +3373,9 @@
         const ctx = [];
         if (t.repo) ctx.push(`<button type="button" class="tag" data-filter="repo" data-value="${esc(t.repo)}">${esc(t.repo)}</button>`);
         if (t.branch && t.branch !== 'HEAD') ctx.push(`<span class="tag">⎇ ${esc(t.branch)}</span>`);
-        if (t.machine) ctx.push(`<span class="tag">${t.origin === 'cloud' ? '☁ cloud' : esc(t.machine)}</span>`);
+        if (t.machine) ctx.push(`<span class="tag">${t.origin === 'cloud' ? `☁ ${tr('Cloud')}` : esc(t.machine)}</span>`);
         ctx.push(`<span class="tag">${esc(tr('from {src}', { src: t.source === 'hook' ? tr('hooks') : t.source }))}</span>`);
-        const sess = t.session_id ? `<div class="ctx"><button type="button" class="tag" data-filter="session" data-value="${esc(t.session_id)}">${t.origin === 'cloud' ? '☁ ' : ''}${esc(sessionName(t))}</button><span class="tag">${esc(ACT[t.session?.activity] || t.session?.activity || '')}</span>${t.session?.url ? `<a class="tag" href="${esc(t.session.url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}</div>` : '<span class="lab">—</span>';
+        const sess = t.session_id ? `<div class="ctx"><button type="button" class="tag" data-filter="session" data-value="${esc(t.session_id)}">${t.origin === 'cloud' ? '☁ ' : ''}${esc(sessionName(t))}</button><span class="tag">${esc(ACT[t.session?.activity] || t.session?.activity || '')}</span>${t.session?.url ? `<a class="tag" href="${esc(t.session.url)}" target="_blank" rel="noopener">${tr('Open ↗')}</a>` : ''}</div>` : '<span class="lab">—</span>';
         const links = (t.links || []).map((l) => (httpsUrl(l.url) ? `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.title || (l.type === 'pr' ? 'Pull request ' + l.url.replace(/^https:\/\/[^/]+\//, '') : l.type === 'session' ? tr('Cloud session') : l.url))} ↗</a>` : `<span class="mono">${esc(l.url)}</span>`)).join('');
         const kids = (t.children || []).map((c) => `<div class="kid" data-open="${esc(c.key)}"><span class="dot" data-s="${esc(c.status)}"></span><span class="k">${esc(c.key)}</span><span class="tt">${ttl(c.title)}</span><span class="pill" data-s="${esc(c.status)}">${esc(STATUS[c.status])}</span></div>`).join('');
         $('panel').innerHTML = `
