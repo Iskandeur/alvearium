@@ -3,12 +3,31 @@
   "releases": [
     {
       "version": "0.9.14",
-      "date": "2026-10-20",
+      "date": "2026-10-21",
       "items": [
         "A comment sent once shows once, even when the same request reaches the board several times.",
         "The same comment by the same author on the same ticket within 10 seconds is kept only once.",
         "The Comment button, Enter and Ctrl+Enter wait while a comment is being sent."
       ]
+    },
+    {
+      "version": "0.9.13",
+      "date": "2026-10-20",
+      "items": [
+        "An open ticket lists its related tickets: sub-tickets, what blocks it, what it blocks, and its front.",
+        "Click a related ticket to open it; closed ones are greyed.",
+        "The Related section is open when it is short and folded when it lists more than five tickets.",
+        "In French the section is called Liées."
+      ]
+    },
+    {
+      "version": "0.9.12",
+      "date": "2026-10-20",
+      "items": [
+        "Typing a ticket key in the search puts that ticket first, even a closed one among many others.",
+        "A closed ticket found by its key opens the Done drawer, so the search no longer looks empty.",
+        "A key finds the tickets that mention that exact key, not every key that starts the same way.",
+        "The page works under a sub-path of your proxy even when opened without the final slash."      ]
     },
     {
       "version": "0.9.11",
