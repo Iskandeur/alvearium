@@ -74,3 +74,20 @@ test('ticket actions: a label per language reaches the page; a plain label still
   assert.throws(() => parseActions(JSON.stringify([{ ...base, label: {} }]), env), /"label"/);
   assert.match(page, /const actionLabel = \(a\) => \(a\.labels && typeof a\.labels\[tr\.lang\] === 'string' \? a\.labels\[tr\.lang\] : a\.label\);/);
 });
+
+test('i18n 0.9.15: the help panel, the shortcut hint and the done button read French', () => {
+  const start = page.indexOf('function renderHelp()');
+  const end = page.indexOf("$('helpScrim').addEventListener", start);
+  assert.ok(start > 0 && end > start, 'renderHelp found');
+  const help = page.slice(start, end);
+  const texts = [...help.matchAll(/desc: '((?:[^'\\]|\\.)*)'/g)].map((m) => m[1].replace(/\\'/g, "'"));
+  assert.ok(texts.length >= 25, 'the help rows are found');
+  for (const t of texts) assert.ok(Object.hasOwn(I18N_FR, t), `help text translated: ${t.slice(0, 50)}`);
+  for (const k of ['Keyboard', 'Buttons and gestures', 'In a text box', "What's new", 'Mark done']) assert.ok(Object.hasOwn(I18N_FR, k), k);
+  assert.match(help, /tr\(x\.desc\)/);
+  assert.match(page, /const sendHint = \(verb\) => tr\(`\{mod\}\+↵ to \$\{verb\}`, \{ mod: modLabel\(\) \}\);/);
+  assert.equal(makeTr('fr', 'fr-FR')('{mod}+↵ to send', { mod: 'Ctrl' }), 'Ctrl+↵ pour envoyer');
+  assert.match(page, /@media \(hover: none\), \(pointer: coarse\) \{ \.compose \.hint \{ display: none; \} \}/, 'no Ctrl hint on a touch screen');
+  assert.match(page, /<span>\$\{tr\('Mark done'\)\}<\/span><kbd>d<\/kbd>/, 'the panel button names the action');
+  assert.doesNotMatch(page, /<span>\$\{tr\('Done'\)\}<\/span><kbd>/);
+});
