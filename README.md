@@ -1281,6 +1281,10 @@ SESSION_BOARD_DEBUG=1 claude  # hooks print what they report on stderr
 claude plugin validate .
 ```
 
+Tests that run a hook as a process through a TLS proxy set `SESSION_BOARD_NETWORK_TIMEOUT_MS` (at most
+10 000, default 2 000) so that a loaded machine does not trip the hook's network fuse. `SessionEnd` keeps
+its 1.2 s fuse whatever the setting.
+
 Agents working on this repository (Codex, Claude Code) follow [AGENTS.md](AGENTS.md); `CLAUDE.md`
 imports it.
 

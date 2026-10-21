@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { authHeaders, handleHook, identify, lastAssistantText, loadBoard, loadConfig, readLocalRecords } from '../lib/runtime.mjs';
+import { authHeaders, handleHook, identify, lastAssistantText, loadBoard, loadConfig, networkTimeoutMs, readLocalRecords } from '../lib/runtime.mjs';
 import { THROTTLE_MS } from '../lib/core.mjs';
 import { mergeRepoHooks, MARKER } from '../scripts/install-repo.mjs';
 
@@ -182,4 +182,12 @@ test('manifest forwards plugin options to the MCP server, and they select remote
   const cfg = loadConfig({ SESSION_BOARD_DIR: tmp(), CLAUDE_PLUGIN_OPTION_SERVER_URL: 'https://b.example/', CLAUDE_PLUGIN_OPTION_TOKEN: 't' });
   assert.equal(cfg.remote, true);
   assert.equal(cfg.url, 'https://b.example');
+});
+
+test('the hook network fuse: 2 s by default, raised for tests, never past 10 s', () => {
+  assert.equal(networkTimeoutMs({}), 2000);
+  assert.equal(networkTimeoutMs({ SESSION_BOARD_NETWORK_TIMEOUT_MS: '6000' }), 6000);
+  assert.equal(networkTimeoutMs({ SESSION_BOARD_NETWORK_TIMEOUT_MS: '600000' }), 10_000);
+  assert.equal(networkTimeoutMs({ SESSION_BOARD_NETWORK_TIMEOUT_MS: 'soon' }), 2000);
+  assert.equal(networkTimeoutMs({ SESSION_BOARD_NETWORK_TIMEOUT_MS: '0' }), 2000);
 });

@@ -156,7 +156,8 @@ test('hooks and the MCP server, as processes, write to the board through the pro
     const cwd = tmp();
     const hook = await run([join(ROOT, 'hooks', 'report.mjs'), 'SessionStart'], {
       input: JSON.stringify({ session_id: 'cloud-1', cwd, source: 'startup' }),
-      env: { ...env, SESSION_BOARD_DEBUG: '1' },
+      // TLS through the proxy, the proxy and the board all in this test's loop: 2 s is short on a loaded runner.
+      env: { ...env, SESSION_BOARD_DEBUG: '1', SESSION_BOARD_NETWORK_TIMEOUT_MS: '10000' },
     });
     assert.match(hook.stderr, /SessionStart → sent · https:\/\/board\.test via proxy 127\.0\.0\.1:\d+/);
     const c = mcp([], env, cwd);

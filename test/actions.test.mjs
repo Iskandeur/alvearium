@@ -292,7 +292,7 @@ test('timeout: 504 after timeout_ms, and the audit says so', async () => {
 
 test('one click at a time per actor (429 with Retry-After), one action at a time per ticket (409)', async () => {
   let t = 1_000_000;
-  const s = await setup({ now: () => t, delayMs: 300 });
+  const s = await setup({ now: () => t, delayMs: 800 });
   try {
     assert.equal((await s.call('owner', 'POST', `/api/tickets/${s.key}/actions/open-session`)).status, 200);
     t += 3000;
@@ -300,10 +300,15 @@ test('one click at a time per actor (429 with Retry-After), one action at a time
     assert.equal(again.status, 429);
     assert.equal(again.headers.get('retry-after'), '7');
     t += ACTION_COOLDOWN_MS;
-    // Two people on the same ticket at the same moment: the second waits for the first.
+    // Two people on the same ticket at the same moment: the second waits for the first. The second
+    // click leaves once the first has reached the webhook (held 800 ms there), not after a fixed delay
+    // that a loaded machine can outrun.
+    const firstReached = async () => {
+      for (let i = 0; i < 200 && s.received.length < 2; i++) await new Promise((r) => setTimeout(r, 10));
+    };
     const [x, y] = await Promise.all([
       s.call('owner', 'POST', `/api/tickets/${s.key}/actions/open-session`),
-      new Promise((r) => setTimeout(r, 50)).then(() => s.call('admin', 'POST', `/api/tickets/${s.key}/actions/open-session`)),
+      firstReached().then(() => s.call('admin', 'POST', `/api/tickets/${s.key}/actions/open-session`)),
     ]);
     assert.deepEqual([x.status, y.status], [200, 409]);
     assert.equal(s.received.length, 2);
