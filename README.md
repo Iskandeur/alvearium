@@ -193,6 +193,16 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
   ticket has a deadline (`due:` label, or a date in the *Without an answer* line). An agent's priority
   on its own work is just its priority. Ticket payloads carry `priority_by`, `priority_by_name` and
   `priority_proposed`; an existing board reads who set each priority back from the history once.
+- **Important for you (0.9.18)**: an assistant's daily reading of your queue, apart from priority.
+  `ticket_update` (and `PATCH /api/tickets/:key`) take `importance` (`high`, `medium`, `low`, or empty to
+  clear), `importance_reason` (one concrete reason, 160 characters) and `importance_rank` (position in your
+  whole queue, 1 = first). The card shows a **↑ for you** chip; the panel has High / Medium / Low / Clear.
+  Your word wins: once a human set the level, an agent's write of `importance` or `importance_reason` is
+  ignored (the rank may still move), and the history keeps each change (`importance high → low`).
+  "Waiting on you" orders your own `P0`/`P1` first, then `importance_rank`, then the level, then as before.
+  In the matrix `high` counts as important; a `low` you set removes it, unless your priority is `P0`/`P1`.
+  Payloads carry `importance`, `importance_reason`, `importance_rank`, `importance_by`,
+  `importance_by_name` and `importance_yours`.
 - **Your projects lend their priority (0.9.5)**: a ticket under a project (a sub-ticket, at any depth,
   or one carrying `<label>-id:<name>` like the project) counts at the priority you gave the project when
   it has no priority of yours and the project's is higher. A project priority an agent proposed lends
