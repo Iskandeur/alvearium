@@ -849,7 +849,9 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         if (tm[2]) {
           if (m !== 'POST') return send(res, 405, { error: 'method not allowed' });
           const body = await jsonBody(req, MAX_TICKET_REQUEST);
-          return send(res, 201, store.comment(key, String(body.text ?? ''), { actor: actorOf(req, store), to: body.to, attachments: body.attachments }));
+          // 0.9.14: a replay of the same comment within a few seconds answers 200 with the same ticket, adds nothing.
+          const out = store.comment(key, String(body.text ?? ''), { actor: actorOf(req, store), to: body.to, attachments: body.attachments });
+          return send(res, out.duplicate ? 200 : 201, out);
         }
         if (m === 'GET') {
           const t = store.getTicket(key);

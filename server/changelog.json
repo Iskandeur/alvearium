@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.14",
+      "date": "2026-10-21",
+      "items": [
+        "A comment sent once shows once, even when the same request reaches the board several times.",
+        "The same comment by the same author on the same ticket within 10 seconds is kept only once.",
+        "The Comment button, Enter and Ctrl+Enter wait while a comment is being sent."
+      ]
+    },
+    {
       "version": "0.9.13",
       "date": "2026-10-20",
       "items": [

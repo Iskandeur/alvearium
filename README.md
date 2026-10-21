@@ -328,6 +328,13 @@ comment sent with its own status or assignee change are left as they are.
 ([dark, filtered](docs/screenshots/replies-board-desktop-dark.png), [at 390 px](docs/screenshots/replies-mobile-light.png),
 [at 390 px, dark, filtered](docs/screenshots/replies-mobile-dark.png).)
 
+**A comment is stored once (0.9.14).** The same comment (same author, same text once trimmed, no new
+file) posted again on the same ticket within 10 seconds is a replay: `POST /api/tickets/SB-12/comments`
+answers `200` with the ticket as it is (the first post answers `201`), and an update that carries it
+again in `comment` applies its other fields only. This covers the page, the MCP `ticket_comment` tool and
+`/ticket comment`. The page also disables its Comment button, Enter and Ctrl+Enter while a comment is
+being sent.
+
 ## Matrix: important × urgent (0.5.14)
 
 *Matrix*, next to *Board*, *Next* and *List* (or the `m` key), puts your open tickets on the classic

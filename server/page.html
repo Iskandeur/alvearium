@@ -2992,6 +2992,8 @@
       let panelDirty = false;
       /** Set right after a comment is posted: the next render of that ticket lands on the new comment. */
       let stickToBottom = false;
+      /** 0.9.14: a comment is being posted; the Send button, Enter and Ctrl+Enter wait for its answer. */
+      let commentSending = false;
       async function openPanel(key, push = true) {
         state.ticket = key;
         writeUrl(push);
@@ -3710,19 +3712,28 @@
         if (act === 'attach') return void $(el.dataset.input)?.click();
         if (act === 'newChild' && t) return renderCreate({ parent: t.key, repo: t.repo, session: t.session_id });
         if (act === 'comment' && t) {
+          // 0.9.14: one post at a time. A second click, Enter or Ctrl+Enter while the first is in flight does nothing.
+          if (commentSending) return;
           const typed = $('comment').value.trim();
           const ids = pendingFor === t.key ? pendingIds() : [];
           if (pendingFor === t.key && pendingBusy()) return toast('A file is still uploading');
           if (!typed && !ids.length) return;
           const text = typed || '📎';
           if (!limitCheck($('comment'))) return $('comment').focus();
+          commentSending = true;
+          el.disabled = true;
           try {
             await api(`tickets/${encodeURIComponent(t.key)}/comments`, { text, ...(ids.length ? { attachments: ids } : {}) });
             pendingPics = [];
             stickToBottom = true;
+            commentSending = false;
             await openPanel(t.key, false);
             refresh();
           } catch (err) { toast(err.message); }
+          finally {
+            commentSending = false;
+            el.disabled = false;
+          }
         }
       });
       document.addEventListener('change', (e) => {
