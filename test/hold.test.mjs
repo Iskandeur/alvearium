@@ -118,6 +118,7 @@ test('a pull request GitHub refuses to show (private repo, no token): said once 
   assert.deepEqual(await prState('acme/private#3', { fetch: reply(404) }), { unreadable: 404 });
   assert.deepEqual(await prState('acme/private#3', { fetch: reply(403) }), { unreadable: 403 });
   assert.equal(await prState('acme/private#3', { fetch: reply(403, { 'x-ratelimit-remaining': '0' }) }), null, 'a rate limit is not a refusal');
+  assert.equal(await prState('acme/private#3', { fetch: reply(403, { 'retry-after': '60' }) }), null, 'nor is a secondary rate limit');
   assert.equal(await prState('acme/private#3', { fetch: reply(502) }), null);
   const logs = [];
   const clock = startHoldClock(s, { pollSeconds: 1, fetch: reply(404), tickMs: 3_600_000, log: (l) => logs.push(l) });
@@ -131,6 +132,8 @@ test('a pull request GitHub refuses to show (private repo, no token): said once 
   assert.match(logs.join('\n'), /cannot read acme\/private#3/);
   assert.deepEqual(s.notePrUnreadable('acme/private#3', 404), [], 'never twice the same comment');
   assert.deepEqual(s.notePrUnreadable('acme/private#3', 404, { token: true }), [p.key], 'a token that cannot see it says so');
+  assert.deepEqual(s.notePrUnreadable('acme/private#3', 401, { token: true }), [p.key]);
+  assert.match(s.getTicket(p.key).events.filter((e) => e.type === 'comment').at(-1).text, /invalid or expired/);
 });
 
 test('refusals: nothing to wait for, a closed ticket, the bounce cap; status on_hold uses the open blockers', async () => {
