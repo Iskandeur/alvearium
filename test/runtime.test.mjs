@@ -190,4 +190,8 @@ test('the hook network fuse: 2 s by default, raised for tests, never past 10 s',
   assert.equal(networkTimeoutMs({ SESSION_BOARD_NETWORK_TIMEOUT_MS: '600000' }), 10_000);
   assert.equal(networkTimeoutMs({ SESSION_BOARD_NETWORK_TIMEOUT_MS: 'soon' }), 2000);
   assert.equal(networkTimeoutMs({ SESSION_BOARD_NETWORK_TIMEOUT_MS: '0' }), 2000);
+  assert.equal(networkTimeoutMs({ SESSION_BOARD_NETWORK_TIMEOUT_MS: '-5' }), 2000);
+  assert.equal(networkTimeoutMs({ SESSION_BOARD_NETWORK_TIMEOUT_MS: '' }), 2000);
+  assert.equal(networkTimeoutMs({ SESSION_BOARD_NETWORK_TIMEOUT_MS: '0.4' }), 500, 'never a 0 ms fuse');
+  assert.equal(networkTimeoutMs({ SESSION_BOARD_NETWORK_TIMEOUT_MS: '1' }), 500);
 });

@@ -303,8 +303,10 @@ test('one click at a time per actor (429 with Retry-After), one action at a time
     // Two people on the same ticket at the same moment: the second waits for the first. The second
     // click leaves once the first has reached the webhook (held 800 ms there), not after a fixed delay
     // that a loaded machine can outrun.
+    const before = s.received.length;
     const firstReached = async () => {
-      for (let i = 0; i < 200 && s.received.length < 2; i++) await new Promise((r) => setTimeout(r, 10));
+      for (let i = 0; i < 500 && s.received.length === before; i++) await new Promise((r) => setTimeout(r, 10));
+      assert.equal(s.received.length, before + 1, 'the first click never reached the webhook within 5 s');
     };
     const [x, y] = await Promise.all([
       s.call('owner', 'POST', `/api/tickets/${s.key}/actions/open-session`),
