@@ -259,6 +259,17 @@ implied by the header; for a Node relay, pipe the body instead of reading it who
 ([resizing](docs/screenshots/panel-resize-desktop-light.png), [reading view](docs/screenshots/reader-desktop-light.png),
 [reading view at 390 px](docs/screenshots/reader-mobile-light.png), [a comment over the limit](docs/screenshots/comment-limit-desktop-light.png).)
 
+## Quick capture (0.9.19)
+
+A round **+** button sits in the corner of the page. One tap opens a single text box with the cursor in it (on a phone the
+keyboard comes up at once). Type what is on your mind, then **Send** (or Ctrl/Cmd+Enter). The ticket is filed as you wrote it:
+the body is your text unchanged, the title is its first line, the label is `capture`, the status `todo`. Escape or a tap outside
+closes the box without losing the text; it stays until a send goes through. Viewers do not see the button.
+
+The ticket is assigned to `claude` unless the board names another assistant with `BOARD_CAPTURE_ASSIGNEE` (an actor id; the page
+reads it from `GET /api/version`, `capture.assignee`). What happens next is up to that assistant: rewrite the title, fill the
+body, set a priority, hand the ticket on, or put it back on your pile with a question.
+
 ## Finding your way around (0.5.13)
 
 The tools of 0.5.10 were there but hard to find: a resize edge invisible until hovered, buttons that

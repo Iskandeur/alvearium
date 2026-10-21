@@ -2,6 +2,16 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.19",
+      "date": "2026-10-22",
+      "items": [
+        "New round \"Quick capture\" button, always in reach: one tap opens a single text box with the keyboard already up.",
+        "Type whatever is on your mind and send: the text becomes a ticket as you wrote it, and an assistant fills in the rest.",
+        "Your note is kept if you close the box or the send fails, until it goes through.",
+        "The person who runs the board can choose which assistant receives every capture."
+      ]
+    },
+    {
       "version": "0.9.18",
       "date": "2026-10-21",
       "items": [

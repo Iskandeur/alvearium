@@ -580,7 +580,7 @@ export function staleAfterSeconds(raw) {
   return Number.isInteger(n) && n >= 30 && n <= 86400 ? n : STALE_AFTER_S;
 }
 
-export function createApp({ token, agents = [], store, page, changelog = loadChangelog(), heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes(), ticketActions = null, settings = { missing: [] }, attachmentMax = ATTACHMENT_MAX_BYTES, staleAfter = STALE_AFTER_S }) {
+export function createApp({ token, agents = [], store, page, changelog = loadChangelog(), heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes(), ticketActions = null, settings = { missing: [] }, attachmentMax = ATTACHMENT_MAX_BYTES, staleAfter = STALE_AFTER_S, captureAssignee = 'claude' }) {
   const streams = new Set();
   /** End the live streams of whoever matches (a revoked member, a revoked session). */
   const cutStreams = (match) => {
@@ -674,7 +674,7 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         const linked = asked ? store.takeLinkedComments(evt.identity.sessionId) : undefined;
         return send(res, 202, { ok: true, state: rec.state, server_version: VERSION, ...(mentions ? { mentions } : {}), ...(linked?.length ? { linked } : {}) });
       }
-      if (path === '/api/version' && m === 'GET') return send(res, 200, { version: VERSION, settings, attachments: { max_bytes: attachmentMax }, freshness: { stale_after_s: staleAfter } });
+      if (path === '/api/version' && m === 'GET') return send(res, 200, { version: VERSION, settings, attachments: { max_bytes: attachmentMax }, freshness: { stale_after_s: staleAfter }, capture: { assignee: captureAssignee } });
       if (path === '/api/changelog' && m === 'GET') return send(res, 200, { version: VERSION, releases: changelog });
       if (path === '/api/import' && m === 'POST') {
         // An import replays a history with its own authors: only the main token may write one.
@@ -904,7 +904,7 @@ if (isEntryPoint(import.meta.url)) {
   const page = readFileSync(join(HERE, 'page.html'), 'utf8');
   const settings = settingsReport(loadManifest(HERE));
   for (const l of warnLines(settings)) console.warn(l);
-  const server = createServer(createApp({ token, agents, store, page, settings, trustProxy: process.env.SESSION_BOARD_TRUST_PROXY === '1', ticketActions: actionRoutes({ actions }), attachmentMax: attachmentMaxBytes(process.env.BOARD_ATTACHMENT_MAX_MB), staleAfter: staleAfterSeconds(process.env.BOARD_STALE_AFTER_SECONDS) }));
+  const server = createServer(createApp({ token, agents, store, page, settings, trustProxy: process.env.SESSION_BOARD_TRUST_PROXY === '1', ticketActions: actionRoutes({ actions }), attachmentMax: attachmentMaxBytes(process.env.BOARD_ATTACHMENT_MAX_MB), staleAfter: staleAfterSeconds(process.env.BOARD_STALE_AFTER_SECONDS), captureAssignee: String(process.env.BOARD_CAPTURE_ASSIGNEE || '').trim() || 'claude' }));
   const port = Number(process.env.PORT || 8793);
   server.listen(port, process.env.HOST || '0.0.0.0', () => console.log(`alvearium listening on :${port}`));
   const stop = () => {
