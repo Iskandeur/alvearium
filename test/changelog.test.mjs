@@ -163,7 +163,7 @@ test('page: the 0.5.10 tools are visible at rest (grip, copy, read wide) and the
   // The grip: three dots mid-height on the left edge, drawn at rest, accent when hovered or focused.
   assert.match(page, /\.pResize::before \{\n\s*content: ""; position: absolute; z-index: 1;[^}]*radial-gradient\(circle at 50% 50%, var\(--grip\)/);
   assert.match(page, /\.pResize:hover, \.pResize:focus-visible, body\.resizing \.pResize \{ --grip: var\(--accent\); \}/);
-  assert.match(page, /title="Drag to widen · double-click to reset"/);
+  assert.match(page, /title="\$\{tr\('Drag to widen · double-click to reset'\)\}"/);
   // Copy and read wide: 0.45 at rest, full on hover or focus, full on touch; labelled and titled.
   assert.match(page, /\.mdActs \{ display: inline-flex; align-items: center; gap: 2px; opacity: 0\.45;/);
   assert.match(page, /\.mdHost:hover \.mdActs, \.mdHost:focus-within \.mdActs, \.mdActs:hover, \.mdActs:focus-within/);

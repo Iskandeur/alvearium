@@ -20,6 +20,8 @@ const PANEL = [
   between('const mdActs = (what)', 'function mdSource'),
   between('function renderReader()', 'function cmpVersion'),
   between('function syncExpandButton()', 'const mdActs = (what)'),
+  between('const resizeHandle = () =>', '\n      function'),
+  between('const attachButton = (inputId)', '\n'),
   between('function depList(list, rel)', 'async function loadActions()'),
 ];
 
@@ -55,7 +57,7 @@ test('the hold form, the kind and the reading view read French', () => {
 test('on a phone the panel controls reach 36 px or more, and "Mark done" stays on one line', () => {
   const css = between('0.9.17 (audit n°6, ALV-3619)', '@media (prefers-reduced-motion: reduce) { .asks .ask');
   assert.match(css, /@media \(max-width: 900px\), \(pointer: coarse\)/);
-  for (const sel of ['#panel .fields select', '#panel .pAct', '#panel .clear', '#panel summary.sect', '#panel .dep .rm', '#panel .ctx .tag']) assert.ok(css.includes(sel), sel);
+  for (const sel of ['#panel .links a', '#panel .attachBtn', '#panel .fields select', '#panel .pAct', '#panel .clear', '#panel summary.sect', '#panel .dep .rm', '#panel .ctx .tag']) assert.ok(css.includes(sel), sel);
   assert.match(css, /#panel \.pHead \.pDone \{ flex: none; white-space: nowrap; \}/);
   assert.match(css, /#panel \.pHead \.x, #panel \.pHead \.pIcon \{ flex: none; min-width: 40px; \}/);
 });
