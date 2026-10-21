@@ -42,7 +42,7 @@ test('page: Escape closes, Ctrl or Cmd+Enter sends, and an unsent note is kept',
 });
 
 test('server: /api/version names who gets a capture, claude unless the board says otherwise', async () => {
-  for (const [opts, want] of [[{}, 'claude'], [{ captureAssignee: 'lupi/ticketmaster' }, 'lupi/ticketmaster']]) {
+  for (const [opts, want] of [[{}, 'claude'], [{ captureAssignee: 'triage-bot' }, 'triage-bot']]) {
     const store = await openStore(':memory:');
     const server = createServer(createApp({ token: TOKEN, store, page, ...opts }));
     await new Promise((r) => server.listen(0, '127.0.0.1', r));
