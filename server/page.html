@@ -905,6 +905,7 @@
     .depCols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     .depCols h4 { margin: 0 0 4px; font-size: 12px; font-weight: 500; color: var(--faint); }
     .ev .who .av { width: 16px; height: 16px; font-size: 9px; }
+    .ev.comment.mine .said { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
     .ev.agent::before { background: var(--lane); border-style: dashed; }
     .ev.dependency::before, .ev.unblocked::before { border-color: var(--ok); }
     .ev.unblocked::before { background: var(--ok); }
@@ -3358,7 +3359,7 @@
       function eventLine(e, i) {
         const by = fromTo(e);
         const at = `<time title="${esc(new Date(e.at).toLocaleString(tr.locale))}">${esc(when(e.at))}</time>`;
-        if (e.type === 'comment') return `<div class="ev comment mdHost" data-md-src="ev:${Number(i) || 0}"><div class="evHead">${tr('{by} commented', { by })}${at}${mdActs('comment')}</div><div class="said md">${md(e.text)}</div>${picsHtml(e.attachments)}</div>`;
+        if (e.type === 'comment') return `<div class="ev comment${e.actor === 'user' ? ' mine' : ''} mdHost" data-md-src="ev:${Number(i) || 0}"><div class="evHead">${tr('{by} commented', { by })}${at}${mdActs('comment')}</div><div class="said md">${md(e.text)}</div>${picsHtml(e.attachments)}</div>`;
         if (e.type === 'created') return `<div class="ev">${tr('{who} created it', { who: who(e.actor) })}${e.to_status ? tr(' as {s}', { s: esc(STATUS[e.to_status] || e.to_status) }) : ''}${e.target ? `<span class="arrow">→</span>${who(e.target)}` : ''}${at}${picsHtml(e.attachments)}</div>`;
         if (e.type === 'status' || e.type === 'reopened') return `<div class="ev">${by} ${e.type === 'reopened' ? tr('reopened it') : tr('moved it')}${tr.lang === 'fr' ? ' :' : ':'} ${esc(STATUS[e.from_status] || e.from_status)} → <b>${esc(STATUS[e.to_status] || e.to_status)}</b>${at}${e.text ? `<div class="said">${md(e.text)}</div>` : ''}</div>`;
         if (e.type === 'assigned') return `<div class="ev">${who(e.actor)} handed it over<span class="arrow">→</span>${who(e.target || e.text)}${at}</div>`;
