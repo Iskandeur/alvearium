@@ -103,7 +103,7 @@ test('panel: resize handle, width kept per browser behind a guard, expand button
 
 test('markdown texts: copy and read-wide buttons on the description and on every comment (0.5.10)', () => {
   assert.match(page, /<div class="mdHost" data-md-src="body">/);
-  assert.match(page, /<div class="ev comment mdHost" data-md-src="ev:\$\{Number\(i\) \|\| 0\}"><div class="evHead">\$\{tr\('\{by\} commented', \{ by \}\)\}\$\{at\}\$\{mdActs\('comment'\)\}<\/div><div class="said md">/);
+  assert.match(page, /<div class="ev comment\$\{e\.actor === 'user' \? ' mine' : ''\} mdHost" data-md-src="ev:\$\{Number\(i\) \|\| 0\}"><div class="evHead">\$\{tr\('\{by\} commented', \{ by \}\)\}\$\{at\}\$\{mdActs\('comment'\)\}<\/div><div class="said md">/);
   assert.match(page, /data-md="copy"/);
   assert.match(page, /data-md="read"/);
   // The copy is the raw markdown (the ticket's body, the comment's text), never the rendered HTML.
