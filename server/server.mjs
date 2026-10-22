@@ -912,7 +912,7 @@ if (isEntryPoint(import.meta.url)) {
     process.exit(0);
   };
   // 0.6.0: the clock of holds (a time reached) and the poll of the pull requests they wait on.
-  const holdClock = startHoldClock(store, { pollSeconds: process.env.BOARD_HOLD_POLL_SECONDS, githubToken: process.env.BOARD_GITHUB_TOKEN, log: (l) => console.log(`alvearium: ${l}`) });
+  const holdClock = startHoldClock(store, { pollSeconds: process.env.BOARD_HOLD_POLL_SECONDS, githubToken: process.env.BOARD_GITHUB_TOKEN, prRelay: process.env.BOARD_PR_RELAY, log: (l) => console.log(`alvearium: ${l}`) });
   process.on('exit', () => holdClock.stop());
   process.on('SIGTERM', stop);
   process.on('SIGINT', stop);

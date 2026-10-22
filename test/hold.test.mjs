@@ -136,6 +136,22 @@ test('a pull request GitHub refuses to show (private repo, no token): said once 
   assert.match(s.getTicket(p.key).events.filter((e) => e.type === 'comment').at(-1).text, /invalid or expired/);
 });
 
+test('0.9.20: with BOARD_PR_RELAY, an unreadable pull request says who watches it, not "needs a token"', async () => {
+  const { s } = await board();
+  const p = s.createTicket({ title: 'after the private merge', assignee: 'builder' }, { actor: 'builder' });
+  s.hold(p.key, { condition: { type: 'pr_merged', pr: 'acme/private#4' } }, { actor: 'builder' });
+  const reply = async () => ({ status: 404, ok: false, headers: new Headers(), json: async () => ({}) });
+  const clock = startHoldClock(s, { pollSeconds: 1, fetch: reply, prRelay: 'the harness', tickMs: 3_600_000 });
+  await clock.round();
+  clock.stop();
+  const said = s.getTicket(p.key).events.filter((e) => e.type === 'comment' && e.actor === 'board');
+  assert.equal(said.length, 1);
+  assert.match(said[0].text, /the harness watches it and lifts this hold/);
+  assert.doesNotMatch(said[0].text, /BOARD_GITHUB_TOKEN/);
+  // the relay's report lifts the hold as ever
+  assert.deepEqual(s.signalPr('acme/private#4', 'merged').woken, [p.key]);
+});
+
 test('refusals: nothing to wait for, a closed ticket, the bounce cap; status on_hold uses the open blockers', async () => {
   const { s } = await board({ holdMaxBounces: 2 });
   const a = s.createTicket({ title: 'a' });
