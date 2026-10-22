@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.20",
+      "date": "2026-10-22",
+      "items": [
+        "A hold on a pull request in a repository the board cannot read no longer asks for a token when a relay watches it: the comment says who lifts the hold.",
+        "The person who runs the board names that relay once; merges it reports through the pull request route lift the holds as before.",
+        "Nothing changes for public repositories: the board still reads them itself."
+      ]
+    },
+    {
       "version": "0.9.19",
       "date": "2026-10-22",
       "items": [

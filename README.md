@@ -111,7 +111,10 @@ reply (`reply`). 0.8.0 adds `external`: a state of the world the board cannot se
 
 A `pr_merged` hold on a private repository needs `BOARD_GITHUB_TOKEN` (read access) on the server.
 When GitHub refuses to show the pull request (401, 404, or a 403 that is not a rate limit), the board
-says so once in a comment on the waiting ticket instead of leaving a hold that never lifts.
+says so once in a comment on the waiting ticket instead of leaving a hold that never lifts. If a relay of
+yours already reports those merges through `POST /api/holds/pr` (a script with its own GitHub access),
+set `BOARD_PR_RELAY` to its name: the comment then says that relay watches the pull request, and no
+token is needed on the board.
 
 The ticket's panel says what it waits for and what happens then, with a button to lift the hold by
 hand; a ticket that waits for nothing yet has a *Put on hold…* form.
