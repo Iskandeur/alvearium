@@ -52,7 +52,7 @@ export const CODEX_EVENTS = {
 };
 
 /** Ticket tools that only read: approved without asking. The others (create, update, comment, hold, feedback) write. */
-export const READ_TOOLS = ['ticket_get', 'ticket_list', 'ticket_next'];
+export const READ_TOOLS = ['ticket_get', 'ticket_list', 'ticket_next', 'ticket_attachment'];
 
 const DESCRIPTION = 'Alvearium: report each Codex session to the ticket board';
 const q = (s) => JSON.stringify(s);

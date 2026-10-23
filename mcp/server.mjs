@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { FEEDBACK_TYPES, MAX_BODY_CHARS, MAX_COMMENT_CHARS, PRIORITIES, STATUSES, VERSION, actorDisplayName, groupDigits, markdownToTerminal, normalizeActorId, repoFromRemote, textTooLong, truncate } from '../lib/core.mjs';
 import { CLOUD_SETUP_HINT, applyAgentFlag, dataDir, loadConfig, openBackend, sessionForCwd } from '../lib/runtime.mjs';
 import { isEntryPoint } from '../lib/core.mjs';
+import { sniffImage } from '../lib/avatar.mjs';
 
 export { VERSION };
 const SERVER_INFO = { name: 'alvearium', version: VERSION };
@@ -30,6 +31,8 @@ const LIMIT = `at most ${groupDigits(MAX_COMMENT_CHARS)} characters; a longer te
  * reaches outside the board. Clients may use them to decide what to ask before (OpenAI Codex CLI
  * shows them); the tools behave the same either way.
  */
+/** 0.9.22: the largest picture ticket_attachment returns by default; a bigger file is described in text. */
+const ATTACHMENT_READ_MAX = 5 * 1024 * 1024;
 const READS = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false };
 const WRITES = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
@@ -184,6 +187,19 @@ const TOOLS = [
       required: ['key'],
     },
   },
+  {
+    name: 'ticket_attachment',
+    annotations: READS,
+    description: 'Read one file attached to a comment, by its id (ticket_get lists them as "attached: #84 name (type, size)"). A picture comes back as an image you can look at. Anything that is not a picture, or is larger than max_bytes, is described in text instead. Look at the pictures of a comment before you ask the human for a screenshot: they may already be there.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number', description: 'The file id shown by ticket_get.' },
+        max_bytes: { type: 'number', description: `Largest picture to return, in bytes. Default ${ATTACHMENT_READ_MAX}.` },
+      },
+      required: ['id'],
+    },
+  },
 ];
 
 function git(cwd, args) {
@@ -228,6 +244,14 @@ const line = (t) => {
   );
 };
 
+/** "#84 capture.png (image/png, 117 KB, 1170x2532)": a file of a comment, as ticket_get lists it. Read it with ticket_attachment. */
+export function attachedLine(a) {
+  const size = Number(a.size) || 0;
+  const human = size >= 1024 * 1024 ? `${(size / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
+  const dims = a.width && a.height ? `, ${a.width}x${a.height}` : '';
+  return `#${a.id} ${a.name || 'file'} (${a.mime || 'unknown type'}, ${human}${dims}), read it with ticket_attachment`;
+}
+
 export function describe(t, { full = false } = {}) {
   const out = [line(t)];
   if (t.parent_key) out.push(`parent: ${t.parent_key} ${t.parent_title || ''}`.trim());
@@ -252,6 +276,7 @@ export function describe(t, { full = false } = {}) {
             ? `${e.type} ${e.from_status ?? ''}→${e.to_status ?? ''}${body ? '\n' + body : ''}`
             : `${e.type}${body ? '\n' + body : ''}`;
       out.push(`  ${ts} ${actor}${target ? ' → ' + target : ''}: ${what}`);
+      for (const a of Array.isArray(e.attachments) ? e.attachments : []) out.push(`    attached: ${attachedLine(a)}`);
     }
   }
   return out.join('\n');
@@ -378,6 +403,23 @@ export async function callTool(name, args = {}, { backend, context, env = proces
       const body = args.lift === true ? null : { condition: args.condition, then: args.then, note: args.note };
       const t = must(await backend.hold(String(args.key), body), 'ticket_hold');
       return t.hold ? `${t.key} on hold until ${t.hold.waits_for}, then ${t.hold.next_text}` : `${t.key} is back: ${t.status}, ${t.assignee}`;
+    }
+    case 'ticket_attachment': {
+      const id = Number(args.id);
+      if (!Number.isInteger(id) || id < 1) throw new Error('ticket_attachment: id must be a file id shown by ticket_get');
+      const max = Number.isFinite(Number(args.max_bytes)) && Number(args.max_bytes) > 0 ? Number(args.max_bytes) : ATTACHMENT_READ_MAX;
+      let f;
+      try {
+        f = await backend.attachment(id, { maxBytes: max });
+      } catch (e) {
+        if (e?.status === 404) throw Object.assign(new Error(`ticket_attachment: file #${id} is not on ${boardWhere(backend)} (or is not yours to read yet)`), { status: 404 });
+        throw e;
+      }
+      if (!f.data) return `File #${id} is ${Math.round(f.size / 1024)} KB, above max_bytes (${Math.round(max / 1024)} KB). Raise max_bytes, or ask for a smaller picture.`;
+      // The kind is decided by the bytes, never by the declared type (the board does the same).
+      const mime = sniffImage(f.data) || (f.data.toString('latin1', 0, 3) === 'GIF' ? 'image/gif' : null);
+      if (!mime) return `File #${id} is not a picture (${f.mime || 'unknown type'}, ${Math.round(f.size / 1024)} KB): it cannot be shown here.`;
+      return { content: [{ type: 'image', data: f.data.toString('base64'), mimeType: mime }, { type: 'text', text: `File #${id} (${mime}, ${Math.round(f.size / 1024)} KB)` }] };
     }
     case 'ticket_get':
       try {
@@ -507,8 +549,9 @@ export async function handleMessage(msg, deps) {
         if (offered === 'unconfigured') return reply({ content: [{ type: 'text', text: `Error: ${CLOUD_SETUP_HINT}` }], isError: true });
         try {
           const backend = await deps.backend();
-          const text = await callTool(name, params?.arguments || {}, { backend, context: deps.context() });
-          return reply({ content: [{ type: 'text', text }] });
+          const out = await callTool(name, params?.arguments || {}, { backend, context: deps.context() });
+          // ticket_attachment answers with MCP content (an image block); every other tool answers with text.
+          return reply(typeof out === 'string' ? { content: [{ type: 'text', text: out }] } : out);
         } catch (e) {
           return reply({ content: [{ type: 'text', text: `Error: ${e?.message || e}` }], isError: true });
         }

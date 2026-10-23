@@ -349,7 +349,7 @@ test('MCP server --codex: portable schemas and annotations, `me` is codex, ticke
       assert.equal(t.annotations.destructiveHint, false, `${t.name} deletes nothing`);
     }
     const reads = tools.filter((t) => t.annotations.readOnlyHint).map((t) => t.name).sort();
-    assert.deepEqual(reads, ['ticket_get', 'ticket_list', 'ticket_next']);
+    assert.deepEqual(reads, ['ticket_attachment', 'ticket_get', 'ticket_list', 'ticket_next']);
 
     const created = await c.request('tools/call', { name: 'ticket_create', arguments: { title: 'Write the Codex quickstart', assignee: 'me', priority: 'P2' } });
     assert.equal(created.result.isError, undefined, created.result.content[0].text);
@@ -386,7 +386,7 @@ test('README and AGENTS.md: the Codex section exists and says what does not work
   assert.match(section, /\/hooks/);
   assert.match(section, /What does not work/i);
   const agents = readFileSync(join(ROOT, 'AGENTS.md'), 'utf8');
-  for (const tool of ['ticket_create', 'ticket_update', 'ticket_next', 'ticket_list', 'ticket_comment', 'ticket_get', 'ticket_hold', 'board_feedback']) assert.match(agents, new RegExp(tool), tool);
+  for (const tool of ['ticket_create', 'ticket_update', 'ticket_next', 'ticket_list', 'ticket_comment', 'ticket_get', 'ticket_attachment', 'ticket_hold', 'board_feedback']) assert.match(agents, new RegExp(tool), tool);
   assert.match(agents, /npm test/);
   assert.match(readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8'), /@AGENTS\.md/);
 });

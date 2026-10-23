@@ -92,7 +92,7 @@ Tickets come from three places:
    | `SubagentStart`, `SubagentStop` | a line in the session ticket's history: *Claude → Explore: started it*, *Explore → Claude: finished: …* |
 
 2. **Claude, through MCP tools.** The plugin ships a small MCP server (`ticket_create`,
-   `ticket_update`, `ticket_next`, `ticket_list`, `ticket_comment`, `ticket_get`, `board_feedback`)
+   `ticket_update`, `ticket_next`, `ticket_list`, `ticket_comment`, `ticket_get`, `ticket_attachment`, `board_feedback`)
    and a skill telling Claude when to use them: an action item only you can do ("add the
    `STRIPE_KEY` secret", "review PR #412"), a long task split into prioritized sub-tickets with their
    dependencies, what to pick next, what is left at the end, and what wasted its time. Tickets attach
@@ -346,6 +346,12 @@ comment is quoted as information from that author, to check, not an instruction.
 never another one; an invited member's session is never linked. This does not change tags: a tag
 (`@session/…`) still reaches a session only from the owner's comments. Taking up a ticket, read it whole
 with `ticket_get` and `full: true` (the default view keeps the last 15 entries, comments shortened).
+
+Pictures pasted into a comment are visible to the assistant (0.9.22): `ticket_get` lists each one under its
+comment (`attached: #84 capture.png (image/png, 117 KB, 1170x2532)`), and `ticket_attachment` with that `id`
+returns the picture as an image block. The kind is decided by the bytes; a file that is not a picture, or is
+above `max_bytes` (default 5 MB), is described in text instead. A comment that is only a picture shows as the
+bare mark and its attachment line, so look before asking for a screenshot.
 
 It comes back to you only when the assignee hands it back explicitly: assigned to you again, or set to
 waiting on you. Its own comments do not. Session tickets (kept by the hooks), closed tickets and a
@@ -1219,7 +1225,7 @@ approval_mode = "approve"
 # … the same for ticket_list and ticket_next
 ```
 
-The tools that only read (`ticket_get`, `ticket_list`, `ticket_next`) run without asking. The ones
+The tools that only read (`ticket_get`, `ticket_list`, `ticket_next`, `ticket_attachment`) run without asking. The ones
 that write to the board (`ticket_create`, `ticket_update`, `ticket_comment`, `ticket_hold`,
 `board_feedback`) ask first, so text from a repository you do not trust cannot make Codex file
 tickets on its own. In an interactive session you answer each prompt. `codex exec` has nobody to ask
@@ -1236,7 +1242,7 @@ and lists the session ticket of that run, which the board shows too.
 
 | | Under Codex |
 | :- | :- |
-| Ticket tools | All eight: `ticket_create`, `ticket_update`, `ticket_next`, `ticket_list`, `ticket_comment`, `ticket_get`, `ticket_hold`, `board_feedback`. `assignee: "me"` is `codex`. Tickets attach to the current Codex session and repo |
+| Ticket tools | All nine: `ticket_create`, `ticket_update`, `ticket_next`, `ticket_list`, `ticket_comment`, `ticket_get`, `ticket_attachment`, `ticket_hold`, `board_feedback`. `assignee: "me"` is `codex`. Tickets attach to the current Codex session and repo |
 | Session ticket | `SessionStart`, `UserPromptSubmit`: **in progress**, titled with the first prompt (bracketed header lines of two words or more that a harness puts on top, like `[Usage limits] …`, are skipped; a title stored that way by an older version is not shown, and the board names the session by its id). `Stop`: **review**, with the end of the last reply and its PR link, or **waiting on you** when the reply ends on a question. `SessionEnd`: **done** (a `codex exec` run ends there) |
 | Approval prompts | `PermissionRequest`: a **waiting on you** ticket while Codex asks you to approve a command |
 | Subagents | `SubagentStart`, `SubagentStop`: a line in the session ticket's history |
