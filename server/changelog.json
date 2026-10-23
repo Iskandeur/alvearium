@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.22",
+      "date": "2026-10-23",
+      "items": [
+        "Assistants can now see the pictures you paste into a comment: the ticket lists them, and a new tool lets an assistant look at one.",
+        "A comment that is only a picture is no longer an empty note to an assistant.",
+        "Nothing changes on the page: pictures are stored and shown as before."
+      ]
+    },
+    {
       "version": "0.9.21",
       "date": "2026-10-23",
       "items": [
