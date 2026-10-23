@@ -1821,6 +1821,14 @@
         };
         let s = String(raw || '').replace(/\u0000/g, '');
         s = s.replace(/`([^`\n]{1,200})`/g, (_, c) => keep(`<code>${esc(c)}</code>`));
+        // ![alt](/api/attachments/12) is a picture of this board: loaded by hydratePics() with the credentials.
+        // Any other ![alt](url) reads as a plain link (no stray "!").
+        s = s.replace(/!\[([^\]]{1,200})\]\(([^)\s]{1,400})\)/g, (_, alt, url) => {
+          const att = /^\/?api\/attachments\/(\d{1,12})$/.exec(url);
+          return att
+            ? keep(`<span class="pics"><span class="ph" data-pic="${att[1]}" data-etag="md" data-name="${esc(alt)}"></span></span>`)
+            : link(url, alt);
+        });
         s = s.replace(/\[([^\]]{1,200})\]\(([^)\s]{1,400})\)/g, (_, label, url) => link(url, label));
         s = s.replace(/\bhttps?:\/\/[^\s<>"'\u0000]{3,300}/gi, (m) => {
           const url = m.replace(/[.,;:!?)\]]+$/, '');
@@ -1871,7 +1879,9 @@
 
       /** Safe markdown subset: headings, nested lists, blockquotes, code blocks, tables, links, bold/italic/code. */
       function md(s) {
-        const lines = String(s || '').replace(/\r\n/g, '\n').split('\n');
+        // HTML comments (<!-- … -->) carry machine data (a card's WhatsApp twin): never shown, never run.
+        // An unterminated one hides what follows, as a browser would.
+        const lines = String(s || '').replace(/\r\n/g, '\n').replace(/<!--[\s\S]*?(?:-->|$)/g, '').split('\n');
         const out = [];
         let i = 0;
 
