@@ -17,7 +17,6 @@ import { fileURLToPath } from 'node:url';
 import { FEEDBACK_TYPES, MAX_BODY_CHARS, MAX_COMMENT_CHARS, PRIORITIES, STATUSES, VERSION, actorDisplayName, groupDigits, markdownToTerminal, normalizeActorId, repoFromRemote, textTooLong, truncate } from '../lib/core.mjs';
 import { CLOUD_SETUP_HINT, applyAgentFlag, dataDir, loadConfig, openBackend, sessionForCwd } from '../lib/runtime.mjs';
 import { isEntryPoint } from '../lib/core.mjs';
-import { sniffImage } from '../lib/avatar.mjs';
 
 export { VERSION };
 const SERVER_INFO = { name: 'alvearium', version: VERSION };
@@ -244,6 +243,16 @@ const line = (t) => {
   );
 };
 
+/** The picture type from the first bytes (PNG, JPEG, WebP, GIF), or null. Kept here, not imported: a vendored cloud copy may lack lib/avatar.mjs. */
+function sniffImage(buf) {
+  if (!buf || buf.length < 12) return null;
+  if (buf[0] === 0x89 && buf.toString('latin1', 1, 4) === 'PNG') return 'image/png';
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'image/jpeg';
+  if (buf.toString('latin1', 0, 4) === 'RIFF' && buf.toString('latin1', 8, 12) === 'WEBP') return 'image/webp';
+  if (buf.toString('latin1', 0, 3) === 'GIF') return 'image/gif';
+  return null;
+}
+
 /** "#84 capture.png (image/png, 117 KB, 1170x2532)": a file of a comment, as ticket_get lists it. Read it with ticket_attachment. */
 export function attachedLine(a) {
   const size = Number(a.size) || 0;
@@ -417,7 +426,7 @@ export async function callTool(name, args = {}, { backend, context, env = proces
       }
       if (!f.data) return `File #${id} is ${Math.round(f.size / 1024)} KB, above max_bytes (${Math.round(max / 1024)} KB). Raise max_bytes, or ask for a smaller picture.`;
       // The kind is decided by the bytes, never by the declared type (the board does the same).
-      const mime = sniffImage(f.data) || (f.data.toString('latin1', 0, 3) === 'GIF' ? 'image/gif' : null);
+      const mime = sniffImage(f.data);
       if (!mime) return `File #${id} is not a picture (${f.mime || 'unknown type'}, ${Math.round(f.size / 1024)} KB): it cannot be shown here.`;
       return { content: [{ type: 'image', data: f.data.toString('base64'), mimeType: mime }, { type: 'text', text: `File #${id} (${mime}, ${Math.round(f.size / 1024)} KB)` }] };
     }
