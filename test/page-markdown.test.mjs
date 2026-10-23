@@ -97,3 +97,30 @@ test('md: nested lists by indentation, numbering kept across a nested list and b
   assert.equal(md('- **bold** item\n\nAfter.'), '<ul><li><strong>bold</strong> item</li></ul><p>After.</p>');
   assert.doesNotMatch(md('- <img src=x onerror=alert(1)>\n  - <script>x</script>'), /<img|<script/);
 });
+
+test('md: HTML comments are hidden, never shown or run', () => {
+  const h = md('Before\n\n<!-- wa\nAlvéole : {{KEY}}\nwa -->\n\nAfter');
+  assert.doesNotMatch(h, /KEY|&lt;!--|<!--|wa -->/);
+  assert.match(h, /Before/);
+  assert.match(h, /After/);
+  assert.doesNotMatch(md('a <!-- b --> c'), /--|\bb\b/);
+  assert.doesNotMatch(md('a\n<!-- never closed\nsecret'), /secret/);
+  // A code block shows its HTML as written, comments included.
+  assert.match(md('```html\n<!-- keep -->\n<p>x</p>\n```\nafter <!-- gone -->'), /&lt;!-- keep --&gt;/);
+  assert.doesNotMatch(md('```html\n<!-- keep -->\n```\nafter <!-- gone -->'), /gone/);
+});
+
+test('md: an attachment image with an empty alt text is still a picture', () => {
+  assert.match(md('![](/api/attachments/12)'), /data-pic="12"/);
+  assert.doesNotMatch(md('![](/api/attachments/12)'), /!/);
+});
+
+test('md: an attachment image becomes a picture slot, other images a plain link', () => {
+  const h = md('![shot.png](/api/attachments/82)');
+  assert.match(h, /<span class="ph" data-pic="82" data-etag="md" data-name="shot\.png"><\/span>/);
+  assert.doesNotMatch(h, /!shot|<img/);
+  const o = md('![logo](https://x.test/a.png) and ![nope](x.png)');
+  assert.match(o, /<a href="https:\/\/x\.test\/a\.png"[^>]*>logo<\/a>/);
+  assert.doesNotMatch(o, /!logo|!nope/);
+  assert.doesNotMatch(md('![x](javascript:alert(1))'), /<a /);
+});

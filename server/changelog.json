@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.21",
+      "date": "2026-10-23",
+      "items": [
+        "Hidden notes in a ticket or comment (HTML comments) are no longer shown as text: they stay hidden.",
+        "A picture attached to the board and written in the text now shows as a picture instead of its raw text.",
+        "Any other picture link shows as a plain link, without the stray exclamation mark."
+      ]
+    },
+    {
       "version": "0.9.20",
       "date": "2026-10-22",
       "items": [
