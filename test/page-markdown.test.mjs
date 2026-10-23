@@ -105,6 +105,14 @@ test('md: HTML comments are hidden, never shown or run', () => {
   assert.match(h, /After/);
   assert.doesNotMatch(md('a <!-- b --> c'), /--|\bb\b/);
   assert.doesNotMatch(md('a\n<!-- never closed\nsecret'), /secret/);
+  // A code block shows its HTML as written, comments included.
+  assert.match(md('```html\n<!-- keep -->\n<p>x</p>\n```\nafter <!-- gone -->'), /&lt;!-- keep --&gt;/);
+  assert.doesNotMatch(md('```html\n<!-- keep -->\n```\nafter <!-- gone -->'), /gone/);
+});
+
+test('md: an attachment image with an empty alt text is still a picture', () => {
+  assert.match(md('![](/api/attachments/12)'), /data-pic="12"/);
+  assert.doesNotMatch(md('![](/api/attachments/12)'), /!/);
 });
 
 test('md: an attachment image becomes a picture slot, other images a plain link', () => {
