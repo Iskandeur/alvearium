@@ -126,6 +126,18 @@ test('query: other errors are named (empty value, operator, date, quote, parenth
   assert.equal(parseQuery('type:custom-kind').errors.length, 0);
 });
 
+test('query: Kaa review of #83: a negated type keeps the cuts, -5 and "!!" stay plain, is: takes the status aliases', () => {
+  assert.equal(parseQuery('type:feedback').kinds, true);
+  assert.equal(parseQuery('-type:session').kinds, false, 'leaving a type out does not bring feedback in');
+  assert.equal(parseQuery('NOT is:archived').archived, false);
+  assert.equal(parseQuery('is:archived OR p:P0').archived, true);
+  for (const q of ['-5', '!!', '--', '?', 'temp -1.5']) assert.equal(parseQuery(q).plain, true, q);
+  for (const [q, v] of [['is:doing', 'in_progress'], ['is:wip', 'in_progress'], ['is:canceled', 'cancelled'], ['is:waiting', 'waiting_on_user']]) {
+    assert.deepEqual(parseQuery(q).errors, [], q);
+    assert.equal(parseQuery(q).node.values[0].value, v, q);
+  }
+});
+
 test('query: closest() finds typos and prefixes, not unrelated words', () => {
   assert.equal(closest('stat', ['status', 'label']), 'status');
   assert.equal(closest('lable', ['status', 'label']), 'label');
@@ -251,6 +263,7 @@ test('query on a store: type:feedback reaches what the default views leave out, 
   const fb = store.createTicket({ title: 'Board feedback', kind: 'feedback' }, { actor: 'claude' });
   assert.ok(!run(store, 'board').includes(fb.key));
   assert.deepEqual(run(store, 'type:feedback'), [fb.key]);
+  assert.ok(!run(store, '-type:session').includes(fb.key), 'excluding a type keeps feedback out');
   const next = store.nextTickets({ q: 'type:decision', limit: 50 });
   assert.deepEqual(next.tickets.map((t) => t.key), ['ALV-4']);
 });

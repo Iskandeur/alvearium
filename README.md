@@ -260,7 +260,10 @@ A query the board cannot read never empties the board in silence: a line under t
 it did instead, and offers the corrected query when it can guess it. An unknown field is searched
 as text (`stauts:todo`: "Did you mean status?"); a value it cannot read leaves that filter out
 (`status:tdo`: "Did you mean todo?"); an unknown type still filters, since a client may invent its
-own. `OR` must be in capitals: a lower-case `or` is a word. A URL or a time (`10:30`) stays text.
+own. `OR` must be in capitals: a lower-case `or` is a word. A URL or a time (`10:30`) stays text,
+and so does a minus before a digit (`-5`). Days (`2026-10-01`, `today`) are UTC days; an age (`7d`)
+counts back from now. `-type:x` leaves that type out without bringing the feedback inbox in; a
+positive `type:` or `is:archived` reaches the tickets the views leave out by default.
 
 The language lives in the server (`lib/query.mjs`, no dependency): the API reads it in `q` on
 `GET /api/tickets`, `/api/tickets/board` and `/api/tickets/next`, alongside the other filters, and
