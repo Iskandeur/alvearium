@@ -739,7 +739,8 @@ ticket is handed over. Tickets record `created_by`; `assignee` takes any actor i
 `claude` work as before). Cards show the assignee's avatar; the *Actor* filter shows what an actor
 holds or opened. The *Actor* and *Assignee* filters list people and lasting agents first; one-off
 runs (`bot/job-12`, `bot/wake-7`) are grouped under *Others*, those with open tickets first, then
-the newest, 50 at most (0.9.9).
+the newest, 50 at most (0.9.9). An agent with no open ticket and no activity for two weeks goes under
+*Others* too, in those filters and in the ticket's *Assignee* menu (0.9.24).
 
 **Pictures (0.5.0).** Every actor, human or agent, can have a profile picture: click its avatar
 anywhere (a card, the panel, the history) and choose *Upload picture*. A crop dialog opens: the

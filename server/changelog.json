@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.24",
+      "date": "2026-10-25",
+      "items": [
+        "In the Assignee menu and the Actor and Assignee filters, an agent with no open ticket and no activity for two weeks moves under Others.",
+        "The ticket you are looking at keeps its current assignee in the main list.",
+        "On a phone the lists are shorter, so a current agent is found without scrolling past retired ones."
+      ]
+    },
+    {
       "version": "0.9.23",
       "date": "2026-10-25",
       "items": [

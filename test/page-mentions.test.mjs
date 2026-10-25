@@ -69,7 +69,7 @@ test('runRanker: a named sibling of numbered runs (bot/wake-news next to bot/wak
 test('filter bar: Actor and Assignee list lasting actors first, at most 50 numbered runs under Others (ALV-2857)', () => {
   const i = page.indexOf('const ephemeralActor = (id) => {');
   const j = page.indexOf('const actorIdTitle = ', i);
-  assert.ok(i > 0 && j > i && page.slice(i, j).includes('const runPicks = (list, name) => {'), 'runPicks() is in the page');
+  assert.ok(i > 0 && j > i && page.slice(i, j).includes('const runPicks = (list, name, now = Date.now()) => {'), 'runPicks() is in the page');
   const runPicks = new Function(`${page.slice(i, j)}; return runPicks;`)();
   const runs = Array.from({ length: 200 }, (_, n) => ({ id: `crew/job-${n + 1}`, open: 0 }));
   runs[4].open = 2; // crew/job-5 holds open tickets: it comes first despite being old
@@ -86,6 +86,29 @@ test('filter bar: Actor and Assignee list lasting actors first, at most 50 numbe
   assert.match(src, /k === 'assignee' \|\| k === 'actor'/);
   assert.match(src, /runPicks\(/);
   assert.match(src, /<optgroup label="\$\{esc\(tr\('Others'\)\)\}">/);
+});
+
+test('dormant agents (no open ticket, quiet for two weeks) go under Others, people and busy agents stay (ALV-2857)', () => {
+  const i = page.indexOf('const ephemeralActor = (id) => {');
+  const j = page.indexOf('const actorIdTitle = ', i);
+  const { runPicks, dormantActor } = new Function(`${page.slice(i, j)}; return { runPicks, dormantActor };`)();
+  const now = Date.UTC(2026, 9, 25);
+  const day = 24 * 3600 * 1000;
+  const mk = (id, ageDays, open = 0, type = 'agent') => ({ id, type, open, last_seen: now - ageDays * day });
+  assert.equal(dormantActor(mk('a', 20), now), true);
+  assert.equal(dormantActor(mk('a', 13), now), false, 'seen this fortnight');
+  assert.equal(dormantActor(mk('a', 90, 1), now), false, 'an open ticket keeps it');
+  assert.equal(dormantActor(mk('me', 400, 0, 'human'), now), false, 'people never');
+  assert.equal(dormantActor({ id: 'x', open: 0 }, now), false, 'no last_seen: unknown, not dormant');
+  const list = [mk('desk/old-channel', 60), mk('desk/ferao', 20, 3), mk('desk/kaa', 1), mk('me', 400, 0, 'human'), mk('desk/job-7', 2)];
+  const { lasting, others } = runPicks(list, (id) => id.split('/').pop(), now);
+  assert.deepEqual(lasting.map((a) => a.id), ['desk/ferao', 'desk/kaa', 'me']);
+  assert.deepEqual(others.map((a) => a.id), ['desk/old-channel', 'desk/job-7'], 'dormant first, then runs');
+  // the ticket detail menu applies it too, and keeps the current assignee in the main list
+  const k = page.indexOf('const assigneeOpts = (cur) => {');
+  const src = page.slice(k, page.indexOf('// 0.6.0: on hold', k));
+  assert.match(src, /dormantActor\(a, now\)/);
+  assert.match(src, /a\.id === cur \|\|/);
 });
 
 test('mentions: @ inside a word is ignored', () => {

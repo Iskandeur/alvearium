@@ -1733,15 +1733,21 @@
           return 0;
         };
       };
+      // 0.9.24 (ALV-2857): a lasting agent that holds no open ticket and has not been seen for two weeks (a retired
+      // channel, a desk nobody writes to) is not who a ticket is handed to today. People never are dormant.
+      const DORMANT_MS = 14 * 24 * 3600 * 1000;
+      const dormantActor = (a, now) => !!a && a.type !== 'human' && !(a.open > 0) && Number(a.last_seen) > 0 && now - Number(a.last_seen) > DORMANT_MS;
       // 0.9.9: the filter bar's Actor and Assignee lists, ordered like the assignee menu. `list` is the facets' actors
       // ({ id, open }). Lasting actors by name; one-off runs go to `others`: those holding open tickets first, then the
       // newest, 50 numbered runs at most, then the named runs. A busy board has hundreds of runs, one option each.
-      const runPicks = (list, name) => {
+      const runPicks = (list, name, now = Date.now()) => {
         const run = runRanker(list.map((a) => a.id));
         const by = (a, b) => name(a.id).localeCompare(name(b.id)) || String(a.id).localeCompare(String(b.id));
-        const lasting = list.filter((a) => !run(a.id)).sort(by);
+        const durable = list.filter((a) => !run(a.id)).sort(by);
+        const lasting = durable.filter((a) => !dormantActor(a, now));
+        const dormant = durable.filter((a) => dormantActor(a, now));
         const oneOff = list.filter((a) => run(a.id)).sort((a, b) => (b.open > 0) - (a.open > 0) || run(b.id) - run(a.id) || by(a, b));
-        return { lasting, others: [...oneOff.filter((a) => run(a.id) >= 1).slice(0, 50), ...oneOff.filter((a) => run(a.id) < 1)] };
+        return { lasting, others: [...dormant, ...oneOff.filter((a) => run(a.id) >= 1).slice(0, 50), ...oneOff.filter((a) => run(a.id) < 1)] };
       };
       const actorIdTitle = (id) => {
         const sid = String(id || '');
@@ -3460,13 +3466,17 @@
         for (const a of rest) names.set(actorName(a.id), (names.get(actorName(a.id)) || 0) + 1);
         const label = (a) => (a.type === 'subagent' ? '↳ ' : '') + actorName(a.id) + (names.get(actorName(a.id)) > 1 ? ` (${a.id})` : '');
         const run = runRanker(actors.keys());
-        const lasting = rest.filter((a) => !run(a.id)).sort((a, b) => actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id));
+        const now = Date.now();
+        const byName = (a, b) => actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id);
+        const durable = rest.filter((a) => !run(a.id)).sort(byName);
+        const lasting = durable.filter((a) => a.id === cur || !dormantActor(a, now));
+        const dormant = durable.filter((a) => !lasting.includes(a));
         const oneOff = rest.filter((a) => run(a.id)).sort((a, b) => run(b.id) - run(a.id) || actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id));
         // 0.9.17 (ALV-2857): the 10 newest numbered runs, then every named run. A ticket is handed to a person or a lasting
         // agent; a finished run is rarely the right owner, and 50 of them made a 90-entry menu on a phone. The current
         // assignee always stays in the list (added below).
         const shown = [...oneOff.filter((a) => run(a.id) >= 1).slice(0, ASSIGNEE_RUNS), ...oneOff.filter((a) => run(a.id) < 1)];
-        const list = [['user', tr('You')], ['claude', 'Claude'], ...lasting.map((a) => [a.id, label(a)]), ...shown.map((a) => [a.id, label(a), tr('Others')])];
+        const list = [['user', tr('You')], ['claude', 'Claude'], ...lasting.map((a) => [a.id, label(a)]), ...[...dormant, ...shown].map((a) => [a.id, label(a), tr('Others')])];
         if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur) + (names.has(actorName(cur)) ? ` (${cur})` : ''), run(cur) ? tr('Others') : undefined]);
         return list;
       };
