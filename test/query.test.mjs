@@ -2,8 +2,11 @@
 // against a store. Made-up tickets only.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createServer } from 'node:http';
 import { closest, compileQuery, fold, parseQuery, readDate } from '../lib/query.mjs';
+import { parseFilters } from '../lib/core.mjs';
 import { openStore } from '../lib/store.mjs';
+import { createApp } from '../server/server.mjs';
 
 const T0 = Date.UTC(2026, 9, 1);
 const DAY = 24 * 60 * 60 * 1000;
@@ -214,7 +217,36 @@ test('query on a store: the problems come back with the results, never an empty 
   assert.equal(store.listTickets({ q: 'status:todo' }).query, undefined, 'nor on a good query');
 });
 
-test('query on a store: type:feedback and is:archived reach what the default views leave out', async () => {
+test('query over HTTP: the commas of q reach the parser, the problems come back in the board', async () => {
+  assert.equal(parseFilters(new URLSearchParams('q=status:todo,review -label:x')).q, 'status:todo,review -label:x');
+  assert.equal(parseFilters({ q: 'a,b' }).q, 'a,b');
+  const store = await board();
+  const TOKEN = 'x'.repeat(32);
+  const server = createServer(createApp({ token: TOKEN, store, page: '<html>board</html>' }));
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${server.address().port}/api/tickets`;
+  const get = async (path) => (await fetch(base + path, { headers: { authorization: `Bearer ${TOKEN}` } })).json();
+  try {
+    const b = await get('/board?q=' + encodeURIComponent('status:todo,in_progress -label:noise'));
+    assert.deepEqual(Object.values(b.columns).flat().map((t) => t.key).sort(), ['ALV-1', 'ALV-2', 'ALV-4']);
+    const l = await get('?q=' + encodeURIComponent('stauts:todo'));
+    assert.equal(l.query.fix, 'status:todo');
+    const n = await get('/next?q=' + encodeURIComponent('assignee:me p:<=P1'));
+    assert.deepEqual(n.tickets.map((t) => t.key), ['ALV-1']);
+  } finally {
+    server.close();
+  }
+});
+
+test('query on a store: without the full-text index, words and phrases still search (LIKE)', async () => {
+  const store = await board();
+  store.fts = false;
+  assert.deepEqual(run(store, '"login colour"'), ['ALV-3']);
+  assert.deepEqual(run(store, 'login -crashes'), ['ALV-3']);
+  assert.deepEqual(run(store, 'hosting OR release'), ['ALV-2', 'ALV-4']);
+});
+
+test('query on a store: type:feedback reaches what the default views leave out, and next takes the type asked', async () => {
   const store = await board();
   const fb = store.createTicket({ title: 'Board feedback', kind: 'feedback' }, { actor: 'claude' });
   assert.ok(!run(store, 'board').includes(fb.key));

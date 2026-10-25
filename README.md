@@ -221,6 +221,51 @@ A key typed in the search (0.9.12) puts that ticket first in its lane, closed or
 the Done drawer when it is closed; the other matches are the tickets that cite that exact key. The
 page also works under a sub-path of a reverse proxy opened without its trailing slash (`/alvearium`).
 
+## Searching with a query (0.10.0)
+
+Words in the search box find the tickets that contain every one of them, in the title, the
+description, the comments or the labels, as before. Nothing else to learn. When you want more, the
+same box reads a small query language, close to GitHub's and Gmail's. The `?` at the end of the box
+opens the syntax, with examples you can tap.
+
+| You type | You get |
+| :- | :- |
+| `login crash` | every word, anywhere in the ticket |
+| `"login page"` | these words side by side |
+| `status:todo` | a filter: field, colon, value |
+| `-label:noise` or `NOT label:noise` | leave these out |
+| `status:todo,review` | any of these values |
+| `p:P0 OR label:urgent` | either side (`\|` works too) |
+| `(p:P0 OR p:P1) is:blocked` | parentheses group |
+
+Spaces mean AND. OR joins the two terms beside it, before the spaces:
+`status:todo label:a OR label:b` is `status:todo AND (label:a OR label:b)`. Field names and values
+ignore case and accents (`Priorité:p1` reads as `priority:P1`).
+
+| Field (aliases) | Values |
+| :- | :- |
+| `is` | `open`, `closed`, `blocked`, `unblocked`, `archived` (closed for more than 30 days), or a status |
+| `status` (`s`, `statut`) | `todo`, `in_progress`, `waiting_on_user`, `review`, `failed`, `on_hold`, `done`, `cancelled`, `open`, `closed` |
+| `priority` (`p`, `prio`) | `P0`…`P3` or `none`; `p:<=P1` is P0 and P1 (P0 comes first, as on the board), `p:P1..P2` a range |
+| `assignee` (`to`), `author` (`by`), `actor` (either) | an actor id, `me` (you, or the invited member reading), or a prefix: `assignee:lupi/*` |
+| `label` (`#`) | `label:vigie` or `#vigie`; `label:ci-*` for a prefix |
+| `type` (`kind`), `subtype`, `importance`, `origin`, `source` | the ticket's value (`type:decision`, `importance:high`, `origin:cloud`) |
+| `repo`, `branch`, `machine`, `session` | a value, a prefix with `*`, or `none`; `repo:api` is the repo name under any owner |
+| `created`, `updated`, `closed` | a day (`2026-10-01`), `today`, `yesterday`, a range (`2026-10-01..2026-10-15`), `>` / `<` a day, or an age: `updated:7d` and `updated:<7d` are less than 7 days ago, `updated:>7d` more (`30m`, `12h`, `7d`, `2w`, `3mo`, `1y`) |
+| `has`, `no` | `priority`, `label`, `repo`, `branch`, `parent`, `session`, `importance`, `pr`, `blocker`, `children` |
+| `key`, `parent` | a key or its number; `key:>100`, `key:ALV-10..ALV-20` |
+| `title`, `body` | the text contains these characters |
+
+A query the board cannot read never empties the board in silence: a line under the box says what
+it did instead, and offers the corrected query when it can guess it. An unknown field is searched
+as text (`stauts:todo`: "Did you mean status?"); a value it cannot read leaves that filter out
+(`status:tdo`: "Did you mean todo?"); an unknown type still filters, since a client may invent its
+own. `OR` must be in capitals: a lower-case `or` is a word. A URL or a time (`10:30`) stays text.
+
+The language lives in the server (`lib/query.mjs`, no dependency): the API reads it in `q` on
+`GET /api/tickets`, `/api/tickets/board` and `/api/tickets/next`, alongside the other filters, and
+returns `query: { errors, fix }` when it found a problem.
+
 ## Realtime
 
 The page keeps one connection open to `GET /api/stream` (Server-Sent Events) and redraws only the
@@ -1063,7 +1108,7 @@ Comma-separate several values: `?repo=acme/api&status=todo,in_progress&label=dep
 
 ### The web page
 
-Search box, filter chips (click a repo, a session or a label on any card to filter on it), Board,
+Search box (words, or a query: see [Searching with a query](#searching-with-a-query-0100)), filter chips (click a repo, a session or a label on any card to filter on it), Board,
 Next and List views (the list is grouped by session) and the Feedback inbox, live updates, drag and
 drop in *To do* and *Next*, a side panel with the ticket's fields, description, sub-tickets,
 dependencies (*Blocked by* / *Blocks*, add one by key), links and the history (*who → whom*), and a
