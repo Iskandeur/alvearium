@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.23",
+      "date": "2026-10-25",
+      "items": [
+        "Quick capture now takes pictures: paste a screenshot or drop an image into the box, and it is attached to the ticket it creates.",
+        "A capture can be a picture alone, with no text.",
+        "A capture with only text works exactly as before."
+      ]
+    },
+    {
       "version": "0.9.22",
       "date": "2026-10-23",
       "items": [

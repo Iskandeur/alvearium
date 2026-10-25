@@ -30,7 +30,36 @@ test('page: the note is sent as the body, the title is its first line, the label
   assert.equal(captureTitle(''), '');
   const long = captureTitle('word '.repeat(60));
   assert.ok(long.length <= 81 && long.endsWith('…') && !long.includes('  '), long);
-  assert.match(page, /api\('tickets', \{ title: captureTitle\(text\), body: text, status: 'todo', assignee: captureAssignee, labels: \['capture'\] \}\)/);
+  assert.match(page, /api\('tickets', \{ title: captureTitle\(text\) \|\| tr\('Pasted image'\), body: text, status: 'todo', assignee: captureAssignee, labels: \['capture'\], \.\.\.\(pics\.length \? \{ attachments: pics \} : \{\}\) \}\)/);
+});
+
+test('page: a picture pasted or dropped into the capture box is uploaded and sent with the ticket', () => {
+  assert.match(page, /<div class="pend" id="qcPics"><\/div>/);
+  assert.match(page, /const pendTarget = \(\) => \(\$\('qc'\)\.hidden \? [^;]*: 'qc'\);/);
+  assert.match(page, /e\.target\?\.id !== 'qcText'/, 'paste in the capture box is handled');
+  assert.match(page, /closest\?\.\('\.compose, #cform, #qc'\)/, 'drop on the capture box is handled');
+  assert.match(page, /target && target !== 'qc' \? `api\/tickets/, 'a capture has no ticket yet: the file goes to /api/attachments');
+  assert.match(page, /if \(!text && !pics\.length\)/, 'text alone, picture alone, or both');
+});
+
+test('server: a ticket created with an uploaded picture owns it, text-only still works', async () => {
+  const store = await openStore(':memory:');
+  const server = createServer(createApp({ token: TOKEN, store, page }));
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+    const up = await (await fetch(`${base}/api/attachments?name=pasted.png`, { method: 'POST', headers: { authorization: auth.authorization, 'content-type': 'image/png' }, body: png })).json();
+    assert.ok(up.id);
+    const t = await (await fetch(`${base}/api/tickets`, { method: 'POST', headers: auth, body: JSON.stringify({ title: 'Pasted image', body: '', status: 'todo', assignee: 'claude', labels: ['capture'], attachments: [up.id] }) })).json();
+    assert.equal(t.labels[0], 'capture');
+    const got = await (await fetch(`${base}/api/tickets/${t.key}`, { headers: auth })).json();
+    assert.ok(JSON.stringify(got).includes('pasted.png') || JSON.stringify(got).includes(String(up.id)), 'the picture is on the ticket');
+    const plain = await fetch(`${base}/api/tickets`, { method: 'POST', headers: auth, body: JSON.stringify({ title: 'idea', body: 'idea', status: 'todo', labels: ['capture'] }) });
+    assert.equal(plain.status, 201);
+  } finally {
+    server.close();
+  }
 });
 
 test('page: Escape closes, Ctrl or Cmd+Enter sends, and an unsent note is kept', () => {
