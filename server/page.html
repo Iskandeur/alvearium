@@ -79,6 +79,22 @@
       background: var(--card); outline: none;
     }
     .search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    /* 0.10.0: the query language: its help at the end of the bar, what it could not read under it */
+    .search input { padding-right: 34px; }
+    .search .qHelpBtn {
+      position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; border-radius: 6px;
+      border: 0; background: none; color: var(--faint); font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .search .qHelpBtn:hover, .search .qHelpBtn:focus-visible { background: var(--chip); color: var(--accent); }
+    .search input::-webkit-search-cancel-button { margin-right: 4px; }
+    .qErr { font-size: 12.5px; color: var(--danger); padding-top: 2px; padding-bottom: 6px; line-height: 1.5; }
+    .qErr[hidden] { display: none; }
+    .qErr .linkBtn { margin-left: 6px; font-size: 12.5px; }
+    .help .qEx { border: 1px solid var(--line-strong); background: var(--chip); border-radius: 6px; padding: 2px 6px; cursor: pointer; text-align: left; max-width: 100%; }
+    .help .qEx:hover { border-color: var(--accent); }
+    .help .qEx code { font-size: 12px; white-space: nowrap; }
+    .help.qHelp .rowH { grid-template-columns: minmax(150px, auto) minmax(0, 1fr); }
+    @media (max-width: 600px) { .help.qHelp .rowH { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
     .summary { margin-left: auto; display: flex; align-items: center; gap: 14px; color: var(--faint); font-size: 13px; white-space: nowrap; }
     .summary b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
     .summary .hot b { color: var(--accent); }
@@ -993,7 +1009,8 @@
       </div>
       <label class="search">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.6"/><path d="m11 11 3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <input id="q" type="search" placeholder="Search tickets, comments, keys…" autocomplete="off" spellcheck="false" aria-label="Search" data-i18n-attr="placeholder,aria-label">
+        <input id="q" type="search" placeholder="Search, or status:todo p:P1 -label:x…" autocomplete="off" spellcheck="false" aria-label="Search" aria-describedby="qErr" data-i18n-attr="placeholder,aria-label">
+        <button type="button" class="qHelpBtn" data-act="queryHelp" aria-label="Search syntax" title="Search syntax" data-i18n-attr="aria-label,title">?</button>
       </label>
       <div class="summary">
         <span id="summary"></span>
@@ -1014,6 +1031,7 @@
         <span data-i18n>New</span>
       </button>
     </div>
+    <div class="wrap qErr" id="qErr" role="status" hidden></div>
     <div class="wrap filters" id="filters"></div>
   </header>
 
@@ -1124,7 +1142,7 @@
     };
     const I18N_FR = {
       // fixed markup
-      'Search tickets, comments, keys…': 'Chercher dans les tickets, commentaires, clés…',
+      'Search, or status:todo p:P1 -label:x…': 'Chercher, ou status:todo p:P1 -label:x…',
       'Search': 'Rechercher',
       'Connecting': 'Connexion',
       'Feedback inbox: bugs, suggestions and frictions reported by sessions': 'Boîte des retours : bugs, suggestions et frictions signalés par les sessions',
@@ -1132,6 +1150,41 @@
       'Members, roles, invitations and your tokens': 'Membres, rôles, invitations et tes jetons',
       'Members': 'Membres',
       'Shortcuts and gestures': 'Raccourcis et gestes',
+      // the query language (0.10.0): the field names and values stay as typed, in English
+      'Search syntax': 'Syntaxe de recherche',
+      'Search {q}': 'Chercher {q}',
+      'Did you mean {suggestion}?': 'Tu voulais dire {suggestion} ?',
+      'Did you mean “{suggestion}”?': 'Tu voulais dire « {suggestion} » ?',
+      'No filter is called “{field}”: searched as text.': 'Aucun filtre ne s’appelle « {field} » : cherché comme du texte.',
+      '“{value}” is not a {field}: that filter is left out.': '« {value} » n’est pas une valeur de {field} : ce filtre est ignoré.',
+      'No ticket has the type “{value}” yet.': 'Aucun ticket n’a encore le type « {value} ».',
+      '{field} does not take “{op}”: that filter is left out.': '{field} n’accepte pas « {op} » : ce filtre est ignoré.',
+      '“{value}” is not a date (2026-10-01, today, 7d…): that filter is left out.': '« {value} » n’est pas une date (2026-10-01, today, 7d…) : ce filtre est ignoré.',
+      '“{field}:” needs a value: that filter is left out.': '« {field}: » attend une valeur : ce filtre est ignoré.',
+      'A quote is not closed: the rest is read as one phrase.': 'Un guillemet n’est pas fermé : la suite est lue comme une seule phrase.',
+      'A parenthesis has no partner: it is ignored.': 'Une parenthèse n’a pas sa paire : elle est ignorée.',
+      'OR needs something on each side: it is ignored.': 'OR attend quelque chose de chaque côté : il est ignoré.',
+      'The query is too long: the end is ignored.': 'La requête est trop longue : la fin est ignorée.',
+      'The basics': 'L’essentiel',
+      'Fields': 'Les champs',
+      'Every word, anywhere in the ticket (title, description, comments, labels), as before.': 'Chaque mot, n’importe où dans le ticket (titre, description, commentaires, étiquettes), comme avant.',
+      'These words side by side.': 'Ces mots côte à côte.',
+      'A filter: field, colon, value.': 'Un filtre : champ, deux-points, valeur.',
+      'A minus leaves out (NOT works too).': 'Un moins exclut (NOT aussi).',
+      'A comma: any of these values.': 'Une virgule : l’une de ces valeurs.',
+      'OR: either side. Spaces mean AND; OR joins the two terms beside it.': 'OR : l’un ou l’autre. Les espaces valent ET ; OR relie les deux termes qui l’entourent.',
+      'Parentheses group.': 'Les parenthèses regroupent.',
+      'is: open, closed, blocked, unblocked, archived, or a status.': 'is : open, closed, blocked, unblocked, archived, ou un statut.',
+      'status (s): todo, in_progress, waiting_on_user, review, failed, on_hold, done, cancelled, open, closed.': 'status (s, statut) : todo, in_progress, waiting_on_user, review, failed, on_hold, done, cancelled, open, closed.',
+      'priority (p): P0 to P3 or none; < and > compare (P0 comes first), P1..P2 is a range.': 'priority (p, priorité) : P0 à P3 ou none ; < et > comparent (P0 passe en premier), P1..P2 est un intervalle.',
+      'assignee (to), author (by), actor (either): an actor id, me, or a prefix with * (lupi/*).': 'assignee (to, pour), author (by, par), actor (l’un ou l’autre) : un acteur, me, ou un début suivi de * (lupi/*).',
+      'label (#): a label; type (kind), subtype, importance, origin, source.': 'label (#, étiquette) : une étiquette ; type (kind), subtype, importance, origin, source.',
+      'repo, branch, machine, session: a value, a prefix with *, or none.': 'repo, branch, machine, session : une valeur, un début suivi de *, ou none.',
+      'created, updated, closed: a day (2026-10-01), today, a range (a..b), or an age (30m, 12h, 7d, 2w, 3mo): <7d is less than 7 days ago, >7d more.': 'created, updated, closed : un jour (2026-10-01), today, un intervalle (a..b), ou un âge (30m, 12h, 7d ou 7j, 2w, 3mo) : <7d = il y a moins de 7 jours, >7d = plus.',
+      'has: / no: priority, label, repo, branch, parent, session, importance, pr, blocker, children.': 'has: / no: priority, label, repo, branch, parent, session, importance, pr, blocker, children.',
+      'key, parent: a ticket key or number; key takes < > and ranges.': 'key, parent : une clé de ticket ou son numéro ; key accepte < > et les intervalles.',
+      'title, body: the text contains these characters.': 'title, body : le texte contient ces caractères.',
+      'Field names and values ignore case and accents. A query the board cannot read says why under the bar; it never empties the board in silence. Tap an example to try it.': 'Les noms de champ et les valeurs ignorent la casse et les accents. Une requête que le tableau ne sait pas lire le dit sous la barre ; elle ne vide jamais le tableau en silence. Touche un exemple pour l’essayer.',
       'Shortcuts and gestures (?)': 'Raccourcis et gestes (?)',
       'New': 'Nouveau',
       'Quick capture': 'Capture rapide',
@@ -2624,6 +2677,7 @@
             else data = await api('tickets/board' + query());
             await loadUnread();
             renderFilters();
+            renderQueryErrors(data.query);
           } catch (e) {
             if (e.message !== 'locked') live('off', 'Offline');
             return;
@@ -3892,6 +3946,12 @@
         if (act === 'avRemove') return removeAvatar();
         if (act === 'inviteCopy') { navigator.clipboard?.writeText($('inviteToken').textContent); return toast('Copied'); }
         if (act === 'inviteContinue') { $('invite').hidden = true; $('inviteToken').textContent = ''; return boot(); }
+        if (act === 'queryHelp') return openHelp(renderQueryHelp, tr('Search syntax'), 'qHelp');
+        if (act === 'queryTry') {
+          // A corrected query, or an example from the syntax help: it goes into the bar and runs.
+          if (!$('help').hidden) closeHelp();
+          return setQuery(el.dataset.q || '');
+        }
         if (act === 'clear') {
           state.f = {};
           state.q = '';
@@ -4120,9 +4180,80 @@
               ${inForm.map(row).join('')}
             </div>
           </div>
-          <div class="helpFoot"><span>Alvearium ${esc(served.version || '')}</span>${served.releases.length ? `<button type="button" class="linkBtn" data-act="newsAll">${tr("What's new")}</button>` : ''}</div>`;
+          <div class="helpFoot"><span>Alvearium ${esc(served.version || '')}</span><button type="button" class="linkBtn" data-act="queryHelp">${tr('Search syntax')}</button>${served.releases.length ? `<button type="button" class="linkBtn" data-act="newsAll">${tr("What's new")}</button>` : ''}</div>`;
       }
       $('helpScrim').addEventListener('click', () => closeHelp());
+
+      // ---- the search bar's query language (0.10.0, lib/query.mjs) ---------------------------------
+      function setQuery(q) {
+        $('q').value = q;
+        state.q = q.trim();
+        listLimit = 100;
+        writeUrl(true);
+        renderFilters();
+        refresh();
+        $('q').focus();
+      }
+      /** One problem of the query, in words: what was wrong, and what the board did instead. */
+      function queryProblem(e) {
+        const s = { field: e.field || '', value: e.value || '', op: e.op || '', suggestion: e.suggestion || '' };
+        const m = {
+          unknown_field: 'No filter is called “{field}”: searched as text.',
+          bad_value: '“{value}” is not a {field}: that filter is left out.',
+          unknown_kind: 'No ticket has the type “{value}” yet.',
+          bad_operator: '{field} does not take “{op}”: that filter is left out.',
+          bad_date: '“{value}” is not a date (2026-10-01, today, 7d…): that filter is left out.',
+          empty_value: '“{field}:” needs a value: that filter is left out.',
+          unclosed_quote: 'A quote is not closed: the rest is read as one phrase.',
+          unmatched_paren: 'A parenthesis has no partner: it is ignored.',
+          dangling_or: 'OR needs something on each side: it is ignored.',
+          too_many: 'The query is too long: the end is ignored.',
+        }[e.code];
+        let out = m ? tr(m, s) : e.code;
+        if (e.suggestion && e.code !== 'bad_value' && e.code !== 'unknown_kind') out += ' ' + tr('Did you mean {suggestion}?', s);
+        else if (e.suggestion) out += ' ' + tr('Did you mean “{suggestion}”?', s);
+        return out;
+      }
+      /** Under the bar: what the board could not read in the query, and the corrected query to run in one tap. */
+      function renderQueryErrors(info) {
+        const box = $('qErr');
+        const errs = state.q && info?.errors?.length ? info.errors : [];
+        box.hidden = !errs.length;
+        if (!errs.length) return setHtml(box, '');
+        const fix = info.fix ? ` <button type="button" class="linkBtn" data-act="queryTry" data-q="${esc(info.fix)}">${esc(tr('Search {q}', { q: info.fix }))}</button>` : '';
+        setHtml(box, `<span>${errs.slice(0, 3).map((e) => esc(queryProblem(e))).join(' ')}</span>${fix} <button type="button" class="linkBtn" data-act="queryHelp">${esc(tr('Search syntax'))}</button>`);
+      }
+      function renderQueryHelp() {
+        const ex = (q, desc) => `<div class="rowH"><div class="keys"><button type="button" class="qEx" data-act="queryTry" data-q="${esc(q)}"><code>${esc(q)}</code></button></div><div class="desc">${esc(tr(desc))}</div></div>`;
+        const basics = [
+          ['login crash', 'Every word, anywhere in the ticket (title, description, comments, labels), as before.'],
+          ['"login page"', 'These words side by side.'],
+          ['status:todo', 'A filter: field, colon, value.'],
+          ['-label:noise', 'A minus leaves out (NOT works too).'],
+          ['status:todo,review', 'A comma: any of these values.'],
+          ['p:P0 OR label:urgent', 'OR: either side. Spaces mean AND; OR joins the two terms beside it.'],
+          ['(p:P0 OR p:P1) is:blocked', 'Parentheses group.'],
+        ];
+        const fields = [
+          ['is:open', 'is: open, closed, blocked, unblocked, archived, or a status.'],
+          ['status:in_progress', 'status (s): todo, in_progress, waiting_on_user, review, failed, on_hold, done, cancelled, open, closed.'],
+          ['p:<=P1', 'priority (p): P0 to P3 or none; < and > compare (P0 comes first), P1..P2 is a range.'],
+          ['assignee:me', 'assignee (to), author (by), actor (either): an actor id, me, or a prefix with * (lupi/*).'],
+          ['#vigie', 'label (#): a label; type (kind), subtype, importance, origin, source.'],
+          ['repo:alvearium', 'repo, branch, machine, session: a value, a prefix with *, or none.'],
+          ['updated:<7d', 'created, updated, closed: a day (2026-10-01), today, a range (a..b), or an age (30m, 12h, 7d, 2w, 3mo): <7d is less than 7 days ago, >7d more.'],
+          ['no:priority', 'has: / no: priority, label, repo, branch, parent, session, importance, pr, blocker, children.'],
+          ['key:ALV-10..ALV-20', 'key, parent: a ticket key or number; key takes < > and ranges.'],
+          ['title:deploy', 'title, body: the text contains these characters.'],
+        ];
+        $('help').innerHTML = `
+          <div class="helpHead"><h3>${tr('Search syntax')}</h3><button type="button" class="x" id="helpClose" data-act="helpClose" aria-label="${tr('Close')}">×</button></div>
+          <div class="cols">
+            <div><h4>${tr('The basics')}</h4>${basics.map((x) => ex(...x)).join('')}</div>
+            <div><h4>${tr('Fields')}</h4>${fields.map((x) => ex(...x)).join('')}</div>
+          </div>
+          <p class="helpNote">${tr('Field names and values ignore case and accents. A query the board cannot read says why under the bar; it never empties the board in silence. Tap an example to try it.')}</p>`;
+      }
 
       function activeOpenNodes() {
         return [...document.querySelectorAll('#main > :not([hidden]) [data-open]')]
