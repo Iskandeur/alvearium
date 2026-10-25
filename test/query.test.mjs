@@ -138,6 +138,14 @@ test('query: Kaa review of #83: a negated type keeps the cuts, -5 and "!!" stay 
   }
 });
 
+test('query: a value named like an Object.prototype key is a bad value, not a crash', async () => {
+  for (const q of ['status:constructor', 'status:__proto__', 'is:toString', 'has:hasOwnProperty', 'no:constructor']) {
+    assert.equal(parseQuery(q).errors[0]?.code, 'bad_value', q);
+  }
+  const store = await board();
+  assert.doesNotThrow(() => store.ticketBoard({ q: 'status:constructor login' }));
+});
+
 test('query: closest() finds typos and prefixes, not unrelated words', () => {
   assert.equal(closest('stat', ['status', 'label']), 'status');
   assert.equal(closest('lable', ['status', 'label']), 'label');
