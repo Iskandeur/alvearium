@@ -647,7 +647,8 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
       }
       const actorOf = (r, s) => actorOfAuth(r, s, auth, accounts);
       /** `?unread=1`: only the tickets with a reply the caller has not read. */
-      const withUnread = (f) => (url.searchParams.get('unread') === '1' ? { ...f, unread: actorOf(req, store) } : f);
+      // `me` is who "assignee:me" names in a search (0.10.0): the owner, or the invited member reading.
+      const withUnread = (f) => ({ ...f, me: auth.kind === 'member' ? auth.member : 'user', ...(url.searchParams.get('unread') === '1' ? { unread: actorOf(req, store) } : {}) });
       const mustWrite = () => (can(auth, 'write') ? false : (forbidden(res, 'change the board', auth), true));
       if (extraRoutes?.private && (await extraRoutes.private(req, res, url, { ...ctx, auth, actorOf }))) return;
       if (ticketActions?.private && (await ticketActions.private(req, res, url, { ...ctx, auth, actorOf }))) return;
@@ -702,7 +703,7 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         return send(res, 200, store.setRoi(await jsonBody(req, MAX_ROI_REQUEST), { actor: actorOf(req, store) }));
       }
       if (path === '/api/tickets/next' && m === 'GET') {
-        const f = parseFilters(url.searchParams);
+        const f = { ...parseFilters(url.searchParams), me: auth.kind === 'member' ? auth.member : 'user' };
         if (!url.searchParams.get('limit')) f.limit = 50;
         return send(res, 200, store.nextTickets(f));
       }
