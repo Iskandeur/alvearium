@@ -1,14 +1,77 @@
+<div align="center">
+
 # Alvearium
 
-One live ticket board for all your coding-agent sessions: **Claude Code** (terminal and
-claude.ai/code cloud) and **OpenAI Codex CLI**, and every agent and subagent that works with you.
-It shows what is **waiting on you**, what is **in progress** and what to do **next**. Every ticket
-knows its session, repository, branch, machine and who opened it, so you can look at everything at
-once or at one repo, one session, one agent. The page updates live.
+**You run five coding agents. One board tells you which one is waiting on you.**
 
-- **Claude Code**: a plugin (`claude plugin install alvearium@session-board`, see *Install*).
-- **OpenAI Codex CLI**: the same hooks and MCP server, set up with one script (see
-  [*Use with OpenAI Codex CLI*](#use-with-openai-codex-cli)).
+A live ticket board for **Claude Code** (terminal and claude.ai/code) and **OpenAI Codex CLI**.
+Zero dependencies. Two commands to install. Nothing leaves your machine unless you host a server.
+
+```bash
+claude plugin marketplace add Iskandeur/alvearium
+claude plugin install alvearium@session-board
+```
+
+![The board: what waits on you, what is in progress, what is next](docs/screenshots/board-desktop-light.png)
+
+</div>
+
+## Why you want it
+
+Agents stop and ask: approve a command, add a secret, pick between two options, review a PR. The
+question scrolls away in a terminal you are not looking at, and the agent sits idle for hours.
+
+- **Nothing waits unseen.** Every session becomes a ticket. When one needs you, it jumps to the
+  *Waiting on you* lane, with the exact question and the buttons to answer it.
+- **One place for every agent.** Many sessions, many repos, many machines, Claude and Codex, one
+  board. Filter by repo, session, agent or person.
+- **Agents plan with you.** They file tickets for what only you can do, split long work into
+  steps with priorities and dependencies, and pick the next unblocked one themselves.
+- **Your queue, ordered.** *Next* says what to do now, and the *Matrix* sorts your open tickets
+  on the important × urgent grid.
+- **Live, on your phone too.** The page updates as things happen, in light and dark, desktop and
+  phone, in English and French.
+- **Yours.** Local mode keeps a SQLite file under `~/.claude/`. A self-hosted server (one Node
+  process, one Docker image) adds sharing, members and invitations.
+
+## See it
+
+| Answer in one tap | Do the important thing first |
+| :-: | :-: |
+| <img src="docs/screenshots/waiting-lane-mobile-light.png" alt="The Waiting on you lane on a phone: questions with Yes / No and A / B / C buttons" width="260"> | <img src="docs/screenshots/matrix-desktop-light.png" alt="The matrix: Do now, Schedule, Clear fast, Later" width="520"> |
+| Agents ask a question with its options and a default; you answer from the lane. | Urgent × important, computed from deadlines, waiting time and your priorities. |
+
+| What is next | Tickets that wait for the world |
+| :-: | :-: |
+| <img src="docs/screenshots/next-desktop-light.png" alt="The Next view" width="400"> | <img src="docs/screenshots/on-hold-panel-desktop-light.png" alt="A ticket on hold until a pull request is merged" width="400"> |
+| Open, unblocked tickets by priority and by what they unblock. | A ticket can sleep until a PR is merged, a date comes, or you reply, then wake an agent. |
+
+| Dependencies and history | Replies and hand-overs |
+| :-: | :-: |
+| <img src="docs/screenshots/detail-deps-desktop-light.png" alt="A ticket with its dependencies and its who-to-whom history" width="400"> | <img src="docs/screenshots/replies-board-desktop-light.png" alt="Two unread replies on the board" width="400"> |
+| Blocked tickets say by what; every change says who made it. | Unread replies surface on the board, filtered by the actor they are for. |
+
+More in [`docs/screenshots`](docs/screenshots): the feedback inbox, members and invitations,
+dark mode, the phone layouts, and a change made in one tab showing up in another without a reload.
+
+## Quick start
+
+1. **Install** (Node.js 22.13 or later on your `PATH`):
+   ```bash
+   claude plugin marketplace add Iskandeur/alvearium
+   claude plugin install alvearium@session-board
+   ```
+2. **Restart your open Claude Code sessions**: a plugin loads when a session starts.
+3. **Look**: type `/board` in a session. Tickets for your sessions are already there.
+4. **Ask for work to be tracked**: *"Split this migration into steps and file a ticket for anything
+   I have to do."* The agent files them; `/ticket next` shows what is left.
+5. **Want the web page, sharing or a phone view?** Host the server (one Docker image): see
+   [*The web page*](#the-web-page) and [*Pointing a machine at a server*](#pointing-a-machine-at-a-server).
+   **Codex CLI?** One script: [*Use with OpenAI Codex CLI*](#use-with-openai-codex-cli).
+
+Everything below is the reference: what runs, what it reads and sends, every view, every setting.
+
+## What it looks like in a terminal
 
 ```
 WAITING ON YOU (3)
@@ -27,11 +90,6 @@ TO DO (4)
   …
 ```
 
-![The board, with priorities, a blocked ticket and the avatars of who holds each ticket](docs/screenshots/board-desktop-light.png)
-
-More in [`docs/screenshots`](docs/screenshots): the *Next* view, a ticket with its dependencies and
-its *who → whom* history, the feedback inbox, light and dark, desktop and phone, and a change made in
-one tab showing up in another without a reload.
 
 ## What Alvearium runs, reads and sends
 
