@@ -1086,6 +1086,7 @@
   <div class="qcScrim" id="qcScrim" hidden></div>
   <form class="qc" id="qc" hidden role="dialog" aria-modal="true" aria-label="Quick capture" data-i18n-attr="aria-label">
     <textarea id="qcText" name="text" rows="6" placeholder="What is on your mind?" aria-label="Your note" autocomplete="off" autocapitalize="sentences" enterkeyhint="enter" maxlength="20000" data-i18n-attr="placeholder,aria-label"></textarea>
+    <div class="pend" id="qcPics"></div>
     <div class="qcActs">
       <span class="qcMsg" id="qcMsg" role="status"></span>
       <button type="button" class="btn ghost" id="qcCancel" data-i18n>Cancel</button>
@@ -1134,6 +1135,8 @@
       'Shortcuts and gestures (?)': 'Raccourcis et gestes (?)',
       'New': 'Nouveau',
       'Quick capture': 'Capture rapide',
+      'Pasted image': 'Image collée',
+      'A file is still uploading': 'Un fichier est encore en cours d’envoi',
       'Quick capture: jot an idea down': 'Capture rapide : note une idée',
       'What is on your mind?': 'Qu’as-tu en tête ?',
       'Your note': 'Ta note',
@@ -3330,9 +3333,9 @@
         try { maxBytes = Number((await api('version')).attachments?.max_bytes) || 25 * 1048576; } catch { maxBytes = 25 * 1048576; }
         return maxBytes;
       }
-      const pendTarget = () => ($('panel').querySelector('#cform') ? '' : state.ticket || null);
+      const pendTarget = () => ($('qc').hidden ? ($('panel').querySelector('#cform') ? '' : state.ticket || null) : 'qc');
       function renderPending() {
-        const box = $('pendingPics');
+        const box = $(pendTarget() === 'qc' ? 'qcPics' : 'pendingPics');
         if (!box) return;
         box.innerHTML = (pendingFor === pendTarget() ? pendingPics : []).map((p, i) => `<span class="fchip${p.id ? '' : ' up'}" title="${esc(p.name)}">${p.url ? `<img src="${esc(p.url)}" alt="">` : `<span class="fic">${ICON_FILE}</span>`}<span class="fn">${esc(p.name)}</span><span class="fs">${p.id ? esc(fileSize(p.size)) : 'sending…'}</span><button type="button" data-act="dropPic" data-i="${i}" aria-label="Remove ${esc(p.name)}" title="Remove">×</button></span>`).join('');
       }
@@ -3351,7 +3354,7 @@
           pendingPics.push(item);
           renderPending();
           try {
-            const path = target ? `api/tickets/${encodeURIComponent(target)}/attachments` : 'api/attachments';
+            const path = target && target !== 'qc' ? `api/tickets/${encodeURIComponent(target)}/attachments` : 'api/attachments';
             const res = await fetch(`${path}?name=${queryName(name)}`, { method: 'POST', headers: { ...headers(), 'content-type': f.type || 'application/octet-stream' }, body: f });
             const data = await res.json().catch(() => ({}));
             if (res.status === 401) { locked(); return; }
@@ -3991,14 +3994,14 @@
       });
       // Paste a screenshot (or copied files) into the comment, or anywhere in the new ticket form.
       document.addEventListener('paste', (e) => {
-        if (e.target?.id !== 'comment' && !e.target?.closest?.('#cform')) return;
+        if (e.target?.id !== 'comment' && e.target?.id !== 'qcText' && !e.target?.closest?.('#cform')) return;
         const files = [...(e.clipboardData?.files || [])];
         if (!files.length) return;
         e.preventDefault();
         addPendingPics(files);
       });
       // Drop files on the comment box or the new ticket form. Card reordering (below) carries no files.
-      const dropZone = (e) => (e.dataTransfer && [...e.dataTransfer.types].includes('Files') ? e.target.closest?.('.compose, #cform') : null);
+      const dropZone = (e) => (e.dataTransfer && [...e.dataTransfer.types].includes('Files') ? e.target.closest?.('.compose, #cform, #qc') : null);
       document.addEventListener('dragover', (e) => {
         const z = dropZone(e);
         document.querySelectorAll('.dropping').forEach((x) => x !== z && x.classList.remove('dropping'));
@@ -4356,13 +4359,18 @@
         if (captureBusy) return;
         const text = $('qcText').value.trim();
         const msg = $('qcMsg');
-        if (!text) { msg.classList.add('err'); msg.textContent = tr('Write something first.'); return $('qcText').focus(); }
+        const pics = pendingFor === 'qc' ? pendingIds() : [];
+        if (pendingFor === 'qc' && pendingBusy()) { msg.classList.add('err'); msg.textContent = tr('A file is still uploading'); return; }
+        if (!text && !pics.length) { msg.classList.add('err'); msg.textContent = tr('Write something first.'); return $('qcText').focus(); }
         captureBusy = true;
         $('qcSend').disabled = true;
         msg.classList.remove('err');
         msg.textContent = '';
         try {
-          const t = await api('tickets', { title: captureTitle(text), body: text, status: 'todo', assignee: captureAssignee, labels: ['capture'] });
+          const t = await api('tickets', { title: captureTitle(text) || tr('Pasted image'), body: text, status: 'todo', assignee: captureAssignee, labels: ['capture'], ...(pics.length ? { attachments: pics } : {}) });
+          pendingPics = [];
+          pendingFor = null;
+          renderPending();
           $('qcText').value = '';
           try { localStorage.removeItem(QC_DRAFT); } catch { /* ignore */ }
           closeCapture();
