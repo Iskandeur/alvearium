@@ -23,6 +23,7 @@ resolves to the same ticket.
 | `ticket_next` | pick what to do: open, unblocked tickets of this repo by priority (`assignee: "me"` for yours) |
 | `ticket_list` | list tickets: this session (default), `scope: "repo"` or `scope: "all"` |
 | `ticket_comment` | a progress note or an answer (`to` names who it is for) |
+| `ticket_message` | record that you messaged someone about the ticket outside the board (`channel`: slack, email, sms…; `peer`: who; optional short `excerpt`): it shows in the history, it sends nothing |
 | `ticket_get` | one ticket with its history (`full: true` for every comment in full) |
 | `ticket_attachment` | look at a picture attached to a comment (`ticket_get` lists them with their id): check them before you ask the human for a screenshot |
 | `ticket_hold` | park a ticket until something happens (other tickets closed, a PR merged, a date, a reply) |

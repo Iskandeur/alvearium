@@ -1,6 +1,6 @@
 ---
 name: tickets
-description: Track action items and work steps as tickets on the Alvearium board (Alvearium MCP tools ticket_create, ticket_update, ticket_next, ticket_list, ticket_comment, ticket_get, board_feedback). Use when the user must do something outside this conversation, when a task is long enough to split into steps (with priorities and dependencies), to pick what to do next, when asked what is left, and to report anything that wastes your time.
+description: Track action items and work steps as tickets on the Alvearium board (Alvearium MCP tools ticket_create, ticket_update, ticket_next, ticket_list, ticket_comment, ticket_message, ticket_get, board_feedback). Use when the user must do something outside this conversation, when a task is long enough to split into steps (with priorities and dependencies), to pick what to do next, when asked what is left, and to report anything that wastes your time.
 ---
 
 # Tickets on the Alvearium board
@@ -85,6 +85,9 @@ same one twice in a session, and do not use it for the user's own tasks (those a
   one-line `comment` saying what was done). Cancelled work: `status: "cancelled"` with the reason.
 - Handing something over? Change the `assignee` (to `user`, `claude`, `codex`, or another agent's id): the
   history shows who gave it to whom. `ticket_comment` takes an optional `to` for the same reason.
+- Messaged someone about a ticket outside the board (chat, mail, SMS)? `ticket_message` with the `channel`,
+  the `peer` (a name or a role, not an address or a phone number) and, if nothing private is in it, a short
+  `excerpt`: the history shows it. It sends nothing.
 - Before ending a long piece of work, or when the user asks "what's left?", call `ticket_list`
   (default scope: this session; `scope: "repo"` for the whole repository) and report what is open.
 - Write titles as short imperatives the user can act on without context. Labels are lowercase words

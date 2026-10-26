@@ -386,7 +386,7 @@ test('README and AGENTS.md: the Codex section exists and says what does not work
   assert.match(section, /\/hooks/);
   assert.match(section, /What does not work/i);
   const agents = readFileSync(join(ROOT, 'AGENTS.md'), 'utf8');
-  for (const tool of ['ticket_create', 'ticket_update', 'ticket_next', 'ticket_list', 'ticket_comment', 'ticket_get', 'ticket_attachment', 'ticket_hold', 'board_feedback']) assert.match(agents, new RegExp(tool), tool);
+  for (const tool of ['ticket_create', 'ticket_update', 'ticket_next', 'ticket_list', 'ticket_comment', 'ticket_message', 'ticket_get', 'ticket_attachment', 'ticket_hold', 'board_feedback']) assert.match(agents, new RegExp(tool), tool);
   assert.match(agents, /npm test/);
   assert.match(readFileSync(join(ROOT, 'CLAUDE.md'), 'utf8'), /@AGENTS\.md/);
 });

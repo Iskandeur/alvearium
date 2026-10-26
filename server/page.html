@@ -496,6 +496,7 @@
     .ev { position: relative; font-size: 13px; color: var(--muted); }
     .ev::before { content: ""; position: absolute; left: -18px; top: 6px; width: 9px; height: 9px; border-radius: 50%; background: var(--card); border: 1.5px solid var(--line-strong); }
     .ev.comment::before { background: var(--accent); border-color: var(--accent); }
+    .ev.message .msgIcon { font-size: 12px; }
     .ev b { color: var(--text); font-weight: 500; }
     .ev time { color: var(--faint); font-size: 12px; margin-left: 6px; }
     .ev .said { margin-top: 4px; padding: 8px 10px; background: var(--lane); border-radius: 8px; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -1437,6 +1438,8 @@
       'reopened it': 'l’a rouvert',
       'moved it': 'l’a déplacé',
       '{who} handed it over': '{who} l’a confié',
+      '{by} sent a message to {peer} on {channel}': '{by} a envoyé un message à {peer} sur {channel}',
+      '{by} logged a message from {peer} on {channel}': '{by} a noté un message de {peer} sur {channel}',
       '{by} edited {what}': '{by} a modifié {what}',
       'it': 'le ticket',
       'Remove this dependency': 'Retirer cette dépendance',
@@ -3324,6 +3327,19 @@
         const groups = [...new Set(opts.filter((o) => o[2]).map((o) => o[2]))];
         return `<select name="${name}">${opts.filter((o) => !o[2]).map(opt).join('')}${groups.map((g) => `<optgroup label="${esc(g)}">${opts.filter((o) => o[2] === g).map(opt).join('')}</optgroup>`).join('')}</select>`;
       };
+      // ---- external messages
+      /** The icon of a channel an external message went through: a known kind of channel, else a neutral envelope. */
+      const CHANNEL_ICONS = {
+        email: '✉️', mail: '✉️', gmail: '✉️', outlook: '✉️',
+        sms: '📱', whatsapp: '📱', signal: '📱', telegram: '📱', imessage: '📱',
+        slack: '💬', teams: '💬', discord: '💬', matrix: '💬', mattermost: '💬', chat: '💬', irc: '💬',
+        phone: '📞', call: '📞', voice: '📞',
+        github: '🐙', gitlab: '🦊',
+      };
+      function messageIcon(channel) {
+        return Object.prototype.hasOwnProperty.call(CHANNEL_ICONS, channel) ? CHANNEL_ICONS[channel] : '📨';
+      }
+      // ---- end external messages
       /** "CI bot → You": who acted, and who it was for when there is someone. */
       function fromTo(e) {
         return who(e.actor) + (e.target ? `<span class="arrow">→</span>${who(e.target)}` : '');
@@ -3438,6 +3454,12 @@
         if (e.type === 'assigned') return `<div class="ev">${who(e.actor)} handed it over<span class="arrow">→</span>${who(e.target || e.text)}${at}</div>`;
         if (e.type === 'edit') return `<div class="ev">${by} edited ${esc(e.text || 'it')}${at}</div>`;
         if (e.type === 'agent') return `<div class="ev agent">${by} ${md(e.text || '')}${at}</div>`;
+        if (e.type === 'external_message' && e.message) {
+          const m = e.message;
+          const sent = Number.isFinite(m.at) ? `<time title="${esc(new Date(m.at).toLocaleString(tr.locale))}">${esc(when(m.at))}</time>` : at;
+          const what = tr(m.direction === 'in' ? '{by} logged a message from {peer} on {channel}' : '{by} sent a message to {peer} on {channel}', { by: who(e.actor), peer: `<b>${esc(m.peer)}</b>`, channel: esc(m.channel) });
+          return `<div class="ev message" data-channel="${esc(m.channel)}"><span class="msgIcon" aria-hidden="true">${messageIcon(m.channel)}</span> ${what}${sent}${e.text ? `<div class="said">${esc(e.text)}</div>` : ''}</div>`;
+        }
         return `<div class="ev ${esc(e.type)}">${by} ${md(e.text || e.type)}${at}</div>`;
       }
       function depList(list, rel) {
