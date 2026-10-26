@@ -93,6 +93,12 @@ test('store: the same message replayed within a few seconds is recorded once; la
   clock.t += 60_000;
   store.updateTicket(tk.key, { message: m }, { actor: 'claude' });
   assert.equal(messages(store.getTicket(tk.key)).length, 4);
+  // A retry without `at` takes the time of the call: still a replay.
+  clock.t += 60_000;
+  store.updateTicket(tk.key, { message: { channel: 'email', peer: 'Sam' } }, { actor: 'claude' });
+  clock.t += 3000;
+  store.updateTicket(tk.key, { message: { channel: 'email', peer: 'Sam' } }, { actor: 'claude' });
+  assert.equal(messages(store.getTicket(tk.key)).length, 5);
 });
 
 test('store: a bad message is refused whole, nothing else of the update is applied', async () => {
