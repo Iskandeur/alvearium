@@ -63,7 +63,7 @@ test('mcp over stdio: initialize, tools/list, ticket_create attached to the curr
     c.notify('notifications/initialized');
 
     const list = await c.request('tools/list', {});
-    assert.deepEqual(list.result.tools.map((t) => t.name), ['ticket_create', 'ticket_update', 'ticket_next', 'board_feedback', 'ticket_list', 'ticket_comment', 'ticket_hold', 'ticket_get', 'ticket_attachment']);
+    assert.deepEqual(list.result.tools.map((t) => t.name), ['ticket_create', 'ticket_update', 'ticket_next', 'board_feedback', 'ticket_list', 'ticket_comment', 'ticket_message', 'ticket_hold', 'ticket_get', 'ticket_attachment']);
     for (const t of list.result.tools) assert.equal(t.inputSchema.type, 'object');
 
     const created = await c.request('tools/call', { name: 'ticket_create', arguments: { title: 'Add the NPM_TOKEN secret to the repo', body: 'Settings → Secrets → Actions', labels: ['ci'] } });

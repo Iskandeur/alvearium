@@ -150,13 +150,19 @@ Tickets come from three places:
    | `SubagentStart`, `SubagentStop` | a line in the session ticket's history: *Claude → Explore: started it*, *Explore → Claude: finished: …* |
 
 2. **Claude, through MCP tools.** The plugin ships a small MCP server (`ticket_create`,
-   `ticket_update`, `ticket_next`, `ticket_list`, `ticket_comment`, `ticket_get`, `ticket_attachment`, `board_feedback`)
+   `ticket_update`, `ticket_next`, `ticket_list`, `ticket_comment`, `ticket_message`, `ticket_get`, `ticket_attachment`, `board_feedback`)
    and a skill telling Claude when to use them: an action item only you can do ("add the
    `STRIPE_KEY` secret", "review PR #412"), a long task split into prioritized sub-tickets with their
    dependencies, what to pick next, what is left at the end, and what wasted its time. Tickets attach
    to the current session and repo by themselves.
 3. **You**, from the web page (create, edit title / status / labels / priority, comment, close,
    sub-tickets) or the terminal (`/ticket`).
+
+When an agent messages someone about a ticket outside the board (a chat, a mail, an SMS), `ticket_message`
+records it in the ticket's history: the channel (`slack`, `email`, `sms`… a short slug of your own), the
+direction (`out`, the default, or `in`), who it went to as a free label, when, and an optional excerpt cut at
+280 characters. The page shows it with an icon for the known kinds of channel and a neutral one otherwise. It
+sends nothing and moves nothing; the API takes it as `{ "message": { … } }` on `POST /api/tickets/:key`.
 
 The hook is one zero-dependency Node script. It never blocks or fails your session: network calls
 time out after 2 s, every error is swallowed, it always exits 0, and hot-path events run `async`.
@@ -1333,7 +1339,7 @@ approval_mode = "approve"
 ```
 
 The tools that only read (`ticket_get`, `ticket_list`, `ticket_next`, `ticket_attachment`) run without asking. The ones
-that write to the board (`ticket_create`, `ticket_update`, `ticket_comment`, `ticket_hold`,
+that write to the board (`ticket_create`, `ticket_update`, `ticket_comment`, `ticket_message`, `ticket_hold`,
 `board_feedback`) ask first, so text from a repository you do not trust cannot make Codex file
 tickets on its own. In an interactive session you answer each prompt. `codex exec` has nobody to ask
 and refuses those calls (*MCP tool call requires approval, but approval policy is never*). For
@@ -1349,7 +1355,7 @@ and lists the session ticket of that run, which the board shows too.
 
 | | Under Codex |
 | :- | :- |
-| Ticket tools | All nine: `ticket_create`, `ticket_update`, `ticket_next`, `ticket_list`, `ticket_comment`, `ticket_get`, `ticket_attachment`, `ticket_hold`, `board_feedback`. `assignee: "me"` is `codex`. Tickets attach to the current Codex session and repo |
+| Ticket tools | All ten: `ticket_create`, `ticket_update`, `ticket_next`, `ticket_list`, `ticket_comment`, `ticket_message`, `ticket_get`, `ticket_attachment`, `ticket_hold`, `board_feedback`. `assignee: "me"` is `codex`. Tickets attach to the current Codex session and repo |
 | Session ticket | `SessionStart`, `UserPromptSubmit`: **in progress**, titled with the first prompt (bracketed header lines of two words or more that a harness puts on top, like `[Usage limits] …`, are skipped; a title stored that way by an older version is not shown, and the board names the session by its id). `Stop`: **review**, with the end of the last reply and its PR link, or **waiting on you** when the reply ends on a question. `SessionEnd`: **done** (a `codex exec` run ends there) |
 | Approval prompts | `PermissionRequest`: a **waiting on you** ticket while Codex asks you to approve a command |
 | Subagents | `SubagentStart`, `SubagentStop`: a line in the session ticket's history |
