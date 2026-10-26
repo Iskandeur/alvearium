@@ -570,6 +570,12 @@
     .qc .qcMsg { flex: 1; font-size: 12.5px; color: var(--muted); min-width: 0; }
     .qc .qcMsg.err { color: var(--danger); }
     .qc .btn { min-height: 40px; }
+    /* 0.9.27: a pasted picture is shown big enough to recognise before it is sent, not as a 22 px speck. */
+    .qc .pend { gap: 8px; }
+    .qc .fchip { flex-direction: column; align-items: flex-start; position: relative; padding: 4px; max-width: 160px; }
+    .qc .fchip img { width: 152px; height: 110px; object-fit: contain; background: var(--bg); border-radius: 6px; }
+    .qc .fchip .fn { max-width: 150px; }
+    .qc .fchip button { position: absolute; top: 6px; right: 6px; background: var(--card); border: 1px solid var(--line-strong); }
     .help {
       position: fixed; left: 50%; top: 12vh; transform: translateX(-50%);
       width: min(680px, calc(100vw - 28px)); max-height: calc(100vh - 24vh);
@@ -4092,8 +4098,12 @@
       });
       // Paste a screenshot (or copied files) into the comment, or anywhere in the new ticket form.
       document.addEventListener('paste', (e) => {
-        if (e.target?.id !== 'comment' && e.target?.id !== 'qcText' && !e.target?.closest?.('#cform')) return;
-        const files = [...(e.clipboardData?.files || [])];
+        // 0.9.27: while Quick capture is open, a paste anywhere on the page goes to it (focus may sit on a button or the backdrop).
+        const inCapture = !$('qc').hidden;
+        if (!inCapture && e.target?.id !== 'comment' && !e.target?.closest?.('#cform')) return;
+        // A screenshot is a file on most browsers, an item on others (Firefox, some Windows clipboards).
+        let files = [...(e.clipboardData?.files || [])];
+        if (!files.length) files = [...(e.clipboardData?.items || [])].filter((i) => i.kind === 'file').map((i) => i.getAsFile()).filter(Boolean);
         if (!files.length) return;
         e.preventDefault();
         addPendingPics(files);

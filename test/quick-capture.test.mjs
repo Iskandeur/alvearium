@@ -36,7 +36,7 @@ test('page: the note is sent as the body, the title is its first line, the label
 test('page: a picture pasted or dropped into the capture box is uploaded and sent with the ticket', () => {
   assert.match(page, /<div class="pend" id="qcPics"><\/div>/);
   assert.match(page, /const pendTarget = \(\) => \(\$\('qc'\)\.hidden \? [^;]*: 'qc'\);/);
-  assert.match(page, /e\.target\?\.id !== 'qcText'/, 'paste in the capture box is handled');
+  assert.match(page, /const inCapture = !\$\('qc'\)\.hidden;/, 'paste in the capture box is handled');
   assert.match(page, /closest\?\.\('\.compose, #cform, #qc'\)/, 'drop on the capture box is handled');
   assert.match(page, /target && target !== 'qc' \? `api\/tickets/, 'a capture has no ticket yet: the file goes to /api/attachments');
   assert.match(page, /if \(!text && !pics\.length\)/, 'text alone, picture alone, or both');
@@ -86,4 +86,10 @@ test('server: /api/version names who gets a capture, claude unless the board say
       server.close();
     }
   }
+});
+
+test('0.9.27: a pasted picture is previewed big and paste works with the capture open wherever the focus is', () => {
+  assert.match(page, /const inCapture = !\$\('qc'\)\.hidden;/, 'an open capture takes the paste, whatever has the focus');
+  assert.match(page, /\.filter\(\(i\) => i\.kind === 'file'\)\.map\(\(i\) => i\.getAsFile\(\)\)/, 'a picture offered as an item, not a file, is read too');
+  assert.match(page, /\.qc \.fchip img \{ width: 152px; height: 110px;/, 'the preview is not a 22 px speck');
 });
