@@ -1752,6 +1752,22 @@
         const oneOff = list.filter((a) => run(a.id)).sort((a, b) => (b.open > 0) - (a.open > 0) || run(b.id) - run(a.id) || by(a, b));
         return { lasting, others: [...dormant, ...oneOff.filter((a) => run(a.id) >= 1).slice(0, 50), ...oneOff.filter((a) => run(a.id) < 1)] };
       };
+      // 0.9.26 (ALV-2857): the ticket detail's Assignee menu. On a real board 0.9.24 still listed 55 entries: every named
+      // run (`bot/wake-news`…) on top of the 10 newest numbered ones, and lasting actors nobody hands work to (a desk
+      // that only writes, a subagent). In the main list: people, and lasting agents that have a name or hold an open
+      // ticket; under « Others »: at most ASSIGNEE_OTHERS of the rest, open work first, then the most recently seen.
+      // The current assignee always stays (in the main list when it is lasting).
+      const ASSIGNEE_OTHERS = 5;
+      const assigneePicks = (list, cur, now = Date.now()) => {
+        const run = runRanker(list.map((a) => a.id));
+        const main = (a) => !run(a.id) && a.type !== 'subagent' && !dormantActor(a, now) && (a.type === 'human' || !!a.name || a.open > 0);
+        const lasting = list.filter((a) => a.id === cur ? !run(a.id) : main(a));
+        const rest = list.filter((a) => !lasting.includes(a)).sort((a, b) => (b.open > 0) - (a.open > 0) || (Number(b.last_seen) || 0) - (Number(a.last_seen) || 0) || run(b.id) - run(a.id));
+        const others = rest.slice(0, ASSIGNEE_OTHERS);
+        const c = rest.find((a) => a.id === cur);
+        if (c && !others.includes(c)) others.push(c);
+        return { lasting, others };
+      };
       const actorIdTitle = (id) => {
         const sid = String(id || '');
         if (!sid || sid === 'user' || sid === 'claude' || sid === 'hook') return '';
@@ -3481,25 +3497,15 @@
       // ---- end of related
       // The people and lasting agents first, by name; one-off runs (`…/job-12`, `…/wake-7`) under « Others », newest
       // first. Two actors with the same name show their id, so « Kaa » and « Kaa » can be told apart.
-      const ASSIGNEE_RUNS = 10;
       const assigneeOpts = (cur) => {
         const rest = [...actors.values()].filter((a) => !['user', 'claude', 'hook'].includes(a.id) && a.type !== 'system');
         const names = new Map();
         for (const a of rest) names.set(actorName(a.id), (names.get(actorName(a.id)) || 0) + 1);
         const label = (a) => (a.type === 'subagent' ? '↳ ' : '') + actorName(a.id) + (names.get(actorName(a.id)) > 1 ? ` (${a.id})` : '');
-        const run = runRanker(actors.keys());
-        const now = Date.now();
         const byName = (a, b) => actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id);
-        const durable = rest.filter((a) => !run(a.id)).sort(byName);
-        const lasting = durable.filter((a) => a.id === cur || !dormantActor(a, now));
-        const dormant = durable.filter((a) => !lasting.includes(a));
-        const oneOff = rest.filter((a) => run(a.id)).sort((a, b) => run(b.id) - run(a.id) || actorName(a.id).localeCompare(actorName(b.id)) || a.id.localeCompare(b.id));
-        // 0.9.17 (ALV-2857): the 10 newest numbered runs, then every named run. A ticket is handed to a person or a lasting
-        // agent; a finished run is rarely the right owner, and 50 of them made a 90-entry menu on a phone. The current
-        // assignee always stays in the list (added below).
-        const shown = [...oneOff.filter((a) => run(a.id) >= 1).slice(0, ASSIGNEE_RUNS), ...oneOff.filter((a) => run(a.id) < 1)];
-        const list = [['user', tr('You')], ['claude', 'Claude'], ...lasting.map((a) => [a.id, label(a)]), ...[...dormant, ...shown].map((a) => [a.id, label(a), tr('Others')])];
-        if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur) + (names.has(actorName(cur)) ? ` (${cur})` : ''), run(cur) ? tr('Others') : undefined]);
+        const { lasting, others } = assigneePicks(rest, cur);
+        const list = [['user', tr('You')], ['claude', 'Claude'], ...lasting.sort(byName).map((a) => [a.id, label(a)]), ...others.map((a) => [a.id, label(a), tr('Others')])];
+        if (cur && !list.some(([v]) => v === cur)) list.push([cur, actorName(cur) + (names.has(actorName(cur)) ? ` (${cur})` : ''), ephemeralActor(cur) ? tr('Others') : undefined]);
         return list;
       };
       // 0.6.0: on hold — what it waits for, what happens then; or the form to put it on hold.

@@ -62,8 +62,8 @@ test('on a phone the panel controls reach 36 px or more, and "Mark done" stays o
   assert.match(css, /#panel \.pHead \.x, #panel \.pHead \.pIcon \{ flex: none; min-width: 40px; \}/);
 });
 
-test('the assignee menu keeps the 10 newest runs, not 50', () => {
-  const code = between('const ASSIGNEE_RUNS = 10;', '// 0.6.0: on hold');
-  assert.match(code, /\.slice\(0, ASSIGNEE_RUNS\)/);
-  assert.doesNotMatch(code, /\.slice\(0, 50\)/);
+test('the assignee menu takes its two lists from assigneePicks, at most 5 under Others (ALV-2857)', () => {
+  const code = between('const assigneeOpts = (cur) => {', '// 0.6.0: on hold');
+  assert.match(code, /assigneePicks\(rest, cur\)/);
+  assert.match(page, /const ASSIGNEE_OTHERS = 5;/);
 });

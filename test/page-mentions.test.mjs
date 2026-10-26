@@ -104,11 +104,41 @@ test('dormant agents (no open ticket, quiet for two weeks) go under Others, peop
   const { lasting, others } = runPicks(list, (id) => id.split('/').pop(), now);
   assert.deepEqual(lasting.map((a) => a.id), ['desk/ferao', 'desk/kaa', 'me']);
   assert.deepEqual(others.map((a) => a.id), ['desk/old-channel', 'desk/job-7'], 'dormant first, then runs');
-  // the ticket detail menu applies it too, and keeps the current assignee in the main list
-  const k = page.indexOf('const assigneeOpts = (cur) => {');
-  const src = page.slice(k, page.indexOf('// 0.6.0: on hold', k));
-  assert.match(src, /dormantActor\(a, now\)/);
-  assert.match(src, /a\.id === cur \|\|/);
+});
+
+test('assignee menu: people and named or busy agents first, at most 5 others, the current assignee kept (ALV-2857)', () => {
+  const i = page.indexOf('const ephemeralActor = (id) => {');
+  const j = page.indexOf('const actorIdTitle = ', i);
+  const assigneePicks = new Function(`${page.slice(i, j)}; return assigneePicks;`)();
+  const now = Date.UTC(2026, 9, 26);
+  const day = 24 * 3600 * 1000;
+  const mk = (id, o = {}) => ({ id, type: 'agent', open: 0, name: null, last_seen: now - day, ...o });
+  // The shape of the board measured on 26/10: named agents, desks that only write, subagents, named and numbered runs.
+  const list = [
+    mk('me', { type: 'human', name: 'Me' }),
+    mk('bot/ruche-dev', { name: 'Ferao', open: 39 }),
+    mk('bot/ruche-secu', { name: 'Sentinelle' }),
+    mk('bot/porte', { open: 1 }), // no name, but it holds work
+    mk('bot/bureau-feedback'), // no name, nothing open: a desk that only writes
+    mk('bot/honeypot', { last_seen: now - 3 * day }),
+    mk('bot/old', { name: 'Old', last_seen: now - 30 * day }), // dormant
+    mk('bot/rc/general-purpose', { type: 'subagent', name: 'general-purpose' }),
+    mk('bot/wake-7', { last_seen: now - 40 * day }), // a numbered wake makes `bot/wake-…` a family of runs
+    ...Array.from({ length: 14 }, (_, n) => mk(`bot/wake-topic${n}`, { last_seen: now - (n + 2) * 3600e3 })),
+    ...Array.from({ length: 400 }, (_, n) => mk(`bot/job-${n + 1}`, { last_seen: now - (500 - n) * 60e3 })),
+  ];
+  list.find((a) => a.id === 'bot/wake-topic9').open = 2;
+  list.find((a) => a.id === 'bot/job-12').open = 1;
+  const { lasting, others } = assigneePicks(list, null, now);
+  assert.deepEqual(lasting.map((a) => a.id).sort(), ['bot/porte', 'bot/ruche-dev', 'bot/ruche-secu', 'me']);
+  assert.equal(others.length, 5, 'at most 5 under Others');
+  assert.deepEqual(others.slice(0, 2).map((a) => a.id).sort(), ['bot/job-12', 'bot/wake-topic9'], 'open work first');
+  assert.equal(others[2].id, 'bot/job-400', 'then the most recently seen');
+  // The current assignee stays: in the main list when lasting, under Others when it is a run.
+  assert.ok(assigneePicks(list, 'bot/honeypot', now).lasting.some((a) => a.id === 'bot/honeypot'));
+  const r = assigneePicks(list, 'bot/job-3', now);
+  assert.equal(r.others.at(-1).id, 'bot/job-3');
+  assert.equal(r.others.length, 6);
 });
 
 test('mentions: @ inside a word is ignored', () => {
