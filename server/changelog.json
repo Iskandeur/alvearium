@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.26",
+      "date": "2026-10-26",
+      "items": [
+        "The Assignee menu of a ticket is shorter: people and the agents that have a name or hold open work come first.",
+        "Under Others, at most five more: open work first, then the most recently seen.",
+        "The current assignee always stays in the menu, wherever it sits."
+      ]
+    },
+    {
       "version": "0.9.25",
       "date": "2026-10-26",
       "items": [
