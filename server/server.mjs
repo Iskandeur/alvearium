@@ -693,7 +693,13 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
       }
       if (path === '/api/tickets' && m === 'GET') return send(res, 200, store.listTickets(withUnread(parseFilters(url.searchParams))));
       if (path === '/api/stream' && m === 'GET') return stream(req, res, store, heartbeatMs, streams, auth);
-      if (path === '/api/tickets/board' && m === 'GET') return send(res, 200, store.ticketBoard(withUnread(parseFilters(url.searchParams)), { me: auth.kind === 'member' ? auth.member : 'user' }));
+      if (path === '/api/tickets/board' && m === 'GET') {
+        const f = withUnread(parseFilters(url.searchParams));
+        // 0.9.25: `limit` caps each column (Done keeps its 30 at most): the page's count line asks `limit=1` and got
+        // every card of every column (700 KB) for five numbers. Without `limit`, the columns are as before.
+        const cap = url.searchParams.get('limit') ? { perColumn: f.limit, doneShown: Math.min(f.limit, 30) } : {};
+        return send(res, 200, store.ticketBoard(f, { me: auth.kind === 'member' ? auth.member : 'user', ...cap }));
+      }
       if (path === '/api/roi') {
         // 0.5.12: lane scores (lib/roi.mjs). Anyone who reads the board reads them; only the owner, or an
         // agent named in BOARD_JOB_ACTORS, posts them (the same trust as the `blocks-job` label).
