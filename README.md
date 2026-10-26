@@ -34,6 +34,30 @@ question scrolls away in a terminal you are not looking at, and the agent sits i
 - **Yours.** Local mode keeps a SQLite file under `~/.claude/`. A self-hosted server (one Node
   process, one Docker image) adds sharing, members and invitations.
 
+## Watch it work
+
+Recorded on a demo board with made-up tickets.
+
+**An agent asks, you answer in one tap.** A ticket arrives while the page is open, with its question,
+its options and what happens if you do not answer. One tap on a button replies, with an Undo.
+
+![A ticket arrives in the Waiting on you lane and is answered with one tap](docs/gifs/board.gif)
+
+**Jot something down, it becomes a ticket.** The round **+** button opens one text box. Send, and the
+ticket is on the board, handed to your assistant.
+
+![Quick capture: type a line, send, the ticket appears in To do](docs/gifs/capture.gif)
+
+**The matrix puts your queue on important × urgent.** Do now, Schedule, Clear fast, Later. Each ticket
+says why it sits where it does; a click opens it.
+
+![The matrix view, then a ticket opened from the grid](docs/gifs/matrix.gif)
+
+**Next tells you what to do now.** Open tickets that nothing blocks, by priority, with what each one
+unblocks and its dependencies in the panel.
+
+![The Next view, then a ticket with its dependencies](docs/gifs/next.gif)
+
 ## See it
 
 | Answer in one tap | Do the important thing first |
