@@ -161,7 +161,7 @@ const TOOLS = [
       properties: {
         key: { type: 'string', description: 'Ticket key, e.g. ALV-12' },
         channel: { type: 'string', description: 'Where the message went: a short slug such as slack, email, sms, whatsapp, teams, discord' },
-        peer: { type: 'string', description: 'Who it went to (or came from), a free label, 80 characters at most' },
+        peer: { type: 'string', description: 'Who it went to (or came from), a free label, 80 characters at most. It is stored and exported as is: prefer a name or a role to an address or a phone number.' },
         direction: { type: 'string', enum: MESSAGE_DIRECTIONS, description: 'out (sent, the default) or in (received)' },
         at: { type: 'string', description: 'When it was sent, ISO 8601; default now' },
         excerpt: { type: 'string', description: `Optional: the start of the message, cut at ${MAX_MESSAGE_EXCERPT} characters. Leave it out for anything private.` },
@@ -433,6 +433,7 @@ export async function callTool(name, args = {}, { backend, context, env = proces
     }
     case 'ticket_message': {
       const { key, ...message } = args;
+      if (typeof key !== 'string' || !key.trim()) throw new Error('ticket_message: "key" is required (the ticket the message was about, e.g. ALV-12)');
       const t = must(await backend.update(String(key), { message }), 'ticket_message');
       // A board older than this tool ignores `message` and answers with the ticket alone: nothing was recorded.
       if (!t.message) throw new Error('ticket_message: the board answered without recording the message (a board older than this tool?). Nothing was saved; update the board server.');

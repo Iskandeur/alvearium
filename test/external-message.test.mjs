@@ -81,6 +81,20 @@ test('store: the message goes into the history and moves nothing else', async ()
   assert.equal(store.updateTicket(tk.key, { priority: 'P2' }, { actor: 'claude' }).message, undefined);
 });
 
+test('store: the same message replayed within a few seconds is recorded once; later, or changed, it is new', async () => {
+  const { store, clock, tk } = await board();
+  const m = { channel: 'slack', peer: 'Dana', at: T0, excerpt: 'Export is live' };
+  store.updateTicket(tk.key, { message: m }, { actor: 'claude' });
+  clock.t += 2000;
+  store.updateTicket(tk.key, { message: m }, { actor: 'claude' });
+  assert.equal(messages(store.getTicket(tk.key)).length, 1, 'a replay');
+  store.updateTicket(tk.key, { message: { ...m, excerpt: 'Export is live again' } }, { actor: 'claude' });
+  store.updateTicket(tk.key, { message: m }, { actor: 'codex' });
+  clock.t += 60_000;
+  store.updateTicket(tk.key, { message: m }, { actor: 'claude' });
+  assert.equal(messages(store.getTicket(tk.key)).length, 4);
+});
+
 test('store: a bad message is refused whole, nothing else of the update is applied', async () => {
   const { store, tk } = await board();
   assert.throws(() => store.updateTicket(tk.key, { status: 'done', message: { channel: 'slack' } }, { actor: 'claude' }), (e) => e.status === 400 && /peer/.test(e.message));
@@ -155,6 +169,11 @@ test('mcp: ticket_message sends { message } through update and says what it reco
   const out = await callTool('ticket_message', { key: 'ALV-7', channel: 'slack', peer: 'Dana', excerpt: 'hi' }, { backend, context: { machine: 'm' } });
   assert.deepEqual(sent, [['ALV-7', { message: { channel: 'slack', peer: 'Dana', excerpt: 'hi' } }]]);
   assert.equal(out, 'Recorded on ALV-7: message to Dana on slack, 2026-10-22 11:05');
+});
+
+test('mcp: ticket_message without a key names the missing parameter', async () => {
+  const backend = { update: async () => assert.fail('nothing is sent') };
+  await assert.rejects(callTool('ticket_message', { channel: 'slack', peer: 'Dana' }, { backend, context: { machine: 'm' } }), /"key" is required/);
 });
 
 test('mcp: ticket_message against a board that ignores `message` says nothing was saved', async () => {

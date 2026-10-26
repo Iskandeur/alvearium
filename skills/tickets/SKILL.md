@@ -86,7 +86,8 @@ same one twice in a session, and do not use it for the user's own tasks (those a
 - Handing something over? Change the `assignee` (to `user`, `claude`, `codex`, or another agent's id): the
   history shows who gave it to whom. `ticket_comment` takes an optional `to` for the same reason.
 - Messaged someone about a ticket outside the board (chat, mail, SMS)? `ticket_message` with the `channel`,
-  the `peer` and, if nothing private is in it, a short `excerpt`: the history shows it. It sends nothing.
+  the `peer` (a name or a role, not an address or a phone number) and, if nothing private is in it, a short
+  `excerpt`: the history shows it. It sends nothing.
 - Before ending a long piece of work, or when the user asks "what's left?", call `ticket_list`
   (default scope: this session; `scope: "repo"` for the whole repository) and report what is open.
 - Write titles as short imperatives the user can act on without context. Labels are lowercase words

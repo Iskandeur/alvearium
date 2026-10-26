@@ -160,7 +160,7 @@ Tickets come from three places:
 
 When an agent messages someone about a ticket outside the board (a chat, a mail, an SMS), `ticket_message`
 records it in the ticket's history: the channel (`slack`, `email`, `sms`… a short slug of your own), the
-direction (`out`, the default, or `in`), who it went to as a free label, when, and an optional excerpt cut at
+direction (`out`, the default, or `in`), who it went to as a free label (a name or a role rather than an address: it is stored as is), when, and an optional excerpt cut at
 280 characters. The page shows it with an icon for the known kinds of channel and a neutral one otherwise. It
 sends nothing and moves nothing; the API takes it as `{ "message": { … } }` on `POST /api/tickets/:key`.
 
