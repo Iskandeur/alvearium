@@ -625,8 +625,7 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
       if (path === '/' && req.method === 'GET') {
         // Not framed by another site: Members has buttons worth clickjacking (revoke, invite).
         res.setHeader('content-security-policy', "frame-ancestors 'self'");
-        res.setHeader('x-frame-options', 'SAMEORIGIN');
-        return send(res, 200, page, 'text/html; charset=utf-8');
+        res.setHeader('x-frame-options', 'SAMEORIGIN');        return send(res, 200, page, 'text/html; charset=utf-8');
       }
       if (!path.startsWith('/api/')) return send(res, 404, { error: 'not found' });
       const m = req.method;

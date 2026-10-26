@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.27",
+      "date": "2026-10-26",
+      "items": [
+        "A picture pasted into Quick capture now shows as a real preview you can recognise, with its name and a cross to remove it before you send.",
+        "Pasting works wherever your cursor is while Quick capture is open, even on a button or the backdrop.",
+        "Every kind of clipboard picture can be pasted."
+      ]
+    },
+    {
       "version": "0.9.26",
       "date": "2026-10-26",
       "items": [
