@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { hostname } from 'node:os';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
-import { FEEDBACK_TYPES, MAX_BODY_CHARS, MAX_COMMENT_CHARS, PRIORITIES, STATUSES, VERSION, actorDisplayName, groupDigits, markdownToTerminal, normalizeActorId, repoFromRemote, textTooLong, truncate } from '../lib/core.mjs';
+import { FEEDBACK_TYPES, MAX_BODY_CHARS, MAX_COMMENT_CHARS, MAX_MESSAGE_EXCERPT, MESSAGE_DIRECTIONS, PRIORITIES, STATUSES, VERSION, actorDisplayName, groupDigits, markdownToTerminal, normalizeActorId, repoFromRemote, textTooLong, truncate } from '../lib/core.mjs';
 import { CLOUD_SETUP_HINT, applyAgentFlag, dataDir, loadConfig, openBackend, sessionForCwd } from '../lib/runtime.mjs';
 import { isEntryPoint } from '../lib/core.mjs';
 
@@ -151,6 +151,25 @@ const TOOLS = [
     },
   },
   {
+    name: 'ticket_message',
+    annotations: WRITES,
+    description:
+      'Record in a ticket\'s history that a message about it was sent (or received) outside the board: chat, mail, SMS… ' +
+      'Use it after you message someone about the ticket, so the history shows it. It moves nothing and notifies no one; it sends nothing either.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        key: { type: 'string', description: 'Ticket key, e.g. ALV-12' },
+        channel: { type: 'string', description: 'Where the message went: a short slug such as slack, email, sms, whatsapp, teams, discord' },
+        peer: { type: 'string', description: 'Who it went to (or came from), a free label, 80 characters at most' },
+        direction: { type: 'string', enum: MESSAGE_DIRECTIONS, description: 'out (sent, the default) or in (received)' },
+        at: { type: 'string', description: 'When it was sent, ISO 8601; default now' },
+        excerpt: { type: 'string', description: `Optional: the start of the message, cut at ${MAX_MESSAGE_EXCERPT} characters. Leave it out for anything private.` },
+      },
+      required: ['key', 'channel', 'peer'],
+    },
+  },
+  {
     name: 'ticket_hold',
     annotations: WRITES,
     description:
@@ -261,6 +280,12 @@ export function attachedLine(a) {
   return `#${a.id} ${a.name || 'file'} (${a.mime || 'unknown type'}, ${human}${dims}), read it with ticket_attachment`;
 }
 
+/** "message to Dana on slack, 2026-10-22 13:05": an external_message event in the text history. */
+export function messageLine(m) {
+  const when = Number.isFinite(m.at) ? `, ${new Date(m.at).toISOString().slice(0, 16).replace('T', ' ')}` : '';
+  return `${m.direction === 'in' ? 'message from' : 'message to'} ${m.peer} on ${m.channel}${when}`;
+}
+
 export function describe(t, { full = false } = {}) {
   const out = [line(t)];
   if (t.parent_key) out.push(`parent: ${t.parent_key} ${t.parent_title || ''}`.trim());
@@ -281,6 +306,8 @@ export function describe(t, { full = false } = {}) {
       const what =
         e.type === 'comment'
           ? `comment:\n${body}`
+          : e.type === 'external_message' && e.message
+            ? `${messageLine(e.message)}${body ? '\n' + body : ''}`
           : e.from_status || e.to_status
             ? `${e.type} ${e.from_status ?? ''}→${e.to_status ?? ''}${body ? '\n' + body : ''}`
             : `${e.type}${body ? '\n' + body : ''}`;
@@ -403,6 +430,13 @@ export async function callTool(name, args = {}, { backend, context, env = proces
       mustFit('ticket_comment', text, MAX_COMMENT_CHARS, 'comment', { trim: true });
       const t = must(await backend.comment(String(args.key), text, args.to ? String(args.to) : undefined), 'ticket_comment');
       return `Commented on ${t.key} (${t.comments_count} comment${t.comments_count === 1 ? '' : 's'})`;
+    }
+    case 'ticket_message': {
+      const { key, ...message } = args;
+      const t = must(await backend.update(String(key), { message }), 'ticket_message');
+      // A board older than this tool ignores `message` and answers with the ticket alone: nothing was recorded.
+      if (!t.message) throw new Error('ticket_message: the board answered without recording the message (a board older than this tool?). Nothing was saved; update the board server.');
+      return `Recorded on ${t.key}: ${messageLine(t.message)}`;
     }
     case 'ticket_hold': {
       if (typeof args.fire_proof === 'string' && args.fire_proof.trim()) {
