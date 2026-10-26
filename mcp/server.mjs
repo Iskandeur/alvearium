@@ -130,11 +130,11 @@ const TOOLS = [
       type: 'object',
       properties: {
         scope: { type: 'string', enum: ['session', 'repo', 'all'] },
-        status: { type: 'string', description: 'Comma-separated statuses, or "open" (default) / "closed" / "any"' },
+        status: { type: 'string', description: 'Comma-separated statuses, or "open" (default) / "closed" / "any" ("all" works too)' },
         assignee: ASSIGNEE,
         kind: { type: 'string', description: 'e.g. task, action, bug; "feedback" lists the feedback inbox (left out otherwise)' },
         priority: { type: 'string', description: 'P0, P1, P2, P3 (comma-separated), or "none"' },
-        label: { type: 'string' },
+        label: { type: 'string', description: 'One label, or several comma-separated (`labels` is accepted too)' },
         q: { type: 'string', description: 'Free text over title, body and comments' },
         limit: { type: 'number' },
       },
@@ -496,9 +496,13 @@ export async function callTool(name, args = {}, { backend, context, env = proces
     case 'ticket_list': {
       const scope = args.scope || 'session';
       const params = { limit: Math.min(Number(args.limit) || 50, 200) };
-      const status = args.status || 'open';
+      // "all" reads as "any status" (the board has no status called all); `query` / `labels` are the names callers guess for `q` / `label`.
+      const status = !args.status ? 'open' : args.status === 'all' ? 'any' : args.status;
       if (status !== 'any') params.status = status;
-      for (const k of ['assignee', 'kind', 'label', 'q', 'priority']) if (args[k]) params[k] = args[k];
+      const aliased = { ...args };
+      if (!aliased.q && aliased.query) aliased.q = aliased.query;
+      if (!aliased.label && aliased.labels) aliased.label = [aliased.labels].flat().join(',');
+      for (const k of ['assignee', 'kind', 'label', 'q', 'priority']) if (aliased[k]) params[k] = aliased[k];
       if (scope === 'session') {
         if (!context.session_id) return 'No current session known (the board has not seen this session yet). Use scope "repo" or "all".';
         params.session = context.session_id;

@@ -29,3 +29,15 @@ test('ticket_list says which board answered when it is empty', async () => {
   const backend = { source: 'local', list: async () => ({ tickets: [], total: 0 }) };
   assert.match(await callTool('ticket_list', { scope: 'all' }, { backend, context }), /No open tickets \(all\) on the local board/);
 });
+
+test('ticket_list passes `query` and `labels` like `q` and `label`, and reads status "all" as any', async () => {
+  const seen = [];
+  const backend = { source: 'local', list: async (p) => (seen.push(p), { tickets: [], total: 0 }) };
+  await callTool('ticket_list', { scope: 'all', query: 'deploy', labels: ['ci', 'urgent'], status: 'all' }, { backend, context });
+  await callTool('ticket_list', { scope: 'all', q: 'a', query: 'b', label: 'x', labels: ['y'] }, { backend, context });
+  assert.equal(seen[0].q, 'deploy');
+  assert.equal(seen[0].label, 'ci,urgent');
+  assert.equal('status' in seen[0], false, 'status "all" sends no status filter');
+  assert.equal(seen[1].q, 'a');
+  assert.equal(seen[1].label, 'x');
+});
