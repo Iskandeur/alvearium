@@ -310,6 +310,24 @@ test('SESSION_BOARD_STOP_STATUS=done: a finished turn closes the session ticket,
   assert.equal(evt('rm -rf'), undefined);
 });
 
+test('SESSION_BOARD_STOP_STATUS=ongoing: a finished turn leaves the session ticket in progress, a question still waits on the user', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb-stopongoing-'));
+  const env = { SESSION_BOARD_DIR: dir, SESSION_BOARD_STOP_STATUS: 'ongoing' };
+  await handleHook('UserPromptSubmit', { session_id: 'o1', cwd: dir, prompt: 'hello' }, { env });
+  await handleHook('Stop', { session_id: 'o1', cwd: dir, last_assistant_message: 'Here is the answer.' }, { env });
+  const s = await openStore(localDbPath(env));
+  const find = (st) => st.listTickets(parseFilters({ kind: 'session', archived: '1' })).tickets[0];
+  assert.equal(find(s).status, 'in_progress');
+  s.close();
+  await handleHook('Stop', { session_id: 'o1', cwd: dir, last_assistant_message: 'Done with part one. Which database should I use?' }, { env });
+  const s2 = await openStore(localDbPath(env));
+  assert.equal(find(s2).status, 'waiting_on_user');
+  s2.close();
+  const evt = (stopStatus) => sanitizeEvent({ session: { sessionId: 'x', stopStatus }, transition: { state: 'review' } }).identity.stopStatus;
+  assert.equal(evt('ongoing'), 'ongoing');
+  assert.equal(evt('bogus'), undefined);
+});
+
 test('SESSION_BOARD_STOP_STATUS unset: a finished turn still goes to review, for the user', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'sb-stopreview-'));
   const env = { SESSION_BOARD_DIR: dir };
