@@ -1085,7 +1085,7 @@ as `/#token=<token>`, the browser remembers it); `GET /healthz` answers without 
 | Route | |
 | :- | :- |
 | `GET /api/tickets` | list, newest first, paginated (`limit` ≤ 500, `offset`) |
-| `GET /api/tickets/board` | the same filters, grouped in board columns |
+| `GET /api/tickets/board` | the same filters, grouped in board columns (200 cards per column, 30 in Done; `limit` caps each column, the counts stay exact) |
 | `GET /api/tickets/next` | open, unblocked work by priority → manual rank → age (same filters), plus the `blocked` count |
 | `POST /api/tickets/SB-12/move` | `{ before }` or `{ after }`: manual order |
 | `GET /api/stream` | Server-Sent Events: one `change` per change, a heartbeat every 15 s |

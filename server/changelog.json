@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.25",
+      "date": "2026-10-26",
+      "items": [
+        "The board opens and refreshes faster on a large board: the main view, the actor list and the filters answer in about a fifth of the time.",
+        "The count line above the board no longer downloads every card to show five numbers.",
+        "Long ticket lists read by agents no longer slow the page down while they run."
+      ]
+    },
+    {
       "version": "0.9.24",
       "date": "2026-10-25",
       "items": [
