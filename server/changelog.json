@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.29",
+      "date": "2026-10-27",
+      "items": [
+        "When Claude reads a ticket with a very long history, the answer now comes in numbered pages instead of being cut off by the client.",
+        "A page that is not the last one says what it leaves out and the exact call that reads the next one.",
+        "The short view of a ticket also says how many older entries, cut comments or body characters it hides."
+      ]
+    },
+    {
       "version": "0.9.28",
       "date": "2026-10-27",
       "items": [
