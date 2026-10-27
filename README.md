@@ -481,7 +481,8 @@ actor, each delivered once. The owner's comments are quoted as the owner's words
 comment is quoted as information from that author, to check, not an instruction. Only the linked ticket,
 never another one; an invited member's session is never linked. This does not change tags: a tag
 (`@session/…`) still reaches a session only from the owner's comments. Taking up a ticket, read it whole
-with `ticket_get` and `full: true` (the default view keeps the last 15 entries, comments shortened).
+with `ticket_get` and `full: true` (the default view keeps the last 15 entries, comments shortened, and says what it hides). A long history
+comes in pages of about 60,000 characters; the answer names the `from=N` that reads the next page.
 
 Pictures pasted into a comment are visible to the assistant (0.9.22): `ticket_get` lists each one under its
 comment (`attached: #84 capture.png (image/png, 117 KB, 1170x2532)`), and `ticket_attachment` with that `id`

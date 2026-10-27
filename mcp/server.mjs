@@ -195,12 +195,14 @@ const TOOLS = [
   {
     name: 'ticket_get',
     annotations: READS,
-    description: 'Show one ticket with its history and sub-tickets. Long comments are shortened in the history; pass full=true to get the whole body and every comment, complete. When you take up a ticket (a session opened on it, a ticket handed to you), read it with full=true first: the default view hides older comments.',
+    description: 'Show one ticket with its history and sub-tickets. Long comments are shortened in the history; pass full=true to get the whole body and every comment, complete. When you take up a ticket (a session opened on it, a ticket handed to you), read it with full=true first: the default view hides older comments. A long history comes in pages of about 60,000 characters: the answer says "NOT SHOWN" and gives the exact call (from=N) that reads the rest. Never rebuild a list from a cut answer: read the following pages.',
     inputSchema: {
       type: 'object',
       properties: {
         key: { type: 'string' },
-        full: { type: 'boolean', description: 'Default false: the last 15 history entries, comments cut at ~260 characters. true: the whole body and the whole history, every comment in full.' },
+        full: { type: 'boolean', description: 'Default false: the last 15 history entries, comments cut at ~260 characters. true: the whole body and the whole history, every comment in full, in pages when it is long.' },
+        from: { type: 'integer', minimum: 1, description: 'Page of the history, whole comments: the number of the first entry to show (1 = the oldest). Entries are numbered in the answer. The body only comes with the first page.' },
+        limit: { type: 'integer', minimum: 1, description: 'With from (or full): at most this many entries in the page.' },
       },
       required: ['key'],
     },
@@ -286,23 +288,43 @@ export function messageLine(m) {
   return `${m.direction === 'in' ? 'message from' : 'message to'} ${m.peer} on ${m.channel}${when}`;
 }
 
-export function describe(t, { full = false } = {}) {
+/** One answer never goes past this many characters of history: a longer one is paged, never cut by the client in silence. */
+export const PAGE_CHARS = 60000;
+
+export function describe(t, { full = false, from, limit, pageChars = PAGE_CHARS } = {}) {
+  const paged = full || from !== undefined || limit !== undefined;
+  const first = Math.max(1, Number.isInteger(from) ? from : 1);
   const out = [line(t)];
   if (t.parent_key) out.push(`parent: ${t.parent_key} ${t.parent_title || ''}`.trim());
   if (t.blocked_by?.length) out.push(`blocked by: ${t.blocked_by.map((b) => `${b.key} [${b.status}]`).join(', ')}`);
   if (t.blocking?.length) out.push(`blocks: ${t.blocking.map((b) => `${b.key} [${b.status}]`).join(', ')}`);
 
-  if (t.body) out.push('', markdownToTerminal(t.body, { ansi: true, max: full ? MAX_BODY_CHARS : 1800 }));
+  if (t.body && first === 1) {
+    const cutBody = !paged && t.body.length > 1800;
+    out.push('', markdownToTerminal(t.body, { ansi: true, max: paged ? MAX_BODY_CHARS : 1800 }));
+    if (cutBody) out.push(`[body cut at 1800 of ${t.body.length} characters: ticket_get key=${t.key} full=true reads it whole]`);
+  } else if (t.body) {
+    out.push('', `[body NOT SHOWN on this page (from=${first}): it comes with the first page, ticket_get key=${t.key} full=true]`);
+  }
 
   for (const l of t.links || []) out.push(`link: ${l.url}`);
   if (t.children?.length) out.push('', 'sub-tickets:', ...t.children.map((c) => '  ' + line(c)));
   if (t.events?.length) {
+    const total = t.events.length;
+    const start = paged ? Math.min(first, total + 1) : Math.max(1, total - 14);
+    const room = pageChars - out.join('\n').length;
+    let used = 0;
+    let shown = 0;
+    let cutComments = 0;
     out.push('', 'history:');
-    for (const e of full ? t.events : t.events.slice(-15)) {
+    if (start > 1) out.push(`  [${start - 1} earlier entries NOT SHOWN${paged ? ` (entries 1-${start - 1}): ticket_get key=${t.key} from=1` : `: ticket_get key=${t.key} full=true reads them`}]`);
+    for (let i = start - 1; i < total; i++) {
+      if (paged && shown >= (Number.isInteger(limit) ? limit : Infinity)) break;
+      const e = t.events[i];
       const actor = aName(e.actor, (t.actors || {})[e.actor]?.name);
       const target = e.target ? aName(e.target, (t.actors || {})[e.target]?.name) : '';
       const ts = new Date(e.at).toISOString().slice(0, 16).replace('T', ' ');
-      const body = e.text ? markdownToTerminal(e.text, { ansi: true, max: full ? MAX_COMMENT_CHARS : 260 }) : '';
+      const body = e.text ? markdownToTerminal(e.text, { ansi: true, max: paged ? MAX_COMMENT_CHARS : 260 }) : '';
       const what =
         e.type === 'comment'
           ? `comment:\n${body}`
@@ -311,9 +333,23 @@ export function describe(t, { full = false } = {}) {
           : e.from_status || e.to_status
             ? `${e.type} ${e.from_status ?? ''}→${e.to_status ?? ''}${body ? '\n' + body : ''}`
             : `${e.type}${body ? '\n' + body : ''}`;
-      out.push(`  ${ts} ${actor}${target ? ' → ' + target : ''}: ${what}`);
-      for (const a of Array.isArray(e.attachments) ? e.attachments : []) out.push(`    attached: ${attachedLine(a)}`);
+      const entry = [`  #${i + 1} ${ts} ${actor}${target ? ' → ' + target : ''}: ${what}`];
+      for (const a of Array.isArray(e.attachments) ? e.attachments : []) entry.push(`    attached: ${attachedLine(a)}`);
+      const text = entry.join('\n');
+      // One entry always comes (a page never stays empty); past the budget the page stops BEFORE the next one.
+      if (paged && shown > 0 && used + text.length > room) break;
+      out.push(text);
+      used += text.length + 1;
+      shown++;
+      if (!paged && e.text && e.text.length > 260) cutComments++;
     }
+    const last = start - 1 + shown;
+    if (last < total) {
+      out.push(`  [${total - last} later entries NOT SHOWN (entries ${last + 1}-${total}): ticket_get key=${t.key} full=true from=${last + 1}]`);
+    } else if (paged && start > total) {
+      out.push(`  [from=${first} is past the end: this ticket has ${total} entries]`);
+    }
+    if (cutComments) out.push(`  [${cutComments} comment(s) above cut at ~260 characters: ticket_get key=${t.key} full=true gives them whole]`);
   }
   return out.join('\n');
 }
@@ -467,7 +503,7 @@ export async function callTool(name, args = {}, { backend, context, env = proces
     }
     case 'ticket_get':
       try {
-        return describe(await backend.get(String(args.key)), { full: args.full === true });
+        return describe(await backend.get(String(args.key)), { full: args.full === true, from: Number.isInteger(args.from) ? args.from : undefined, limit: Number.isInteger(args.limit) ? args.limit : undefined });
       } catch (e) {
         // A 404 is ambiguous: the key may not exist, or this process may be reading another board than
         // the one the key lives on (no SESSION_BOARD_URL / token here: an empty local board).
