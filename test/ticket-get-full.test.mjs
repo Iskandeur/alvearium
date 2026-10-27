@@ -63,6 +63,17 @@ test('limit caps a page; one huge entry still comes alone', () => {
   assert.ok(describe(many(2, 5000), { full: true, pageChars: 100 }).includes('note-0'));
 });
 
+test('a page read with from alone gives whole comments, and a bodiless page says the body is elsewhere', () => {
+  const long = many(3, 1000);
+  const p = describe(long, { from: 2 });
+  assert.ok(p.includes('w'.repeat(1000)), 'comment whole, not cut at 260');
+  assert.match(p, /body NOT SHOWN on this page \(from=2\)/);
+  const empty = ticket('x');
+  empty.body = 'b';
+  empty.events = [];
+  assert.match(describe(empty, { from: 5 }), /body NOT SHOWN/);
+});
+
 test('the default view announces what it hides', () => {
   const t = many(20, 400);
   t.body = 'b'.repeat(3000);

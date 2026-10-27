@@ -303,6 +303,8 @@ export function describe(t, { full = false, from, limit, pageChars = PAGE_CHARS 
     const cutBody = !paged && t.body.length > 1800;
     out.push('', markdownToTerminal(t.body, { ansi: true, max: paged ? MAX_BODY_CHARS : 1800 }));
     if (cutBody) out.push(`[body cut at 1800 of ${t.body.length} characters: ticket_get key=${t.key} full=true reads it whole]`);
+  } else if (t.body) {
+    out.push('', `[body NOT SHOWN on this page (from=${first}): it comes with the first page, ticket_get key=${t.key} full=true]`);
   }
 
   for (const l of t.links || []) out.push(`link: ${l.url}`);
@@ -322,7 +324,7 @@ export function describe(t, { full = false, from, limit, pageChars = PAGE_CHARS 
       const actor = aName(e.actor, (t.actors || {})[e.actor]?.name);
       const target = e.target ? aName(e.target, (t.actors || {})[e.target]?.name) : '';
       const ts = new Date(e.at).toISOString().slice(0, 16).replace('T', ' ');
-      const body = e.text ? markdownToTerminal(e.text, { ansi: true, max: full ? MAX_COMMENT_CHARS : 260 }) : '';
+      const body = e.text ? markdownToTerminal(e.text, { ansi: true, max: paged ? MAX_COMMENT_CHARS : 260 }) : '';
       const what =
         e.type === 'comment'
           ? `comment:\n${body}`
