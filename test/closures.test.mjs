@@ -6,7 +6,8 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BULK_MIN, CLOSURES_READ_AS, closureRows, describeClosureRow, weekOf } from '../lib/closures.mjs';
+import { BULK_MIN, CLOSURES_FIGURE, CLOSURES_READ_AS, closureRows, describeClosureRow, weekOf } from '../lib/closures.mjs';
+import { figureCards } from '../lib/figures.mjs';
 import { openStore } from '../lib/store.mjs';
 import { createApp } from '../server/server.mjs';
 
@@ -138,10 +139,19 @@ test('GET /api/closures: read from the board history, with lines and the reading
     assert.equal(row.done.reopened_share, 0.5);
     assert.equal(body.lines[0], 'claude, week of 2026-10-19: 2 done, reopened 1 of 2 judged');
     assert.ok(body.read_as.length >= 4);
+    assert.equal(body.figure.id, 'closures', 'the card travels with the numbers');
+    assert.match(body.figure.notFor.join(' '), /ranking an agent.*Comparing two agents.*count alone/s);
     assert.equal((await fetch(`${base}/api/closures`)).status, 401, 'not for a stranger');
     assert.equal((await fetch(`${base}/api/closures`, { method: 'POST', headers: auth })).status, 405);
   } finally {
     server.close();
     store.close();
   }
+});
+
+test('the closures card is registered with the figures: measure, week clock, blind spots, not for grading, comparing, or a count alone', () => {
+  assert.equal(figureCards().closures, CLOSURES_FIGURE);
+  assert.match(CLOSURES_FIGURE.clock, /ISO week/);
+  assert.match(CLOSURES_FIGURE.clock, /7 days/);
+  assert.match(CLOSURES_FIGURE.fr.notFor.join(' '), /Noter ou classer.*Comparer deux agents.*nombre de fermetures seul/s);
 });

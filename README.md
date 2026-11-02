@@ -726,7 +726,10 @@ less than 7 days old and not reopened is counted, not judged. Closures made in b
 each within 5 minutes of the previous one) are counted apart in `done.bulk` and `done.regular`. `lines` has
 each row as one sentence, `read_as` the rules of the reading. Nothing is scored, ranked or graded from it, and
 the rows are sorted by week then name, never by a rate: read it next to the closures, and let someone other
-than the actor audit it. The calculation is `closureRows` in `lib/closures.mjs`.
+than the actor audit it. The calculation is `closureRows` in `lib/closures.mjs`, and so is its card
+(`CLOSURES_FIGURE`, returned as `figure`): what it measures, its clock (the ISO week, a 7-day window), what it
+does not see, and what it must not be used for (grading or ranking an agent, comparing two agents, reading a
+closure alone).
 
 ## Scores on the "Waiting on you" lane (0.5.12)
 

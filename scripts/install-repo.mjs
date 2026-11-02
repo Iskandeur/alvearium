@@ -40,7 +40,7 @@ const FILES = [
   'scripts/doctor.mjs',
   'scripts/ticket.mjs',
 ];
-/** Added after 0.3.3 (whose refresh script does not fetch them): never required. Keep new files here. */
+/** Added after 0.3.3 (whose refresh script does not fetch them): never required. Keep new files here. (lib/figures.mjs is required as soon as lib/roi.mjs is there, see the copy below.) */
 const OPTIONAL_FILES = new Set(['scripts/doctor.mjs', 'lib/attachment.mjs', 'lib/avatar.mjs', 'lib/figures.mjs', 'lib/hold.mjs', 'lib/query.mjs', 'lib/roi.mjs', 'lib/triage.mjs']);
 
 // event → async? (same choices as the plugin's hooks/hooks.json)
@@ -253,7 +253,8 @@ export function install(repo, { remove = false, local = true } = {}) {
     for (const f of FILES) {
       // A copy refreshed by an older cloud-refresh.sh lacks the files added since (its list is fixed):
       // an optional one is skipped rather than failing the whole copy.
-      if (OPTIONAL_FILES.has(f) && !existsSync(join(ROOT, f))) continue;
+      // lib/figures.mjs is optional only while lib/roi.mjs, which imports it, is absent too: never one without the other.
+      if (OPTIONAL_FILES.has(f) && !existsSync(join(ROOT, f)) && !(f === 'lib/figures.mjs' && existsSync(join(ROOT, 'lib/roi.mjs')))) continue;
       mkdirSync(dirname(join(target, f)), { recursive: true });
       copyFileSync(join(ROOT, f), join(target, f));
     }

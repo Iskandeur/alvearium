@@ -63,7 +63,7 @@ import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
 import { ATTACHMENT_MAX_BYTES, INLINE_TYPES, attachmentMaxBytes, checkAttachment, contentDisposition, humanSize } from '../lib/attachment.mjs';
 import { FIGURES_SLOT, figuresForPage } from '../lib/figures.mjs';
 import '../lib/roi.mjs';
-import { WEEK_MS, closureRows, describeClosureRow, weekOf } from '../lib/closures.mjs';
+import { CLOSURES_FIGURE, WEEK_MS, closureRows, describeClosureRow, weekOf } from '../lib/closures.mjs';
 import { inviteRoutes } from './invites.mjs';
 import { actionRoutes, loadActions } from './actions.mjs';
 import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib/accounts.mjs';
@@ -793,7 +793,7 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         const now = store.clock();
         const weeks = Math.min(Math.max(Math.trunc(Number(url.searchParams.get('weeks'))) || 8, 1), 104);
         const out = closureRows(store.statusEvents(Date.parse(`${weekOf(now - (weeks - 1) * WEEK_MS)}T00:00:00Z`)), { now, weeks });
-        return send(res, 200, { ...out, lines: out.rows.map(describeClosureRow) });
+        return send(res, 200, { ...out, lines: out.rows.map(describeClosureRow), figure: CLOSURES_FIGURE });
       }
       // 0.5.15: replies this reader has not read yet, and "I opened it" (any reader, viewers too).
       if (path === '/api/unread' && m === 'GET') {
