@@ -47,6 +47,7 @@
 //   GET  /api/roi                   lane scores posted by the installation: { summary, at, actor, stale, scores }
 //   PUT  /api/roi                   owner, or an agent in BOARD_JOB_ACTORS: { summary?, scores: [{ key, score, note?, badge? }] },
 //                                   replaces the snapshot (lib/roi.mjs); a snapshot older than 6 h is ignored
+//   GET  /api/closures              what became of each actor's closures per week (?weeks=8): { rows, lines, read_as }, no score
 //   GET  /api/actions               ticket actions declared by this installation (owner, admin; empty for others)
 //   POST /api/tickets/:key/actions/:id  owner, admin: run one (the server calls its webhook, see server/actions.mjs)
 import { createServer } from 'node:http';
@@ -62,6 +63,7 @@ import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
 import { ATTACHMENT_MAX_BYTES, INLINE_TYPES, attachmentMaxBytes, checkAttachment, contentDisposition, humanSize } from '../lib/attachment.mjs';
 import { FIGURES_SLOT, figuresForPage } from '../lib/figures.mjs';
 import '../lib/roi.mjs';
+import { CLOSURES_FIGURE, WEEK_MS, closureRows, describeClosureRow, weekOf } from '../lib/closures.mjs';
 import { inviteRoutes } from './invites.mjs';
 import { actionRoutes, loadActions } from './actions.mjs';
 import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib/accounts.mjs';
@@ -784,6 +786,14 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
         if (!can(auth, 'deleteSession')) return forbidden(res, 'delete a session', auth);
         const out = store.deleteSession(sm[1]);
         return send(res, out.session || out.tickets ? 200 : 404, out);
+      }
+      // 0.9.31: what became of each actor's closures, per week (lib/closures.mjs). Read only, anyone who reads the board.
+      if (path === '/api/closures') {
+        if (m !== 'GET') return send(res, 405, { error: 'method not allowed' });
+        const now = store.clock();
+        const weeks = Math.min(Math.max(Math.trunc(Number(url.searchParams.get('weeks'))) || 8, 1), 104);
+        const out = closureRows(store.statusEvents(Date.parse(`${weekOf(now - (weeks - 1) * WEEK_MS)}T00:00:00Z`)), { now, weeks });
+        return send(res, 200, { ...out, lines: out.rows.map(describeClosureRow), figure: CLOSURES_FIGURE });
       }
       // 0.5.15: replies this reader has not read yet, and "I opened it" (any reader, viewers too).
       if (path === '/api/unread' && m === 'GET') {
