@@ -2,6 +2,16 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.31",
+      "date": "2026-11-02",
+      "items": [
+        "New read-only closures view: for each actor and each week, the tickets moved to done and what became of them.",
+        "It shows the share reopened within 7 days and the share sent back from review, always with how many tickets it rests on.",
+        "Closures made in bulk (5 or more at once) are counted apart.",
+        "No score or ranking is drawn from it: it is there to be read next to the number of closures, never instead of it."
+      ]
+    },
+    {
       "version": "0.9.29",
       "date": "2026-10-27",
       "items": [

@@ -715,6 +715,19 @@ answer unblocks.
   and last update); if an agent or another tab touched it since, nothing is undone and the toast says
   so (`409`, `{ answer: 'undo', previous, expect }` on the same route).
 
+## What became of the closures (0.9.31)
+
+Counting closures rewards whoever closes fastest. `GET /api/closures?weeks=8` (anyone who reads the board)
+reads the status history the board already keeps and returns, per actor and per week (ISO week, UTC, named
+by its Monday): the tickets moved to **done**, the share **reopened within 7 days** (done → todo or
+in_progress), and the tickets moved to **review** with the share **sent back** (review → in_progress). A
+share always comes with its `n` and with `settled`, the part of `n` that can already be judged: a closure
+less than 7 days old and not reopened is counted, not judged. Closures made in bulk (5 or more by one actor,
+each within 5 minutes of the previous one) are counted apart in `done.bulk` and `done.regular`. `lines` has
+each row as one sentence, `read_as` the rules of the reading. Nothing is scored, ranked or graded from it, and
+the rows are sorted by week then name, never by a rate: read it next to the closures, and let someone other
+than the actor audit it. The calculation is `closureRows` in `lib/closures.mjs`.
+
 ## Scores on the "Waiting on you" lane (0.5.12)
 
 The board knows what your answer unblocks on the board itself; it cannot know what it is worth to the
