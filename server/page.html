@@ -803,6 +803,17 @@
     button.tag.roi { font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
     button.tag.roi:hover, button.tag.roi[aria-expanded="true"] { color: var(--roi); background: var(--roi-soft); box-shadow: inset 0 0 0 1px var(--roi); }
     .roiTap { margin: 8px 0 0 17px; padding: 6px 9px; border-radius: 8px; background: var(--roi-soft); color: var(--text); font-size: 12.5px; line-height: 1.4; }
+    /* 0.9.30: the card of a figure (lib/figures.mjs), inline under the badge and as a popover (figPop) */
+    .figCard { font-size: 12px; line-height: 1.4; color: var(--text); }
+    .figCard b { display: block; margin: 6px 0 2px; font-weight: 600; }
+    .figCard dl { margin: 0; }
+    .figCard dt { margin-top: 5px; color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+    .figCard dt.figNo { color: var(--danger); }
+    .figCard dd { margin: 1px 0 0; }
+    .figCard ul { margin: 1px 0 0; padding-left: 16px; }
+    #figPop { position: fixed; z-index: 60; max-width: min(360px, calc(100vw - 16px)); padding: 8px 11px 10px; border-radius: 10px; background: var(--card); border: 1px solid var(--line-strong); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22); }
+    #figPop .figCard b { margin-top: 0; }
+    [data-figure] { cursor: help; }
     .roiTap small { display: block; margin-top: 3px; color: var(--muted); font-size: 11.5px; }
     .roiNote { margin: -4px 8px 10px; padding: 7px 10px; border-radius: 8px; background: var(--roi-soft); color: var(--text); font-size: 12.5px; line-height: 1.4; }
     .roiNote b { color: var(--roi); font-weight: 600; margin-right: 4px; }
@@ -1420,6 +1431,10 @@
       'also {v} since your last visit': 'et la {v} depuis ta dernière visite',
       'also {n} earlier versions since your last visit': 'et {n} versions précédentes depuis ta dernière visite',
       'How is this computed?': 'Comment est-ce calculé ?',
+      'Measures': 'Ce que ça mesure',
+      'Clock starts': "L'horloge part de",
+      'Does not see': 'Ne voit pas',
+      'Not for': 'À ne pas utiliser pour',
       'Posted by {by}': 'Posté par {by}',
       'Posted by {by}, {when}': 'Posté par {by}, {when}',
       'Last posted by {by}, {on}': 'Dernier envoi par {by}, {on}',
@@ -2201,7 +2216,7 @@
       /** The card's badge: a button, so a tap shows the reason on a phone (roiTap); the title stays for a mouse. */
       function roiBadge(t) {
         const k = esc(t.key), open = roiOpen.has(t.key);
-        return `<button type="button" class="tag roi" data-act="roiNote" data-key="${k}" aria-expanded="${open}" aria-controls="roiTap-${k}" title="${esc(roiTitle(t))}" aria-label="⚡ ${esc(roiText(t))}, ${esc(ROI_TEXT.badgeLabel)}: ${esc(t.roi.note || ROI_TEXT.fallbackNote)}">⚡ ${esc(roiText(t))}</button>`;
+        return `<button type="button" class="tag roi" data-act="roiNote" data-key="${k}" aria-expanded="${open}" data-figure="roi" aria-controls="roiTap-${k}" title="${esc(roiTitle(t))}" aria-label="⚡ ${esc(roiText(t))}, ${esc(ROI_TEXT.badgeLabel)}: ${esc(t.roi.note || ROI_TEXT.fallbackNote)}">⚡ ${esc(roiText(t))}</button>`;
       }
       /** "How is this computed?" under the lane line: who posted it, whose unit pt is, which way is better, why it moves. */
       function roiHow(by, when) {
@@ -2214,12 +2229,12 @@
       function roiTap(t) {
         if (t.column !== 'waiting' || !t.roi) return '';
         const k = esc(t.key);
-        return `<div class="roiTap" id="roiTap-${k}"${roiOpen.has(t.key) ? '' : ' hidden'}>${esc(t.roi.note || ROI_TEXT.fallbackNote)}<small>${esc(ROI_DEFINITION)}</small></div>`;
+        return `<div class="roiTap" id="roiTap-${k}"${roiOpen.has(t.key) ? '' : ' hidden'}>${esc(t.roi.note || ROI_TEXT.fallbackNote)}<small>${esc(ROI_DEFINITION)}</small>${figHtml('roi')}</div>`;
       }
       /** The open ticket's line: the title for a mouse, the same words for a screen reader (a title alone is not read). */
       function roiLine(t) {
         if (!t.roi || !isOpen(t)) return '';
-        return `<div class="roiLine" title="${esc(roiTitle(t))}"><span class="tag roi">⚡ ${esc(roiText(t))}</span><span>${esc(t.roi.note || ROI_TEXT.fallbackNote)}<span class="vh">. ${esc(ROI_DEFINITION)}</span></span></div>`;
+        return `<div class="roiLine" title="${esc(roiTitle(t))}"><span class="tag roi" data-figure="roi" tabindex="0">⚡ ${esc(roiText(t))}</span><span>${esc(t.roi.note || ROI_TEXT.fallbackNote)}<span class="vh">. ${esc(ROI_DEFINITION)}</span></span></div>`;
       }
       /**
        * The note at the head of the lane: the installation's line and when the scores were posted, or, once the
@@ -2243,7 +2258,64 @@
         const on = since.title ? sinceTitle : '';
         return { stale: false, title: on ? tr('Posted by {by}, {when}', { by, when: on }) : tr('Posted by {by}', { by }), html: `<b>⚡</b>${text}${when}${roiHow(by, on)}` };
       }
+      // ---- figure cards (0.9.30, lib/figures.mjs): what a figure measures, its clock, what it misses, what not to use it for
+      /** The cards the server injects when it serves the page, by figure id; the text is written next to each figure's code. */
+      const FIGURES = /*FIGURES*/{};
+      /** One card, in the page's language (a card may carry its French in `fr`). Empty for a figure without a card. */
+      function figHtml(id) {
+        const c = Object.hasOwn(FIGURES, id) ? FIGURES[id] : null;
+        if (!c) return '';
+        const { title, measures, clock, blind, notFor } = tr.lang === 'fr' && c.fr ? c.fr : c;
+        const list = (a) => `<ul>${a.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>`;
+        return `<div class="figCard" role="note"><b>${esc(title)}</b><dl><dt>${esc(tr('Measures'))}</dt><dd>${esc(measures)}</dd><dt>${esc(tr('Clock starts'))}</dt><dd>${esc(clock)}</dd><dt>${esc(tr('Does not see'))}</dt><dd>${list(blind)}</dd><dt class="figNo">${esc(tr('Not for'))}</dt><dd>${list(notFor)}</dd></dl></div>`;
+      }
+      // ---- end of figure cards ----
       // ---- end of roi helpers ----
+      /**
+       * The card of any element marked data-figure="<id>": on hover (a mouse) and on keyboard focus it shows as a popover; a
+       * click or a tap pins it (a phone has no hover), Escape or a click elsewhere closes it. The ⚡ badge of a card
+       * (data-act="roiNote") shows the same card inline under it on a tap instead. Nothing is added per figure.
+       */
+      function figInit() {
+        let pop = null, from = null, pinned = false;
+        const hide = () => {
+          if (from?.dataset.figTitle !== undefined) { from.setAttribute('title', from.dataset.figTitle); delete from.dataset.figTitle; }
+          if (pop) pop.hidden = true;
+          from = null; pinned = false;
+        };
+        const show = (el, pin) => {
+          const html = figHtml(el.dataset.figure);
+          if (!html) return;
+          if (from === el) { pinned = pinned || pin; return; }
+          hide();
+          if (!pop) { pop = document.createElement('div'); pop.id = 'figPop'; document.body.appendChild(pop); }
+          pop.innerHTML = html;
+          pop.hidden = false;
+          // The native tooltip would say the same thing twice over the card.
+          if (el.hasAttribute('title')) { el.dataset.figTitle = el.getAttribute('title'); el.removeAttribute('title'); }
+          const r = el.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+          const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+          const top = r.bottom + 6 + h > window.innerHeight && r.top - 6 - h > 0 ? r.top - 6 - h : r.bottom + 6;
+          pop.style.left = left + 'px';
+          pop.style.top = Math.max(8, top) + 'px';
+          from = el; pinned = pin;
+        };
+        const fig = (e) => (e.target instanceof Element ? e.target.closest('[data-figure]') : null);
+        const canHover = () => window.matchMedia('(hover: hover)').matches;
+        document.addEventListener('mouseover', (e) => { const el = fig(e); if (el && canHover() && !pinned) show(el, false); });
+        document.addEventListener('mouseout', (e) => { const el = fig(e); if (el && el === from && !pinned && !el.contains(e.relatedTarget)) hide(); });
+        document.addEventListener('focusin', (e) => { const el = fig(e); if (el && !pinned) show(el, false); });
+        document.addEventListener('focusout', (e) => { const el = fig(e); if (el && el === from && !pinned) hide(); });
+        document.addEventListener('click', (e) => {
+          const el = fig(e);
+          if (!el) { if (pinned && !pop?.contains(e.target)) hide(); return; }
+          if (el.dataset.act === 'roiNote') return hide();
+          e.preventDefault();
+          e.stopPropagation();
+          if (from === el && pinned) hide(); else { hide(); show(el, true); }
+        }, true);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && from) hide(); });
+      }
       /** What we need from you, highlighted above the details of an open ticket. */
       function askBox(t) {
         const a = t.ask;
@@ -5408,6 +5480,7 @@
         if (!streamOn && !$('panel').hidden && state.ticket && !panelDirty && !$('panel').contains(document.activeElement)) openPanel(state.ticket, false);
       }, 15000);
       document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+      figInit();
     })();
   </script>
 </body>

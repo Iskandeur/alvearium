@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.30",
+      "date": "2026-11-02",
+      "items": [
+        "Hover, tap or focus the ⚡ badge: a short sheet says what the number measures, where its clock starts and what it does not see.",
+        "The sheet also says what the score must not be used for: adding it up, comparing two weeks, choosing your next move.",
+        "Any future figure gets the same sheet from one place, and a test fails if a figure shows up without it."
+      ]
+    },
+    {
       "version": "0.9.29",
       "date": "2026-10-27",
       "items": [
