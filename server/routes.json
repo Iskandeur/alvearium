@@ -22,6 +22,7 @@
     { "method": "DELETE", "path": "/api/tickets/:key/hold", "from": ["page", "clients"], "proxy": true, "example": "/api/tickets/ALV-1/hold", "note": "0.6.0: lift a hold by hand" },
     { "method": "POST", "path": "/api/holds/pr", "from": ["clients"], "proxy": true, "note": "0.6.0: a pull request moved { pr, state }; a webhook relay or a deployment tool posts it" },
     { "method": "GET", "path": "/api/unread", "from": ["page", "clients"], "proxy": true },
+    { "method": "GET", "path": "/api/closures", "from": ["clients"], "proxy": true, "note": "0.9.31: per actor and per week, closures with their reopen and send-back shares and n (read only; no score)" },
     { "method": "POST", "path": "/api/tickets/:key/seen", "from": ["page"], "proxy": true, "example": "/api/tickets/ALV-1/seen" },
     { "method": "POST", "path": "/api/tickets/:key/actions/:id", "from": ["page"], "proxy": true, "example": "/api/tickets/ALV-1/actions/claude-code" },
     { "method": "GET", "path": "/api/actions", "from": ["page"], "proxy": true },
