@@ -60,6 +60,8 @@ import { loadManifest, settingsReport, warnLines } from '../lib/settings.mjs';
 import { trustedActor } from '../lib/triage.mjs';
 import { AVATAR_MAX_BYTES, checkAvatar } from '../lib/avatar.mjs';
 import { ATTACHMENT_MAX_BYTES, INLINE_TYPES, attachmentMaxBytes, checkAttachment, contentDisposition, humanSize } from '../lib/attachment.mjs';
+import { FIGURES_SLOT, figuresForPage } from '../lib/figures.mjs';
+import '../lib/roi.mjs';
 import { inviteRoutes } from './invites.mjs';
 import { actionRoutes, loadActions } from './actions.mjs';
 import { Accounts, GRANTABLE_ROLES, OWNER_ID, SESSION_TTL_MS, can } from '../lib/accounts.mjs';
@@ -582,6 +584,8 @@ export function staleAfterSeconds(raw) {
 
 export function createApp({ token, agents = [], store, page, changelog = loadChangelog(), heartbeatMs = HEARTBEAT_MS, accounts = new Accounts(store), limiter = new Limiter(), trustProxy = false, extraRoutes = inviteRoutes(), ticketActions = null, settings = { missing: [] }, attachmentMax = ATTACHMENT_MAX_BYTES, staleAfter = STALE_AFTER_S, captureAssignee = 'claude' }) {
   const streams = new Set();
+  /** 0.9.30: the page with the figure cards (lib/figures.mjs) in its slot; a page without the slot is served as it is. */
+  const pageHtml = String(page).replace(FIGURES_SLOT, () => `/*FIGURES*/${figuresForPage()}`);
   /** End the live streams of whoever matches (a revoked member, a revoked session). */
   const cutStreams = (match) => {
     for (const s of [...streams]) {
@@ -625,7 +629,8 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
       if (path === '/' && req.method === 'GET') {
         // Not framed by another site: Members has buttons worth clickjacking (revoke, invite).
         res.setHeader('content-security-policy', "frame-ancestors 'self'");
-        res.setHeader('x-frame-options', 'SAMEORIGIN');        return send(res, 200, page, 'text/html; charset=utf-8');
+        res.setHeader('x-frame-options', 'SAMEORIGIN');
+        return send(res, 200, pageHtml, 'text/html; charset=utf-8');
       }
       if (!path.startsWith('/api/')) return send(res, 404, { error: 'not found' });
       const m = req.method;

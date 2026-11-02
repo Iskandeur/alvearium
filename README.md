@@ -749,6 +749,12 @@ kept them busy, ahead of your own errands, health or deadlines.
   ⚡ says what the score is on hover and to a screen reader. `GET /api/tickets/board` carries `roi: { score, note, badge }`
   on each lane card, `roi_summary: { text, at, actor }` and `roi_snapshot: { at, actor, scores, summary,
   stale }` (null when nothing was posted); `GET /api/tickets/SB-12` carries `roi`.
+- **Figure cards** (0.9.30): on hover, keyboard focus or tap (a phone has no hover), the ⚡ shows a short card:
+  what the number measures, where its clock starts, what it does not see, and what it must not be used for
+  (adding it up, comparing two weeks, choosing your next move). A card is written next to the code of its
+  figure (`ROI_FIGURE` in `lib/roi.mjs`) with `defineFigure` from `lib/figures.mjs`, and the page marks the
+  figure with `data-figure="<id>"`. The server fills the cards into the page when it serves it, so there is no
+  new route. `test/figures.test.mjs` fails when a marked figure has no card: a new number ships with its sheet.
 - **Stale**: a snapshot older than 6 hours is ignored (no badge, no line), so an installation that
   stops posting never leaves old scores on your cards. The lane says *Scores out of date* with when
   they were last posted, instead of letting them vanish without a word. Post again at each pass.
