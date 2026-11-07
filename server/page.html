@@ -2704,7 +2704,11 @@
         if (k === 'status') return [['open', 'Open'], ['todo', 'To do'], ['in_progress', 'In progress'], ['waiting_on_user', 'Waiting on you'], ['review', 'Review'], ['failed', 'Failed'], ['on_hold', 'On hold'], ['done', 'Done'], ['cancelled', 'Cancelled']].map(([v, l]) => o(v, tr(l)));
         if (k === 'assignee' || k === 'actor') {
           const all = (facets.actors || []).filter((a) => a.type !== 'system');
-          const { lasting, others } = runPicks(all.filter((a) => a.id !== 'user'), actorName);
+          // 0.9.31 (ALV-5317): the same sort as the detail's Assignee menu (assigneePicks). On a real board the bar's
+          // two filters still listed 92 to 94 entries. The current value always stays in the list.
+          const cur = state.f[k];
+          const { lasting, others } = assigneePicks(all.filter((a) => a.id !== 'user'), cur);
+          lasting.sort((a, b) => actorName(a.id).localeCompare(actorName(b.id)) || String(a.id).localeCompare(String(b.id)));
           const you = all.find((a) => a.id === 'user');
           const ao = (a) => o(a.id, (k === 'actor' && a.type === 'subagent' ? '↳ ' : '') + actorName(a.id), a.open || '');
           const head = k === 'assignee' ? [o('user', actorName('user'), you?.open || '')] : you ? [ao(you)] : [];
