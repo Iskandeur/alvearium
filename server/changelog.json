@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.32",
+      "date": "2026-11-07",
+      "items": [
+        "The Actor and Assignee filters in the bar are shorter: people and agents with a name or open work come first, a few recent runs sit under Others.",
+        "The actor you are already filtering by always stays in the list.",
+        "On a phone the two pickers no longer scroll through ninety names."
+      ]
+    },
+    {
       "version": "0.9.31",
       "date": "2026-11-02",
       "items": [

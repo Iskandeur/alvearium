@@ -84,7 +84,7 @@ test('filter bar: Actor and Assignee list lasting actors first, at most 50 numbe
   const f = page.indexOf('function options(k) {');
   const src = page.slice(f, page.indexOf('const PICK_LABEL', f));
   assert.match(src, /k === 'assignee' \|\| k === 'actor'/);
-  assert.match(src, /runPicks\(/);
+  assert.match(src, /assigneePicks\(/);
   assert.match(src, /<optgroup label="\$\{esc\(tr\('Others'\)\)\}">/);
 });
 
@@ -139,6 +139,27 @@ test('assignee menu: people and named or busy agents first, at most 5 others, th
   const r = assigneePicks(list, 'bot/job-3', now);
   assert.equal(r.others.at(-1).id, 'bot/job-3');
   assert.equal(r.others.length, 6);
+});
+
+test('filter bar: the Actor and Assignee pickers hold at most 25 entries on a 94-actor board (ALV-5317)', () => {
+  const i = page.indexOf('const ephemeralActor = (id) => {');
+  const j = page.indexOf('const actorIdTitle = ', i);
+  const assigneePicks = new Function(`${page.slice(i, j)}; return assigneePicks;`)();
+  const now = Date.UTC(2026, 10, 7);
+  const mk = (id, o = {}) => ({ id, type: 'agent', open: 0, name: null, last_seen: now - 3600e3, ...o });
+  const list = [
+    mk('me', { type: 'human', name: 'Me' }),
+    ...Array.from({ length: 8 }, (_, n) => mk(`bot/agent${n}`, { name: `Agent ${n}` })),
+    ...Array.from({ length: 85 }, (_, n) => mk(`bot/job-${n + 1}`, { last_seen: now - (200 - n) * 60e3 })),
+  ];
+  for (const cur of [undefined, 'bot/job-3']) {
+    const { lasting, others } = assigneePicks(list.filter((a) => a.id !== 'me'), cur, now);
+    assert.ok(lasting.length + others.length + 1 <= 25, 'with « you » on top, under 25');
+    if (cur) assert.ok([...lasting, ...others].some((a) => a.id === cur), 'the selected actor stays');
+  }
+  const f = page.indexOf('function options(k) {');
+  const src = page.slice(f, page.indexOf('const PICK_LABEL', f));
+  assert.match(src, /assigneePicks\(all\.filter\(\(a\) => a\.id !== 'user'\), state\.f\[k\]\)|assigneePicks\(all\.filter\(\(a\) => a\.id !== 'user'\), cur\)/);
 });
 
 test('mentions: @ inside a word is ignored', () => {
