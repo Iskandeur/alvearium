@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.33",
+      "date": "2026-11-13",
+      "items": [
+        "A sub-agent handing back its result no longer renames the session or counts as a new request from you.",
+        "A session whose first prompt is only an image is titled \"(image)\" instead of taking the title of the next turn.",
+        "The same hand-backs no longer count as a new request from you, so your own request stays the one on the ticket."
+      ]
+    },
+    {
       "version": "0.9.32",
       "date": "2026-11-07",
       "items": [
