@@ -209,3 +209,22 @@ test('the session title comes from the cleaned prompt', () => {
   const rec = applyTransition(null, t, { sessionId: 's' });
   assert.equal(rec.title, 'Lis · 📎 Guide.pdf');
 });
+
+test('a sub-agent hand-back is a background turn: it does not title the session', () => {
+  for (const prompt of ['<agent-message from="worker">done</agent-message>', '[Subagent hand-back] result: ok']) {
+    const t = classify('UserPromptSubmit', { prompt });
+    assert.equal(t.background, true);
+    assert.equal(t.title, undefined);
+    assert.equal(t.prompt, undefined);
+    assert.equal(applyTransition(null, t, { sessionId: 's' }).title, undefined);
+  }
+  assert.equal(classify('UserPromptSubmit', { prompt: 'what is an <agent-message>?' }).background, undefined);
+});
+
+test('an image-only first prompt is titled "(image)" and keeps it on the next turn', () => {
+  const first = classify('UserPromptSubmit', { prompt: '' });
+  assert.equal(first.title, '(image)');
+  let rec = applyTransition(null, first, { sessionId: 's' });
+  rec = applyTransition(rec, classify('UserPromptSubmit', { prompt: 'now fix it' }), { sessionId: 's' });
+  assert.equal(rec.title, '(image)');
+});
