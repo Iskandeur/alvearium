@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.35",
+      "date": "2026-11-17",
+      "items": [
+        "The installed app no longer sits in the way of the live updates: the board's stream and every request that changes something go straight to your server.",
+        "The app's description now covers Codex sessions as well as Claude Code.",
+        "Nothing else changes: the app still caches nothing and the board stays behind your token."
+      ]
+    },
+    {
       "version": "0.9.34",
       "date": "2026-11-17",
       "items": [

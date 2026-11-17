@@ -108,7 +108,7 @@ export function iconPng(size, scale = 0.8) {
 export const MANIFEST = {
   name: 'Alvearium',
   short_name: 'Alvearium',
-  description: 'The board of every Claude Code session.',
+  description: 'The board of every coding-agent session (Claude Code, Codex).',
   id: '/',
   start_url: '/',
   scope: '/',
@@ -122,12 +122,20 @@ export const MANIFEST = {
   ],
 };
 
-// Enough for Chrome to offer "Install app" (a fetch handler), and nothing more: every request goes
-// to the network as if the worker were not there. No cache, so nothing private is kept.
+// Enough for Chrome to offer "Install app" (a fetch handler), and nothing more. The worker leaves
+// the API, the live stream (SSE) and every non-GET request alone: it returns without respondWith, so
+// the browser handles them itself. Other GETs go to the network as if the worker were not there.
+// No cache, so nothing private is kept.
 export const SERVICE_WORKER = `// Alvearium: pass-through service worker (installability only, it caches nothing).
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
-self.addEventListener('fetch', (event) => event.respondWith(fetch(event.request)));
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+  if ((req.headers.get('accept') || '').includes('text/event-stream')) return;
+  if (new URL(req.url).pathname.startsWith('/api/')) return;
+  event.respondWith(fetch(req));
+});
 `;
 
 const cache = new Map();
@@ -148,10 +156,15 @@ const FILES = {
 };
 export const PWA_PATHS = Object.keys(FILES);
 
-/** Answers a GET/HEAD on one of the install files; false for any other request. No credentials asked. */
+/** Answers a GET/HEAD on one of the install files (405 for any other method); false for any other path. No credentials asked. */
 export function pwaRoute(req, res, path) {
   const f = FILES[path];
-  if (!f || (req.method !== 'GET' && req.method !== 'HEAD')) return false;
+  if (!f) return false;
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { allow: 'GET, HEAD', 'content-type': 'application/json' });
+    res.end('{"error":"method not allowed"}');
+    return true;
+  }
   const body = f[1]();
   res.writeHead(200, {
     'content-type': f[0],
