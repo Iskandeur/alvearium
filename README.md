@@ -1165,6 +1165,8 @@ Comma-separate several values: `?repo=acme/api&status=todo,in_progress&label=dep
 
 ### The web page
 
+**Install on a phone (0.9.34)**: HTTPS is required; menu ⋮ > *Install app* (Chrome on Android), *Add to Home Screen* on iOS. Behind Tailscale, `tailscale serve` gives you the HTTPS. The manifest, the service worker and the icons (`/manifest.webmanifest`, `/sw.js`, `/icon*.png`, `/apple-touch-icon.png`) answer without a token and hold nothing private; the service worker caches nothing. A reverse proxy with an allow-list must let those paths through too.
+
 Search box (words, or a query: see [Searching with a query](#searching-with-a-query-0100)), filter chips (click a repo, a session or a label on any card to filter on it), Board,
 Next and List views (the list is grouped by session) and the Feedback inbox, live updates, drag and
 drop in *To do* and *Next*, a side panel with the ticket's fields, description, sub-tickets,

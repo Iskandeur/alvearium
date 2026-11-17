@@ -51,6 +51,7 @@
 //   GET  /api/actions               ticket actions declared by this installation (owner, admin; empty for others)
 //   POST /api/tickets/:key/actions/:id  owner, admin: run one (the server calls its webhook, see server/actions.mjs)
 import { createServer } from 'node:http';
+import { pwaRoute } from './pwa.mjs';
 import { timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -628,6 +629,8 @@ export function createApp({ token, agents = [], store, page, changelog = loadCha
       const url = new URL(req.url, 'http://local');
       const path = url.pathname;
       if (path === '/healthz') return send(res, 200, { ok: true });
+      // Install-as-an-app files: public (no token), they hold only the logo and a name.
+      if (pwaRoute(req, res, path)) return;
       if (path === '/' && req.method === 'GET') {
         // Not framed by another site: Members has buttons worth clickjacking (revoke, invite).
         res.setHeader('content-security-policy', "frame-ancestors 'self'");
