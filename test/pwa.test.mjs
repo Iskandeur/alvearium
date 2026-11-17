@@ -35,6 +35,16 @@ test('install files answer without a token, the API stays locked', async () => {
     }
     assert.equal((await fetch(`${base}/apple-touch-icon.png`)).status, 200);
     assert.equal((await fetch(`${base}/icon.svg`)).status, 200);
+    // the worker never caches, and steps aside for the API, the live stream and non-GET requests
+    const swText = await (await fetch(`${base}/sw.js`)).text();
+    assert.ok(!swText.includes('caches.'));
+    assert.ok(swText.includes("'/api/'") && swText.includes('text/event-stream') && swText.includes("req.method !== 'GET'"));
+    // a write on a public path is never answered 200
+    for (const p of ['/manifest.webmanifest', '/sw.js', '/icon.svg', '/icon-192.png', '/icon-512.png', '/icon-maskable-512.png', '/apple-touch-icon.png']) {
+      const r = await fetch(base + p, { method: 'POST', body: '{}' });
+      assert.ok([401, 405].includes(r.status), `${p} POST -> ${r.status}`);
+    }
+    assert.ok(!/Claude Code session\.?$/.test(j.description) && /Codex/.test(j.description));
     // nothing else leaves the door
     assert.equal((await fetch(`${base}/api/tickets`)).status, 401);
     assert.equal((await fetch(`${base}/api/board`)).status, 401);
