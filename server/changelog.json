@@ -2,6 +2,15 @@
   "about": "What each version changes for the people who use the board, newest first. The page shows the current version's items once per browser (\"What's new\") and the whole list behind \"See all\". Write for users, 3 to 5 short items per version, no internal names.",
   "releases": [
     {
+      "version": "0.9.34",
+      "date": "2026-11-17",
+      "items": [
+        "You can install the board as an app on your phone: open it over HTTPS, then menu \u22ee > Install app.",
+        "The tab now has a real icon, and the installed app opens full screen with the dark theme's colors.",
+        "Nothing is cached by the app: the board's content is always read live from your server."
+      ]
+    },
+    {
       "version": "0.9.33",
       "date": "2026-11-13",
       "items": [
